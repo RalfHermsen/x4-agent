@@ -1,16 +1,21 @@
-"""Edits a value in an X4 savegame, writing the result to a new save file.
+"""Edits values in an X4 savegame, writing the result to a new save file.
 
 Deliberately narrow and deliberately non-destructive: it never overwrites the
 source, it writes a new save next to it, so the original stays loadable. Use it
 to set up a situation you want to test rather than playing towards it.
 
-Right now it does one thing: set a station manager's management skill. Skills in
-the save run 1 to 15 and the game shows them as 0 to 5 stars, so three points
-make one star (measured across 101,543 skill entries in a late-game save).
+Two edits are supported:
+
+* a station manager's management skill
+* the player's credits
+
+Skills in the save run 1 to 15 and the game shows them as 0 to 5 stars, so three
+points make one star (measured across 101,543 skill entries in a late-game save).
 
 Usage:
-    python edit_save.py --manager-skill 9 --station KYV-745
-    python edit_save.py --manager-skill 9 --station KYV-745 --out save_008
+    python edit_save.py --station KYV-745 --manager-skill 9
+    python edit_save.py --credits 10000000
+    python edit_save.py --add-credits 10000000 --label "10M test"
 """
 
 from __future__ import annotations
@@ -44,6 +49,45 @@ def set_save_name(xml: str, label: str) -> str:
     """
     return re.sub(r'(<save name=")[^"]*(")', lambda m: m.group(1) + label + m.group(2),
                   xml, count=1)
+
+
+def read_credits(xml: str) -> int:
+    m = re.search(r'<player[^>]*money="(\d+)"', xml)
+    if not m:
+        raise LookupError("no player money entry found in this save")
+    return int(m.group(1))
+
+
+def set_credits(xml: str, value: int) -> tuple[str, int]:
+    """Set the player's credits everywhere they are stored.
+
+    Credits live in two kinds of place: the `money` attribute of the player
+    entry in the save header, and the amount on the player faction's account,
+    which is referenced from several spots. Changing only the header makes the
+    number in the menu disagree with what you can actually spend.
+
+    The faction account is found by id rather than by value, because other
+    accounts can hold the same amount by coincidence.
+    """
+    before = read_credits(xml)
+
+    xml = re.sub(r'(<player[^>]*money=")\d+(")',
+                 lambda m: m.group(1) + str(value) + m.group(2), xml, count=1)
+
+    faction = re.search(r'<faction[^>]*id="player"[^>]*>', xml)
+    if not faction:
+        raise LookupError("no player faction found in this save")
+    account = re.search(r'<account id="(\[[^\]]+\])"',
+                        xml[faction.end():faction.end() + 4000])
+    if not account:
+        raise LookupError("the player faction has no account element")
+
+    account_id = re.escape(account.group(1))
+    xml, hits = re.subn(rf'(<account id="{account_id}" amount=")\d+(")',
+                        lambda m: m.group(1) + str(value) + m.group(2), xml)
+    if not hits:
+        raise LookupError("the player account carries no amount to change")
+    return xml, before
 
 
 def set_manager_skill(xml: str, station_code: str, value: int) -> tuple[str, str]:
@@ -82,37 +126,56 @@ def main() -> int:
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("save", nargs="?", help="source save; default is the newest")
-    parser.add_argument("--station", required=True, help="station ID code, e.g. KYV-745")
-    parser.add_argument("--manager-skill", type=int, required=True,
+    parser.add_argument("--station", help="station ID code, e.g. KYV-745")
+    parser.add_argument("--manager-skill", type=int,
                         help="new management value, 1 to 15 (3 points per star)")
+    parser.add_argument("--credits", type=int, help="set the player's credits to this")
+    parser.add_argument("--add-credits", type=int, help="add this many credits")
     parser.add_argument("--out", help="name of the new save, without extension")
     parser.add_argument("--label", help="display name shown in the load menu")
     args = parser.parse_args()
 
-    if not 1 <= args.manager_skill <= 15:
-        parser.error("management skill runs from 1 to 15")
+    if args.manager_skill is None and args.credits is None and args.add_credits is None:
+        parser.error("nothing to change; give --manager-skill, --credits or --add-credits")
+    if args.manager_skill is not None:
+        if not args.station:
+            parser.error("--manager-skill needs --station")
+        if not 1 <= args.manager_skill <= 15:
+            parser.error("management skill runs from 1 to 15")
 
     source = Path(args.save) if args.save else latest_save()
     print(f"source: {source}")
 
     xml = gzip.open(source, "rt", encoding="utf-8", errors="replace").read()
-    patched, before = set_manager_skill(xml, args.station, args.manager_skill)
-    label = args.label or f"{args.station} manager skill {args.manager_skill}"
-    patched = set_save_name(patched, label)
+    changes: list[str] = []
+
+    if args.manager_skill is not None:
+        xml, before = set_manager_skill(xml, args.station, args.manager_skill)
+        changes.append(f"manager of {args.station}: management {before} -> "
+                       f"{args.manager_skill} "
+                       f"({int(before) // SKILL_POINTS_PER_STAR} -> "
+                       f"{args.manager_skill // SKILL_POINTS_PER_STAR} stars)")
+
+    if args.credits is not None or args.add_credits is not None:
+        target = (args.credits if args.credits is not None
+                  else read_credits(xml) + args.add_credits)
+        xml, before_credits = set_credits(xml, target)
+        changes.append(f"credits: {before_credits:,} -> {target:,}")
+
+    label = args.label or "; ".join(changes)[:60]
+    xml = set_save_name(xml, label)
 
     name = args.out or next_save_name(source.parent)
-    target = source.parent / f"{name}.xml.gz"
-    if target.exists():
-        parser.error(f"{target} already exists; pick another --out")
+    target_file = source.parent / f"{name}.xml.gz"
+    if target_file.exists():
+        parser.error(f"{target_file} already exists; pick another --out")
 
-    with gzip.open(target, "wt", encoding="utf-8") as handle:
-        handle.write(patched)
+    with gzip.open(target_file, "wt", encoding="utf-8") as handle:
+        handle.write(xml)
 
-    stars_before = int(before) // SKILL_POINTS_PER_STAR
-    stars_after = args.manager_skill // SKILL_POINTS_PER_STAR
-    print(f"manager of {args.station}: management {before} -> {args.manager_skill} "
-          f"({stars_before} -> {stars_after} stars)")
-    print(f"written: {target}  (shows as \"{label}\" in the load menu)")
+    for line in changes:
+        print(line)
+    print(f'written: {target_file}  (shows as "{label}" in the load menu)')
     print("The original is untouched. Load the new save in game to use it.")
     return 0
 
