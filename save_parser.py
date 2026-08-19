@@ -56,6 +56,7 @@ class Asset:
     account: dict[str, str] = field(default_factory=dict)
     offers: list[Offer] = field(default_factory=list)
     production_queue: list[str] = field(default_factory=list)
+    manager: dict | None = None     # stations: the manager and their skill
 
 
 # --------------------------------------------------------------------------- #
@@ -157,6 +158,41 @@ def _offers(elem) -> list[Offer]:
     return out
 
 
+# Skill values in the save run 1 to 15, displayed in game as 0 to 5 stars.
+# Measured across 101,543 skill entries in a late-game save: every value from
+# 1 to 15 occurs and nothing above 15, so three points make a star.
+SKILL_POINTS_PER_STAR = 3
+
+
+def _manager(elem) -> dict | None:
+    """The station's manager and their management skill.
+
+    This matters more than it looks. The manager's skill sets how far the
+    station may look for trades: the rule of thumb is three stars for three
+    jumps of range. A one-star manager cannot see a supplier two sectors away,
+    and the trade orders it hands out simply fail. Without this field in the
+    sitrep the planner sees a stalled station and no reason for it.
+    """
+    post = elem.find("control/post[@id='manager']")
+    if post is None or not post.get("component"):
+        return None
+    wanted = post.get("component")
+
+    for npc in elem.iter("component"):
+        if npc.get("id") != wanted:
+            continue
+        skills = npc.find("traits/skills")
+        raw = _int(skills.get("management")) if skills is not None else None
+        return {
+            "code": npc.get("code"),
+            "name": npc.get("name"),
+            "management_raw": raw,
+            "management_stars": (raw // SKILL_POINTS_PER_STAR) if raw else 0,
+        }
+    return {"code": None, "name": None, "management_raw": None,
+            "management_stars": None}
+
+
 def _asset(elem, ancestors: list[dict]) -> Asset:
     """Build an Asset from a component element plus its ancestor chain."""
     place = {}
@@ -183,6 +219,7 @@ def _asset(elem, ancestors: list[dict]) -> Asset:
         account=dict(elem.find("account").items()) if elem.find("account") is not None else {},
     )
     if asset.cls == "station":
+        asset.manager = _manager(elem)
         asset.offers = _offers(elem)
         asset.production_queue = [q.get("ware") for q in elem.iter("queue")
                                   if q.get("ware")]

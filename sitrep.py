@@ -126,6 +126,14 @@ def build(state: dict) -> str:
         for st in stations:
             add(f"{st['code']} ({st['macro']}) in "
                 f"{gamedata.pretty(st['place'].get('sector'), names)}")
+            mgr = st.get("manager")
+            if mgr and mgr.get("management_raw") is not None:
+                stars = mgr["management_stars"]
+                warn = ("  TOO LOW: a station needs about 3 stars of management "
+                        "for 3 jumps of trade range" if stars < 3 else "")
+                add(f"  manager {mgr['code']}: management {stars} "
+                    f"star{'' if stars == 1 else 's'} "
+                    f"({mgr['management_raw']}/15).{warn}")
             if st["production_queue"]:
                 add(f"  produces: {', '.join(dict.fromkeys(st['production_queue']))}")
             for offer in st["offers"][:OFFER_LIMIT]:
