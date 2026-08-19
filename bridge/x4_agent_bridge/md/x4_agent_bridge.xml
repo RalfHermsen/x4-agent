@@ -105,7 +105,14 @@
         <!-- Vanilla explore order; id verified in
              aiscripts/order.move.recon.explore.xml -->
         <do_if value="event.param == 'explore %s'.[$agent_ship.idcode]">
-          <create_order object="$agent_ship" id="'Explore'"/>
+          <!-- default="true" makes this the ship's default behaviour rather
+               than a one-shot queue entry. A queued Explore finishes as soon
+               as it runs out of things to look at in the current sector, and
+               the ship silently falls back to Wait: the order was created, the
+               logbook said so, and a minute later there was nothing there.
+               As a default behaviour the ship keeps exploring whenever it has
+               nothing else to do, which is what the guidelines ask for. -->
+          <create_order object="$agent_ship" id="'Explore'" default="true"/>
           <write_to_logbook category="general"
             text="'[x4-agent] ORDER: %s sent to explore'.[$agent_ship.idcode]"/>
           <!-- The ticker does not pause the game; opening the logbook does. -->
@@ -141,7 +148,7 @@
         <do_for_each name="$agent_station" in="$agent_stations">
           <do_if value="event.param == 'assign %s %s trade'.[$agent_ship.idcode, $agent_station.idcode]">
             <set_value name="$agent_handled" exact="1"/>
-            <do_if value="$agent_ship.commander != $agent_station">
+            <do_if value="@$agent_ship.commander != $agent_station">
               <set_object_commander object="$agent_ship" commander="$agent_station"
                                     assignment="assignment.trade"/>
               <write_to_logbook category="general"
@@ -153,7 +160,7 @@
 
           <do_if value="event.param == 'assign %s %s mine'.[$agent_ship.idcode, $agent_station.idcode]">
             <set_value name="$agent_handled" exact="1"/>
-            <do_if value="$agent_ship.commander != $agent_station">
+            <do_if value="@$agent_ship.commander != $agent_station">
               <set_object_commander object="$agent_ship" commander="$agent_station"
                                     assignment="assignment.mining"/>
               <write_to_logbook category="general"
