@@ -95,6 +95,8 @@ explore_save.py       save format explorer (census, dump, find)
 evaluate.py           runs the full loop across many saves, Phase 1 definition of done
 deploy_bridge.py      copies the in-game bridge into the X4 installation
 bridge/               the X4 extension: MD script + Python pipe module
+agent.py              one full cycle: state, plan, validate, translate to commands
+executor.py           the whitelist: which actions may actually reach the game
 guidelines.md         the strategy rules the model follows (this is yours to edit)
 docs/                 what was measured, and what broke while measuring it
 vendor/               third-party code, pinned
