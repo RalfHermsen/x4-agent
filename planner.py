@@ -57,7 +57,7 @@ nothing and drop nothing; you only translate.
 
 Pick the fitting type per action:
 - assign_ship    : attach a ship to a station as miner or trader
-- set_behaviour  : put a ship on autotrade / automine / repeat_orders
+- set_behaviour  : put a ship on autotrade / automine / repeat_orders / explore
 - set_trade_rule : trade rule on a ware of a station
 - set_price      : pricing on a ware of a station
 - claim_ship     : claim an abandoned ship

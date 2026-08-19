@@ -208,7 +208,9 @@ class AssignShip(BaseModel):
 class SetBehaviour(BaseModel):
     type: Literal["set_behaviour"]
     ship_ref: str
-    behaviour: Literal["autotrade", "automine", "repeat_orders"]
+    # "explore" maps to the vanilla Explore order and is the first behaviour the
+    # bridge can actually execute; the others are still advice only.
+    behaviour: Literal["autotrade", "automine", "repeat_orders", "explore"]
     whitelist: list[str] = Field(default_factory=list, description="Permitted wares")
     range_jumps: Optional[int] = Field(None, description="Leash range in jumps")
     anchor_sector: Optional[str] = None

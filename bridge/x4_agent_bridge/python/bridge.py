@@ -5,22 +5,55 @@ X4 registers it through `md.Pipe_Server_Host.Register_Module`. The shape is
 copied from `sn_mod_support_apis/python/Time_API.py`: blocking read, write a
 response.
 
-Spike goal: prove the loop closes. X4 sends a minimal state every 30 seconds, we
-send back an answer that shows up in the in-game logbook. The planner is
-deliberately not wired in yet: if the loop breaks you want to know whether it is
-the pipe or the model, not both at once.
+The host process is where the agent lives, because it is the process that owns
+the pipe. So this module imports the repo and runs a full cycle: read the newest
+save, build a sitrep, ask the planner, validate, and translate whatever survives
+into commands the Mission Director understands.
+
+Configuration through environment variables, set when launching the host:
+
+    X4_AGENT_REPO      path to the repo (required to do anything but echo)
+    X4_AGENT_MODE      "advise" (default) or "execute"
+    X4_AGENT_INTERVAL  seconds between planning cycles, default 300
+    X4_OLLAMA_URL      where Ollama lives
+
+**Default is advise.** Nothing reaches the game unless you explicitly set
+execute mode. A planning cycle takes around 15 seconds and blocks the read loop
+while it runs, which is why it is throttled rather than run on every heartbeat.
 """
 
 import os
+import sys
+import time
 
 from X4_Python_Pipe_Server import Pipe_Server
 
 PIPE_NAME = "x4_agent"
 
-# Set X4_AGENT_TEST_ORDER to a ship's ID code (for example TJL-171) to send one
-# real order the first time state arrives. This is the Phase 2 write test: the
-# ship should visibly start exploring in game. Leave unset for advice only.
-TEST_ORDER_SHIP = os.environ.get("X4_AGENT_TEST_ORDER")
+REPO = os.environ.get("X4_AGENT_REPO")
+MODE = os.environ.get("X4_AGENT_MODE", "advise").lower()
+INTERVAL = float(os.environ.get("X4_AGENT_INTERVAL", "300"))
+
+_agent = None
+
+
+def load_agent():
+    """Import the repo lazily, so a broken setup still leaves the pipe working."""
+    global _agent
+    if _agent is not None or not REPO:
+        return _agent
+    if REPO not in sys.path:
+        sys.path.insert(0, REPO)
+    try:
+        import agent
+        _agent = agent
+        print(f"[x4-agent] agent loaded from {REPO}, mode={MODE}, "
+              f"interval={INTERVAL:.0f}s")
+    except Exception as exc:  # noqa: BLE001 - never take the pipe down over this
+        print(f"[x4-agent] could not load the agent from {REPO}: "
+              f"{type(exc).__name__}: {exc}")
+        _agent = False
+    return _agent
 
 
 def parse_state(message: str) -> dict:
@@ -36,31 +69,48 @@ def parse_state(message: str) -> dict:
     return out
 
 
-def decide(state: dict, previous: dict) -> str | None:
-    """Return something to say, or None to stay silent.
+def run_cycle(pipe) -> None:
+    """Plan once, and send the commands if we are allowed to."""
+    agent = load_agent()
+    if not agent:
+        return
 
-    Anything written back lands in the player's logbook, so a reply on every
-    heartbeat turns the logbook into a wall of identical lines. Only speak when
-    the state actually changed. The planner call goes here later.
-    """
-    if not state:
-        return "bridge: unrecognised message"
-    if state.get("money") == previous.get("money"):
-        return None
-    # Note: player.money from the Mission Director is in hundredths of a credit,
-    # unlike the money field in the savegame. Convert at the edge.
-    credits = int(state["money"]) / 100 if state.get("money", "").isdigit() else "?"
-    return f"bridge ok: capital {credits:,.0f} Cr, planner not connected yet"
+    try:
+        result = agent.cycle()
+    except Exception as exc:  # noqa: BLE001 - a failed cycle must not kill the loop
+        print(f"[x4-agent] cycle failed: {type(exc).__name__}: {exc}")
+        return
+
+    commands = result["commands"]
+    print(f"[x4-agent] cycle done in {result['seconds']:.1f}s: "
+          f"{len(result['valid'])} valid actions, {len(commands)} executable, "
+          f"{len(result['rejected'])} rejected")
+
+    if not commands:
+        pipe.Write("agent: nothing to execute this cycle")
+        return
+
+    if MODE != "execute":
+        print(f"[x4-agent] advise mode, NOT sending: {commands}")
+        pipe.Write(f"agent (advice only): {'; '.join(commands)}")
+        return
+
+    for command in commands:
+        print(f"[x4-agent] sending: {command}")
+        pipe.Write(command)
 
 
 def main(args):
-    print(f"[x4-agent] bridge starting, pipe {PIPE_NAME}")
+    print(f"[x4-agent] bridge starting, pipe {PIPE_NAME}, mode {MODE}")
+    if MODE == "execute":
+        print("[x4-agent] EXECUTE MODE: validated commands will reach the game")
+    load_agent()
+
     pipe = Pipe_Server(PIPE_NAME)
     pipe.Connect()
     print("[x4-agent] X4 connected")
 
-    previous: dict = {}
-    order_sent = False
+    last_cycle = 0.0
     while 1:
         message = pipe.Read()
         # Log before filtering out pings. If you only ever see 'state' and never
@@ -72,18 +122,11 @@ def main(args):
             # The Server_Reader pings until connected; no reply expected.
             continue
 
-        state = parse_state(message)
-
-        # Phase 2 write test: one real order, once.
-        if state and TEST_ORDER_SHIP and not order_sent:
-            command = f"explore {TEST_ORDER_SHIP}"
-            print(f"[x4-agent] sending order: {command}")
-            pipe.Write(command)
-            order_sent = True
-            previous = state
+        if not parse_state(message):
             continue
 
-        reply = decide(state, previous)
-        previous = state or previous
-        if reply:
-            pipe.Write(reply)
+        now = time.monotonic()
+        if now - last_cycle < INTERVAL:
+            continue
+        last_cycle = now
+        run_cycle(pipe)
