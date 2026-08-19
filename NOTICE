@@ -1,0 +1,17 @@
+Third-party components
+======================
+
+vendor/X4_Python_Pipe_Server
+----------------------------
+From https://github.com/bvbohnen/x4-projects (SirNukes' Mod Support APIs),
+MIT licensed by its own authors. Fetched from master on 2026-08-19 and
+committed here to pin the version.
+
+This is the named-pipe host that lets an external process talk to a running
+X4: Foundations. It is the component this whole project is built on, and the
+credit for it belongs to that project.
+
+Local modification: `permissions.json` has the entry `x4_agent_bridge` added,
+because the host only loads Python modules from extensions listed there.
+
+See vendor/README.md for details.

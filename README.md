@@ -156,7 +156,7 @@ Fork it, take the parts you want, and run with it.
 
 ## Licence
 
-MIT, see [LICENSE](LICENSE).
+MIT, see [LICENSE](LICENSE). Third-party components are listed in [NOTICE](NOTICE).
 
 The vendored pipe server under [vendor/](vendor/) is MIT licensed and belongs to
 [bvbohnen/x4-projects](https://github.com/bvbohnen/x4-projects). That project
