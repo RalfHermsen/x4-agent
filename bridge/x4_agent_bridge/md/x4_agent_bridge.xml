@@ -105,18 +105,41 @@
         <!-- Vanilla explore order; id verified in
              aiscripts/order.move.recon.explore.xml -->
         <do_if value="event.param == 'explore %s'.[$agent_ship.idcode]">
-          <!-- default="true" makes this the ship's default behaviour rather
-               than a one-shot queue entry. A queued Explore finishes as soon
-               as it runs out of things to look at in the current sector, and
-               the ship silently falls back to Wait: the order was created, the
-               logbook said so, and a minute later there was nothing there.
-               As a default behaviour the ship keeps exploring whenever it has
-               nothing else to do, which is what the guidelines ask for. -->
-          <create_order object="$agent_ship" id="'Explore'" default="true"/>
+          <!-- Explore needs a target. Every <location> branch in
+               aiscripts/order.move.recon.explore.xml requires either
+               $destination or $targetspace, so an order created without one has
+               no area to explore and ends the instant it starts. That looks
+               exactly like the command never arriving: the logbook line is
+               written, and a minute later the ship carries no order at all.
+
+               So pick a sector the player has not seen yet, within a few gate
+               jumps. find_sector_in_range counts in jumps, and isknown says
+               whether the player knows the sector. If everything nearby is
+               already known, fall back to the ship's own sector: a sweep there
+               still turns up lockboxes, abandoned ships and station trade
+               offers.
+
+               default="true" makes it the ship's default behaviour rather than
+               a one-shot queue entry, which is what the guidelines ask for: an
+               idle scout should go back to exploring by itself. -->
+          <find_sector_in_range name="$agent_nearby" object="$agent_ship"
+                                mindistance="0" maxdistance="3" multiple="true"/>
+          <set_value name="$agent_target" exact="$agent_ship.sector"/>
+          <set_value name="$agent_found" exact="0"/>
+          <do_for_each name="$agent_sector" in="$agent_nearby">
+            <do_if value="$agent_found == 0 and not $agent_sector.isknown">
+              <set_value name="$agent_target" exact="$agent_sector"/>
+              <set_value name="$agent_found" exact="1"/>
+            </do_if>
+          </do_for_each>
+
+          <create_order object="$agent_ship" id="'Explore'" default="true">
+            <param name="targetspace" value="$agent_target"/>
+          </create_order>
           <write_to_logbook category="general"
-            text="'[x4-agent] ORDER: %s sent to explore'.[$agent_ship.idcode]"/>
+            text="'[x4-agent] ORDER: %s exploring %s'.[$agent_ship.idcode, $agent_target.knownname]"/>
           <!-- The ticker does not pause the game; opening the logbook does. -->
-          <show_notification text="'[x4-agent] %s sent to explore'.[$agent_ship.idcode]"/>
+          <show_notification text="'[x4-agent] %s exploring %s'.[$agent_ship.idcode, $agent_target.knownname]"/>
           <set_value name="$agent_handled" exact="1"/>
         </do_if>
 
