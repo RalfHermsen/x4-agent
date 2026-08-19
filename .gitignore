@@ -26,3 +26,6 @@ extracted/
 
 # lokale parser-output
 state*.json
+
+# agent cycle log
+logs/

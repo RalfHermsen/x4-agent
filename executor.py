@@ -119,6 +119,15 @@ def to_commands(actions: list, state: dict | None = None) -> tuple[list[str], li
             continue
 
         command = builder(action)
+
+        # One ship, one order. The model has emitted "put ASO-629 on autotrade"
+        # and "assign ASO-629 to KYV-745" in the same plan; sending both would
+        # have the second silently undo the first. Priority order decides.
+        ship = getattr(action, "ship_ref", None)
+        if ship and any(c.split()[1] == ship for c in commands if len(c.split()) > 1):
+            skipped.append((action, f"conflicts with an order already queued for {ship}"))
+            continue
+
         if command in commands:
             # The model happily emits the same action twice with different
             # reasons ("buy energycells", "buy water"). One command is enough.

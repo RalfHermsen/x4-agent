@@ -108,6 +108,8 @@
           <create_order object="$agent_ship" id="'Explore'"/>
           <write_to_logbook category="general"
             text="'[x4-agent] ORDER: %s sent to explore'.[$agent_ship.idcode]"/>
+          <!-- The ticker does not pause the game; opening the logbook does. -->
+          <show_notification text="'[x4-agent] %s sent to explore'.[$agent_ship.idcode]"/>
           <set_value name="$agent_handled" exact="1"/>
         </do_if>
 
@@ -120,6 +122,8 @@
           <create_order object="$agent_ship" id="'TradeRoutine'"/>
           <write_to_logbook category="general"
             text="'[x4-agent] ORDER: %s put on autotrade'.[$agent_ship.idcode]"/>
+          <!-- The ticker does not pause the game; opening the logbook does. -->
+          <show_notification text="'[x4-agent] %s put on autotrade'.[$agent_ship.idcode]"/>
           <set_value name="$agent_handled" exact="1"/>
         </do_if>
 
@@ -142,6 +146,8 @@
                                     assignment="assignment.trade"/>
               <write_to_logbook category="general"
                 text="'[x4-agent] ORDER: %s now trades for %s'.[$agent_ship.idcode, $agent_station.idcode]"/>
+              <!-- The ticker does not pause the game; opening the logbook does. -->
+              <show_notification text="'[x4-agent] %s now trades for %s'.[$agent_ship.idcode, $agent_station.idcode]"/>
             </do_if>
           </do_if>
 
@@ -152,6 +158,8 @@
                                     assignment="assignment.mining"/>
               <write_to_logbook category="general"
                 text="'[x4-agent] ORDER: %s now mines for %s'.[$agent_ship.idcode, $agent_station.idcode]"/>
+              <!-- The ticker does not pause the game; opening the logbook does. -->
+              <show_notification text="'[x4-agent] %s now mines for %s'.[$agent_ship.idcode, $agent_station.idcode]"/>
             </do_if>
           </do_if>
         </do_for_each>

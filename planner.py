@@ -82,7 +82,7 @@ executable: %s. The rest is recorded as advice."""
 
 
 def _chat(model: str, messages: list[dict], schema: dict | None,
-          timeout: float = 600.0) -> tuple[str, float]:
+          temperature: float = 0.2, timeout: float = 600.0) -> tuple[str, float]:
     """One Ollama call. With a schema the output is grammar-constrained."""
     payload = {
         "model": model,
@@ -93,7 +93,7 @@ def _chat(model: str, messages: list[dict], schema: dict | None,
         # guidelines.md is around 3.5k tokens and the sitrep grows with the
         # game. Ollama truncates silently on overflow, and what falls off the
         # front is exactly the guidelines.
-        "options": {"temperature": 0.2, "num_ctx": 16384},
+        "options": {"temperature": temperature, "num_ctx": 16384},
     }
     if schema:
         payload["format"] = schema
@@ -112,11 +112,17 @@ def _chat(model: str, messages: list[dict], schema: dict | None,
 
 
 def reason(report: str, guidelines: str, model: str) -> tuple[str, float]:
-    """Call 1: reason freely, no schema."""
+    """Call 1: reason freely, no schema.
+
+    Temperature 0 here too. Sampling made the agent act only sometimes: on an
+    unchanged game state one run proposed attaching the trader to the station
+    and the next proposed nothing executable at all. An agent that touches a
+    live game should be boring and repeatable, so the variance buys nothing.
+    """
     return _chat(model, [
         {"role": "system", "content": REASON_SYSTEM},
         {"role": "user", "content": f"# GUIDELINES\n{guidelines}\n\n{report}"},
-    ], schema=None)
+    ], schema=None, temperature=0.0)
 
 
 def extract(analysis: str, report: str, model: str) -> tuple[PlannerResponse, float]:
@@ -125,11 +131,15 @@ def extract(analysis: str, report: str, model: str) -> tuple[PlannerResponse, fl
     The prompt names the currently executable action types. That is information,
     not steering: the analysis is unchanged, only the mapping onto a type is
     guided, so an intent the body can perform does not land in a type it cannot.
+
+    Temperature 0 here. This call translates, it does not invent, and sampling
+    made the agent inconsistent: the same analysis landed on `assign_ship` one
+    run and `set_behaviour(repeat_orders)` the next, so it acted only sometimes.
     """
     content, elapsed = _chat(model, [
         {"role": "system", "content": EXTRACT_SYSTEM % executor.describe()},
         {"role": "user", "content": f"{report}\n\n# ANALYSIS\n{analysis}"},
-    ], schema=PlannerResponse.model_json_schema())
+    ], schema=PlannerResponse.model_json_schema(), temperature=0.0)
     return PlannerResponse.model_validate_json(content), elapsed
 
 

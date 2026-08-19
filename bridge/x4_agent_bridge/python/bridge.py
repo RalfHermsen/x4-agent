@@ -15,11 +15,17 @@ Configuration through environment variables, set when launching the host:
     X4_AGENT_REPO      path to the repo (required to do anything but echo)
     X4_AGENT_MODE      "advise" (default) or "execute"
     X4_AGENT_INTERVAL  seconds between planning cycles, default 300
+    X4_AGENT_LOG       file to append each cycle to, default <repo>/logs/agent.log
     X4_OLLAMA_URL      where Ollama lives
 
 **Default is advise.** Nothing reaches the game unless you explicitly set
 execute mode. A planning cycle takes around 15 seconds and blocks the read loop
 while it runs, which is why it is throttled rather than run on every heartbeat.
+
+Where to watch it: opening the in-game logbook pauses the game, so it is a poor
+place to follow the agent. Orders therefore also go to the message ticker, which
+does not pause, and the full reasoning goes to the log file, which you can tail
+on a second screen.
 """
 
 import os
@@ -33,6 +39,7 @@ PIPE_NAME = "x4_agent"
 REPO = os.environ.get("X4_AGENT_REPO")
 MODE = os.environ.get("X4_AGENT_MODE", "advise").lower()
 INTERVAL = float(os.environ.get("X4_AGENT_INTERVAL", "300"))
+LOG_PATH = os.environ.get("X4_AGENT_LOG")
 
 _agent = None
 
@@ -54,6 +61,33 @@ def load_agent():
               f"{type(exc).__name__}: {exc}")
         _agent = False
     return _agent
+
+
+def log_file():
+    if LOG_PATH:
+        return LOG_PATH
+    return os.path.join(REPO, "logs", "agent.log") if REPO else None
+
+
+def log_cycle(agent, result) -> None:
+    """Append the whole cycle to a file, for watching outside the game."""
+    path = log_file()
+    if not path:
+        return
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        header = "=" * 70
+        stamp = time.strftime("%Y-%m-%d %H:%M:%S")
+        parts = [
+            "", header, stamp, header,
+            result["sitrep"], "",
+            "# REASONING", result["analysis"], "",
+            agent.render(result), "",
+        ]
+        with open(path, "a", encoding="utf-8") as handle:
+            handle.write(os.linesep.join(parts))
+    except Exception as exc:  # noqa: BLE001 - logging must never break the loop
+        print(f"[x4-agent] could not write the log: {type(exc).__name__}: {exc}")
 
 
 def parse_state(message: str) -> dict:
@@ -81,6 +115,8 @@ def run_cycle(pipe) -> None:
         print(f"[x4-agent] cycle failed: {type(exc).__name__}: {exc}")
         return
 
+    log_cycle(agent, result)
+
     commands = result["commands"]
     print(f"[x4-agent] cycle done in {result['seconds']:.1f}s: "
           f"{len(result['valid'])} valid actions, {len(commands)} executable, "
@@ -104,6 +140,7 @@ def main(args):
     print(f"[x4-agent] bridge starting, pipe {PIPE_NAME}, mode {MODE}")
     if MODE == "execute":
         print("[x4-agent] EXECUTE MODE: validated commands will reach the game")
+    print(f"[x4-agent] cycle log: {log_file() or 'disabled'}")
     load_agent()
 
     pipe = Pipe_Server(PIPE_NAME)
