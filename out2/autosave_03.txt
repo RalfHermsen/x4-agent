@@ -1,0 +1,49 @@
+### autosave_03.xml.gz
+
+# SITUATION
+Playtime: 1220s. Capital: 200,000 Cr.
+Owned: 1 station(s), 2 ship(s).
+
+# OWN STATIONS
+KYV-745 (station_gen_factory_base_01_macro) in Hewa's Twin I
+  produces: sunriseflowers
+  buys energycells at 22 Cr (stock 0, short 1485)
+  sells sunriseflowers at 112 Cr (stock 0)
+  buys water at 74 Cr (stock 0, short 3960)
+
+# FLEET (2 ships)
+TJL-171 ship_s (ship_tel_s_scout_01_a_macro): IDLE, docked at KYV-745, software_trademk1
+ASO-629 ship_m (ship_tel_m_trans_container_01_a_macro): IDLE, docked at KYV-745
+
+# KNOWN MARKET
+Stations known to us that belong to other factions: 3.
+Best margins within what we know (per unit):
+  majadust: buy 208 at XPP-596 (stock 4500) -> sell 573 at AHQ-469, margin 365 Cr
+  spacefuel: buy 133 at XPP-596 (stock 22039) -> sell 367 at AHQ-469, margin 234 Cr
+  dronecomponents: buy 914 at XPP-596 (stock 3045) -> sell 1028 at AHQ-469, margin 114 Cr
+  smartchips: buy 57 at XPP-596 (stock 22932) -> sell 63 at AHQ-469, margin 6 Cr
+
+# ATTENTION
+Idle ships: TJL-171, ASO-629.
+KYV-745 needs 1485 energycells and currently has none.
+KYV-745 needs 3960 water and currently has none.
+
+# REASONING
+The current capital (200,000 Cr) places the player in **Phase B: passive income**. The primary objective is to stabilize the existing production at KYV-745 by addressing its critical shortages of energycells and water.
+
+1. **Assign ASO-629 to a Repeat Order loop for energycells** (KYV-745) to resolve the immediate shortage of 1485 energycells, as per Phase B/Standing Rule 5 (Repeat Orders).
+2. **Assign TJL-171 to a Repeat Order loop for water** (KYV-745) to address the shortage of 3960 water, ensuring the station can continue production, as per Phase B/Standing Rule 5 (Repeat Orders).
+3. **Set ASO-629 and TJL-171 to "Defend" or "Intercept" roles** if any hostile activity is detected in Hewa's Twin I, though currently they should focus on logistics to reach the next capital threshold, as per Section 9 (Combat doctrine).
+
+# ADVICE (gemma4:26b-a4b-it-qat, 6.8s reasoning + 6.0s structuring)
+
+The current capital (200,000 Cr) places the player in **Phase B: passive income**. The primary objective is to stabilize the existing production at KYV-745 by addressing its critical shortages of energycells and water.
+
+[normal] set_behaviour
+    {'ship_ref': 'ASO-629', 'behaviour': 'repeat_orders'}
+    why: Assign ASO-629 to a Repeat Order loop for energycells (KYV-745) to resolve the immediate shortage of 1485 energycells.
+[normal] set_behaviour
+    {'ship_ref': 'TJL-171', 'behaviour': 'repeat_orders'}
+    why: Assign TJL-171 to a Repeat Order loop for water (KYV-745) to address the shortage of 3960 water.
+
+confidence: medium

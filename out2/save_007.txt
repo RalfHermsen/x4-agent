@@ -1,0 +1,49 @@
+### save_007.xml.gz
+
+# SITUATION
+Playtime: 20s. Capital: 200,000 Cr.
+Owned: 1 station(s), 2 ship(s).
+
+# OWN STATIONS
+KYV-745 (station_gen_factory_base_01_macro) in Hewa's Twin I
+  produces: sunriseflowers
+  buys energycells at 22 Cr (stock 0, short 1485)
+  sells sunriseflowers at 112 Cr (stock 0)
+  buys water at 74 Cr (stock 0, short 3960)
+
+# FLEET (2 ships)
+TJL-171 ship_s (ship_tel_s_scout_01_a_macro): IDLE, docked at KYV-745, software_trademk1
+ASO-629 ship_m (ship_tel_m_trans_container_01_a_macro): IDLE, docked at KYV-745
+
+# KNOWN MARKET
+Stations known to us that belong to other factions: 3.
+Best margins within what we know (per unit):
+  water: buy 53 at XPP-596 (stock 9554) -> sell 74 at KYV-745, margin 21 Cr
+
+# ATTENTION
+Idle ships: TJL-171, ASO-629.
+KYV-745 needs 1485 energycells and currently has none.
+KYV-745 needs 3960 water and currently has none.
+
+# REASONING
+The current capital is 200,000 Cr, placing the player in **Phase B: passive income**. The primary goal is to stabilize the existing station's production by fulfilling its resource shortages.
+
+1. **Assign ASO-629 to a Repeat Order (Mine-to-sell loop)**: Buy water at XPP-596 and sell at KYV-745 to address the 3,960 unit shortage of water (Guideline 3, Phase B/Repeat Orders).
+2. **Assign TJL-171 to a Repeat Order**: Buy energycells from the market and sell at KYV-745 to address the 1,485 unit shortage of energycells (Guideline 3, Phase B/Repeat Orders).
+3. **Establish an Energy Cell production loop**: Since KYV-745 is currently consuming energycells but producing nothing for sale, prioritize acquiring a Solar Power Plant blueprint or building one to ensure self-sufficiency (Guideline 3, Phase B).
+
+# ADVICE (gemma4:26b-a4b-it-qat, 6.4s reasoning + 6.3s structuring)
+
+Phase B: passive income
+
+[normal] set_behaviour
+    {'ship_ref': 'ASO-629', 'behaviour': 'repeat_orders'}
+    why: Buy water at XPP-596 and sell at KYV-745 to address the 3,960 unit shortage of water.
+[normal] set_behaviour
+    {'ship_ref': 'TJL-171', 'behaviour': 'repeat_orders'}
+    why: Buy energycells from the market and sell at KYV-745 to address the 1,485 unit shortage of energycells.
+[normal] purchase
+    {'item': 'blueprint', 'spec': 'Solar Power Plant', 'qty': 1, 'max_spend': 200000.0}
+    why: Prioritize acquiring a Solar Power Plant blueprint to ensure self-sufficiency.
+
+confidence: medium

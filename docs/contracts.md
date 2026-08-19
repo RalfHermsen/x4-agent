@@ -156,3 +156,60 @@ So building a station is scriptable and not UI-only.
 primitives in player context, or that they do what their names suggest. The risk
 moves from "we are building on capabilities that may not exist" to "they exist,
 and we must show we can invoke them".
+
+---
+
+## Phase 1 definition of done: measured
+
+`evaluate.py` runs the whole loop over every save in the profile folder. Eleven
+saves, four game versions (6.20, 7.00, 8.00, 9.00), from a 20-second fresh start
+to a 220-ship empire with 220 million credits.
+
+| Metric | Result |
+|--------|--------|
+| Saves processed | 11/11, no failures |
+| Largest sitrep | 2,640 bytes (at 221 ships) |
+| Time per save | roughly 40 s, about half of it parsing |
+| Actions produced | 46 |
+| Rejected by the semantic check | 6 |
+
+### What the rejections taught us
+
+The first run rejected 10 of 58 actions (15%), and the reasons were not random:
+
+```
+4  ship_ref=miner does not exist
+3  ship_ref=trader does not exist
+1  ship_ref=combat does not exist
+1  fleet_id=scouts does not exist
+1  station_id=MJI-379 is not ours
+```
+
+Nine of ten were **role words instead of ID codes**. That is the cost of
+aggregating the fleet by role: it cut the sitrep by 15x, but summarising ships
+as "miner 6, trader 2" makes the model reach for the role word rather than for
+`NCD-755`.
+
+Adding one constraint to the extraction prompt ("every reference must be an ID
+code of the form AAA-123, copied literally from the report; never a role word")
+removed that entire class:
+
+```
+3  station_id=MJI-379 is not ours
+1  station_id=BSL-396 is not ours
+```
+
+The headline number moved from 15% to 12%, which on 58 versus 46 actions across
+eleven saves is too small a sample to lean on. The *composition* is the evidence:
+the invented-identifier class disappeared, and what remains is a different kind
+of error entirely.
+
+### The error that is left
+
+The model wants to assign our ships to stations belonging to other factions,
+repeatedly and to the same station. That is not a formatting slip but a genuine
+strategic misunderstanding: `assign_ship` only works on stations we own, and the
+sitrep already separates "# OWN STATIONS" from "# KNOWN MARKET".
+
+This is exactly why the second sieve exists. Without the ownership check those
+actions would have passed as schema-valid and gone to the game.

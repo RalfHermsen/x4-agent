@@ -1,0 +1,51 @@
+### quicksave.xml.gz
+
+# SITUATION
+Playtime: 1540s. Capital: 200,000 Cr.
+Owned: 1 station(s), 2 ship(s).
+
+# OWN STATIONS
+KYV-745 (station_gen_factory_base_01_macro) in Hewa's Twin I
+  produces: sunriseflowers
+  buys energycells at 22 Cr (stock 0, short 1485)
+  sells sunriseflowers at 112 Cr (stock 0)
+  buys water at 74 Cr (stock 0, short 3960)
+
+# FLEET (2 ships)
+TJL-171 ship_s (ship_tel_s_scout_01_a_macro): IDLE, in Hewa's Twin I, software_trademk1
+ASO-629 ship_m (ship_tel_m_trans_container_01_a_macro): IDLE, docked at KYV-745
+
+# KNOWN MARKET
+Stations known to us that belong to other factions: 5.
+Best margins within what we know (per unit):
+  majadust: buy 208 at XPP-596 (stock 4085) -> sell 573 at AHQ-469, margin 365 Cr
+  spacefuel: buy 133 at XPP-596 (stock 21741) -> sell 367 at AHQ-469, margin 234 Cr
+  dronecomponents: buy 914 at XPP-596 (stock 3045) -> sell 1028 at AHQ-469, margin 114 Cr
+
+# ATTENTION
+Idle ships: TJL-171, ASO-629.
+KYV-745 needs 1485 energycells and currently has none.
+KYV-745 needs 3960 water and currently has none.
+
+# REASONING
+The current capital (200,000 Cr) places the player in **Phase B: passive income**. The primary goal is to stabilize existing production at KYV-745 by addressing its resource shortages.
+
+1. **Assign ASO-629 to a Repeat Order loop for energycells** to supply KYV-745 (Guideline 3, Phase B / Guideline 5: One-off hauls).
+2. **Assign TJL-171 to an Explore behavior** to increase market visibility and find new trade opportunities (Guideline 8: Explorers).
+3. **Purchase energycells for KYV-745** to restart production immediately, as the station is currently stalled due to zero stock (Guideline 4: Operational budget/Station requirements).
+
+# ADVICE (gemma4:26b-a4b-it-qat, 6.2s reasoning + 6.3s structuring)
+
+Phase B: passive income
+
+[normal] set_behaviour
+    {'ship_ref': 'ASO-629', 'behaviour': 'repeat_orders'}
+    why: Assign ASO-629 to a Repeat Order loop for energycells to supply KYV-745
+[normal] set_behaviour
+    {'ship_ref': 'TJL-171', 'behaviour': 'repeat_orders'}
+    why: Assign TJL-171 to an Explore behavior to increase market visibility and find new trade opportunities
+[normal] purchase
+    {'item': 'blueprint', 'spec': 'energycells', 'qty': 1, 'max_spend': 200000.0}
+    why: Purchase energycells for KYV-745 to restart production immediately
+
+confidence: medium
