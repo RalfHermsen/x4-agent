@@ -56,18 +56,26 @@ most four concrete actions.
 EXTRACT_SYSTEM = """You convert a given analysis into structured actions. You add
 nothing and drop nothing; you only translate.
 
-Pick the fitting type per action:
-- assign_ship    : attach a ship to a station as miner or trader
-- set_behaviour  : put a ship on autotrade / automine / repeat_orders / explore
-- set_trade_rule : trade rule on a ware of a station
-- set_price      : pricing on a ware of a station
-- claim_ship     : claim an abandoned ship
-- purchase       : buy a ship, module, seminar or blueprint
-- build_station  : build a station
-- fleet_order    : fleet instruction
-- expand_station : add production for a ware to a station we already own
-- set_budget     : give a station manager an operating budget (low/mid/high)
-- hold           : deliberately do nothing
+Pick the fitting type per action. Each type needs exactly the fields listed and
+nothing more:
+
+- assign_ship    : ship code, station code, role (mine or trade). No ware, no
+                   amount, no destination. The station manager works those out.
+- set_behaviour  : ship code, behaviour (autotrade / automine / repeat_orders /
+                   explore)
+- expand_station : station code, ware the station should start producing
+- set_budget     : station code, level (low / mid / high)
+- set_trade_rule : station code, ware, rule, side
+- set_price      : station code, ware, mode
+- claim_ship     : target code
+- purchase       : item, spec, max spend
+- build_station  : station type, sector, max spend
+- fleet_order    : fleet code, order
+- hold           : nothing
+
+Never drop an action because some detail is missing that its type does not ask
+for. If the analysis says to assign a miner to a station, that is a complete
+assign_ship action even though no ware is named.
 
 Use `hold` only when the analysis says nothing should be done. Never describe an
 intended action as `hold`.
