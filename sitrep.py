@@ -201,6 +201,15 @@ def build(state: dict) -> str:
     else:
         add("No profitable buy-sell pair known. Exploration needed.")
 
+    # For every shortage, can anyone we know actually supply it? A shortage with
+    # no known seller is a different problem from a shortage with one: the first
+    # calls for exploration, the second for a delivery. Without this distinction
+    # the model keeps ordering a trader to fetch something nobody sells, and the
+    # game answers "no trades found in allowed sectors", which never reaches the
+    # planner.
+    sellers = {ware: [s for s in sides["sell"] if s[1] > 0]
+               for ware, sides in _offers_by_ware(known).items()}
+
     idle = [s["code"] for s in ships if _first_order(s) in IDLE_ORDERS]
     shortages = [(st["code"], o["ware"], o["desired"] - (o["amount"] or 0))
                  for st in stations for o in st["offers"]
@@ -212,7 +221,14 @@ def build(state: dict) -> str:
     if idle:
         add(f"Idle ships: {', '.join(idle)}.")
     for code, ware, short in shortages:
-        add(f"{code} needs {short} {ware} and currently has none.")
+        supply = sellers.get(ware) or []
+        if supply:
+            best = min(supply)
+            add(f"{code} needs {short} {ware}; {best[2]} sells it at "
+                f"{best[0]:.0f} Cr (stock {best[1]}).")
+        else:
+            add(f"{code} needs {short} {ware}, and NO station we know sells it. "
+                f"A trader cannot fix this; the map has to be explored first.")
     if not idle and not shortages:
         add("Nothing.")
 
