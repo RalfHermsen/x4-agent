@@ -70,15 +70,17 @@ python deploy_bridge.py                # install the in-game bridge
 `--latest` locates the newest save itself, including the case where Windows has
 redirected your Documents folder somewhere unexpected.
 
-For the pipe host (PowerShell):
+For the pipe host:
 
-```powershell
-$env:PYTHONPATH = "vendor"
-.venv\Scripts\python.exe -u -m X4_Python_Pipe_Server.Main -v
+```bash
+python run_host.py                 # advise only, nothing reaches the game
+python run_host.py --execute       # validated orders are actually issued
 ```
 
-The `-u` matters. Without unbuffered output you see nothing at all when
-something goes wrong.
+`run_host.py` first stops any host left over from an earlier session. Only one
+process can own a named pipe, and a stale host makes the next one die with
+"All pipe instances are busy", which reads like the agent stopped working rather
+than never having started.
 
 Point the planner at your own Ollama instance with `X4_OLLAMA_URL`, and pick a
 model with `X4_PLANNER_MODEL`.
