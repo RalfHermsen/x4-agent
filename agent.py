@@ -38,7 +38,7 @@ def cycle(model: str | None = None, save: Path | None = None) -> dict:
         report, planner.GUIDELINES.read_text(encoding="utf-8"), model)
     plan, extract_s = planner.extract(analysis, report, model)
     ok, rejected = planner.check_actions(plan, state)
-    commands, skipped = executor.to_commands(ok)
+    commands, skipped = executor.to_commands(ok, state)
 
     return {
         "save": target,

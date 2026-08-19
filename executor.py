@@ -42,8 +42,37 @@ def _key(action) -> tuple[str, str | None]:
     return (action.type, None)
 
 
-def to_commands(actions: list) -> tuple[list[str], list[tuple]]:
-    """Split actions into sendable commands and skipped ones with a reason."""
+# What an executable action looks like once it has already happened. Without
+# this the agent re-sends the same order every cycle, because the plan does not
+# change until the world does.
+SATISFIED_BY_ORDER = {
+    ("set_behaviour", "explore"): "Explore",
+}
+
+
+def _active_orders(state: dict) -> dict[str, str]:
+    """{ship code: current order name} for our own ships."""
+    out = {}
+    for asset in state.get("assets", []):
+        if asset.get("code") and asset.get("orders"):
+            out[asset["code"]] = asset["orders"][0].get("order")
+    return out
+
+
+def _already_done(action, key, state: dict) -> bool:
+    wanted = SATISFIED_BY_ORDER.get(key)
+    if not wanted or state is None:
+        return False
+    ship = getattr(action, "ship_ref", None)
+    return bool(ship) and _active_orders(state).get(ship) == wanted
+
+
+def to_commands(actions: list, state: dict | None = None) -> tuple[list[str], list[tuple]]:
+    """Split actions into sendable commands and skipped ones with a reason.
+
+    Pass `state` to suppress orders the game is already carrying out. This is
+    the third gate: exists, allowed, and not already true.
+    """
     commands: list[str] = []
     skipped: list[tuple] = []
 
@@ -53,6 +82,9 @@ def to_commands(actions: list) -> tuple[list[str], list[tuple]]:
         if builder is None:
             label = key[0] if key[1] is None else f"{key[0]}({key[1]})"
             skipped.append((action, f"{label} is not executable yet, advice only"))
+            continue
+        if _already_done(action, key, state):
+            skipped.append((action, "already in effect, not re-sent"))
             continue
         commands.append(builder(action))
 
