@@ -1,0 +1,103 @@
+### save_005.xml.gz
+
+# SITUATION
+Playtime: 93798s. Capital: 14,539,253 Cr.
+Owned: 1 station(s), 21 ship(s).
+
+# OWN STATIONS
+QDA-703 (station_gen_factory_base_01_macro) in The Reach
+  produces: siliconwafers, energycells, antimattercells, graphene, refinedmetals
+  sells antimattercells at 203 Cr (stock 12233)
+  buys energycells at 18 Cr (stock 1224, short 1895)
+  sells energycells at 19 Cr (stock 0)
+  sells graphene at 214 Cr (stock 3768)
+  buys hydrogen at 50 Cr (stock 60001, short 92855)
+  buys methane at 53 Cr (stock 33283, short 60584)
+  buys ore at 50 Cr (stock 24977, short 40437)
+  sells refinedmetals at 162 Cr (stock 10450)
+  buys silicon at 118 Cr (stock 22658, short 40990)
+  sells siliconwafers at 347 Cr (stock 5986)
+
+# FLEET (21 ships)
+miner        9   MiningRoutine_Basic 5, MiningRoutine 4
+              examples: LRH-796, WXF-851, UYY-816
+trader       6   Middleman 5, TradeRoutine 1
+              examples: HWI-680, WQL-029, GER-230
+IDLE         4   Wait 4
+              examples: NFZ-572, MUH-634, HVP-005
+combat       2   Escort 1, Patrol 1
+              examples: PUT-408, MHB-254
+
+# KNOWN MARKET
+Stations known to us that belong to other factions: 275.
+Best margins within what we know (per unit):
+  plasmaconductors: buy 815 at OGG-473 (stock 4047) -> sell 1255 at BGQ-146, margin 440 Cr
+  advancedelectronics: buy 1014 at BSL-396 (stock 4) -> sell 1317 at AHI-975, margin 303 Cr
+  spaceweed: buy 155 at GUS-246 (stock 9048) -> sell 456 at ABD-008, margin 302 Cr
+  majadust: buy 295 at VOC-332 (stock 4161) -> sell 573 at ABD-008, margin 277 Cr
+  microchips: buy 822 at MJI-379 (stock 4575) -> sell 1089 at JET-625, margin 267 Cr
+  spacefuel: buy 133 at USP-707 (stock 9) -> sell 367 at ABD-008, margin 234 Cr
+  scanningarrays: buy 1053 at BSL-396 (stock 1252) -> sell 1263 at JZG-939, margin 210 Cr
+  quantumtubes: buy 242 at WOP-259 (stock 13434) -> sell 374 at ADB-027, margin 132 Cr
+  dronecomponents: buy 914 at SCA-097 (stock 76) -> sell 1028 at UFJ-531, margin 114 Cr
+  advancedcomposites: buy 535 at ENY-248 (stock 4788) -> sell 646 at KYK-264, margin 112 Cr
+
+# ATTENTION
+Idle ships: NFZ-572, MUH-634, HVP-005, FBN-755.
+QDA-703 needs 1895 energycells and currently has none.
+QDA-703 needs 92855 hydrogen and currently has none.
+QDA-703 needs 60584 methane and currently has none.
+QDA-703 needs 40437 ore and currently has none.
+QDA-703 needs 40990 silicon and currently has none.
+
+# REASONING
+The player is in **Phase B** (Passive Income) with ~14.5M capital, transitioning toward scaling. The primary station QDA-703 is heavily undersupplied in raw materials and energy cells, which will stall production if not addressed.
+
+**Analysis:**
+*   **QDA-703 Status:** It has zero stock of Energy Cells, Hydrogen, Methane, Ore, or Silicon despite having high demand/shortages for all. This station is the economic engine and must be prioritized to ensure self-sufficiency.
+*   **Fleet Utilization:** There are 4 idle ships (NFZ-572, MUH-634, HVP-005, FBN-755) that should be put to work immediately to support the station or trade.
+*   **Profitability:** While microchips have high margins, the immediate priority is fixing the supply chain of the existing asset.
+
+**Concrete Actions:**
+
+1.  **Assign idle traders (NFZ-572, MUH-634, HVP-005, FBN-755) to QDA-703** to fulfill its immediate buy orders for Energy Cells and Hydrogen to restart production. (Guideline: Phase B - Assign miners/traders to the station).
+2.  **Assign idle traders to perform Repeat Orders for Microchips** (Buy MJI-379, Sell JET-625) to maximize profit margins while waiting for station logistics to stabilize. (Guideline: Phase C - End-product stations/High margin trade).
+3.  **Set QDA-703 Buy Orders for Ore and Silicon to MAX price** to ensure the miners' delivery takes absolute priority over NPC traders. (Guideline: Standing rules: Manual pricing).
+4.  **Assign a trader to "Defend" QDA-703** if any combat ships are available, to protect the vital production hub from potential raids. (Guideline: Phase B - Consolidation before expansion).
+
+# ADVICE (gemma4:26b-a4b-it-qat, 9.9s reasoning + 13.0s structuring)
+
+The player is in **Phase B** (Passive Income) with ~14.5M capital, transitioning toward scaling. The primary station QDA-703 is heavily undersupplied in raw materials and energy cells, which will stall production if not addressed.
+
+[normal] assign_ship
+    {'ship_ref': 'NFZ-572', 'station_id': 'QDA-703', 'role': 'trade'}
+    why: Fulfill immediate buy orders for Energy Cells and Hydrogen to restart production.
+[normal] assign_ship
+    {'ship_ref': 'MUH-634', 'station_id': 'QDA-703', 'role': 'trade'}
+    why: Fulfill immediate buy orders for Energy Cells and Hydrogen to restart production.
+[normal] assign_ship
+    {'ship_ref': 'HVP-005', 'station_id': 'QDA-703', 'role': 'trade'}
+    why: Fulfill immediate buy orders for Energy Cells and Hydrogen to restart production.
+[normal] assign_ship
+    {'ship_ref': 'FBN-755', 'station_id': 'QDA-703', 'role': 'trade'}
+    why: Fulfill immediate buy orders for Energy Cells and Hydrogen to restart production.
+[normal] set_behaviour
+    {'ship_ref': 'NFZ-572', 'behaviour': 'repeat_orders'}
+    why: Maximize profit margins (Buy MJI-379, Sell JET-625).
+[normal] set_behaviour
+    {'ship_ref': 'MUH-634', 'behaviour': 'repeat_orders'}
+    why: Maximize profit margins (Buy MJI-379, Sell JET-625).
+[normal] set_behaviour
+    {'ship_ref': 'HVP-005', 'behaviour': 'repeat_orders'}
+    why: Maximize profit margins (Buy MJI-379, Sell JET-625).
+[normal] set_behaviour
+    {'ship_ref': 'FBN-755', 'behaviour': 'repeat_orders'}
+    why: Maximize profit margins (Buy MJI-379, Sell JET-625).
+[normal] set_price
+    {'station_id': 'QDA-703', 'ware': 'ore', 'mode': 'manual_max'}
+    why: Ensure miners' delivery takes absolute priority over NPC traders.
+[normal] set_price
+    {'station_id': 'QDA-703', 'ware': 'silicon', 'mode': 'manual_max'}
+    why: Ensure miners' delivery takes absolute priority over NPC traders.
+
+confidence: medium

@@ -1,0 +1,63 @@
+### save_002.xml.gz
+
+# SITUATION
+Playtime: 8598s. Capital: 6,057,865 Cr.
+Owned: 1 station(s), 16 ship(s).
+
+# OWN STATIONS
+VWH-943 (station_gen_factory_base_01_macro) in Argon Prime
+  produces: energycells, refinedmetals
+  sells energycells at 20 Cr (stock 695)
+  sells refinedmetals at 173 Cr (stock 880)
+
+# FLEET (16 ships)
+combat       8   Escort 8
+              examples: PRO-056, OOJ-174, XWR-968
+trader       3   TradeRoutine 3
+              examples: TFN-201, WTW-739, THN-178
+miner        3   MiningRoutine 3
+              examples: TDH-730, PQL-183, MLS-451
+IDLE         2   Wait 2
+              examples: PVW-326, IMW-772
+
+# KNOWN MARKET
+Stations known to us that belong to other factions: 80.
+Best margins within what we know (per unit):
+  majadust: buy 208 at LED-035 (stock 6356) -> sell 573 at ZRT-797, margin 365 Cr
+  spaceweed: buy 166 at LED-035 (stock 10770) -> sell 456 at ZRT-797, margin 290 Cr
+  advancedelectronics: buy 1014 at DIG-119 (stock 1152) -> sell 1293 at APP-209, margin 279 Cr
+  spacefuel: buy 133 at LED-035 (stock 19672) -> sell 367 at ZRT-797, margin 234 Cr
+  scanningarrays: buy 1050 at LUI-344 (stock 1353) -> sell 1264 at APP-209, margin 214 Cr
+  fieldcoils: buy 412 at DIG-119 (stock 1816) -> sell 570 at HQK-127, margin 158 Cr
+  microchips: buy 938 at BFT-857 (stock 2760) -> sell 1090 at LIN-971, margin 152 Cr
+  siliconwafers: buy 316 at JBJ-071 (stock 7525) -> sell 418 at FYC-985, margin 102 Cr
+  turretcomponents: buy 273 at DIG-119 (stock 739) -> sell 375 at APP-209, margin 102 Cr
+  antimatterconverters: buy 350 at NTN-620 (stock 6623) -> sell 435 at APP-209, margin 85 Cr
+
+# ATTENTION
+Idle ships: PVW-326, IMW-772.
+
+# REASONING
+The current capital is ~6M Cr, placing the empire in **Phase B (Passive Income)**. The goal is to transition from active grinding to a self-running economy by expanding production and optimizing logistics.
+
+**Analysis:**
+VWH-943 is already producing Refined Metals and Energy Cells. To scale, we need more complex end products or higher volume of intermediates. Currently, there are 2 idle ships that should be utilized to increase capital or coverage.
+
+**Actions:**
+
+1. **Assign PVW-326 as a trader** (Trader) to maximize profit via high-margin goods like Majadust or Spaceweed [Phase B: Passive Income / Trader rules].
+2. **Assign IMW-772 as an explorer** (Explorer) to increase map visibility and find new trade hubs/resource nodes [Section 8: Explorers].
+3. **Expand VWH-943 production** by adding a Hull Parts module or similar end-product if blueprints are available, utilizing existing Refined Metals [Phase B: Better early earner / Section 3].
+4. **Assign miners to VWH-943** (Miner) if any of the current 3 miners are not already assigned to the station, ensuring it has its own supply chain [Section 5: Standing rules: miners].
+
+# ADVICE (gemma4:26b-a4b-it-qat, 8.7s reasoning + 5.4s structuring)
+
+The current capital is ~6M Cr, placing the empire in **Phase B (Passive Income)**. The goal is to transition from active grinding to a self-running economy by expanding production and optimizing logistics.
+
+[normal] assign_ship
+    {'ship_ref': 'PVW-326', 'station_id': 'VWH-943', 'role': 'trade'}
+    why: Assign PVW-326 as a trader to maximize profit via high-margin goods like Majadust or Spaceweed
+[normal] hold
+    why: Assign IMW-772 as an explorer to increase map visibility and find new trade hubs/resource nodes
+
+confidence: medium

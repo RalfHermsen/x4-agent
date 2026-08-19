@@ -60,7 +60,7 @@ def evaluate(save: Path, model: str, guidelines: str, out_dir: Path | None) -> d
         out_dir.mkdir(parents=True, exist_ok=True)
         text = (f"### {save.name}\n\n{report}\n\n# REASONING\n{analysis}\n\n"
                 + planner.render(plan, ok, rejected, model, (reason_s, extract_s)))
-        (out_dir / f"{save.stem}.txt").write_text(text, encoding="utf-8")
+        (out_dir / f"{save.name.split(chr(46))[0]}.txt").write_text(text, encoding="utf-8")
     return row
 
 

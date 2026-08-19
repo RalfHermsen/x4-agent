@@ -59,12 +59,43 @@
     </actions>
   </library>
 
-  <!-- Return path: whatever the planner sends back lands visibly in the
-       logbook, so the round trip can be observed inside the game itself. -->
+  <!-- Return path. Two kinds of message arrive here:
+         'explore <IDCODE>'  -> a real order, executed below
+         anything else       -> written to the logbook as text
+
+       Note the shape of the command matching. The Mission Director has **no
+       string manipulation at all**: no split, no substring, no startswith
+       (checked against libraries/scriptproperties.xml). So a command string
+       cannot be taken apart here. What does exist is string formatting and
+       equality, so we invert it: build the expected command for each of our
+       own ships and compare the whole string. Linear in fleet size, and it
+       only uses primitives that actually exist. -->
   <library name="Actions_On_Read">
     <actions>
-      <write_to_logbook category="general" text="'[x4-agent] %s'.[event.param]"/>
       <debug_text text="'[x4-agent] received: %s'.[event.param]" filter="general"/>
+
+      <set_value name="$agent_handled" exact="0"/>
+      <find_object name="$agent_ships"
+                   class="[class.ship_xs, class.ship_s, class.ship_m, class.ship_l, class.ship_xl]"
+                   owner="faction.player"
+                   space="player.galaxy"
+                   multiple="true"
+                   recursive="true"/>
+
+      <do_for_each name="$agent_ship" in="$agent_ships">
+        <do_if value="event.param == 'explore %s'.[$agent_ship.idcode]">
+          <!-- Vanilla explore order; id verified in
+               aiscripts/order.move.recon.explore.xml -->
+          <create_order object="$agent_ship" id="'Explore'"/>
+          <write_to_logbook category="general"
+            text="'[x4-agent] ORDER: %s sent to explore'.[$agent_ship.idcode]"/>
+          <set_value name="$agent_handled" exact="1"/>
+        </do_if>
+      </do_for_each>
+
+      <do_if value="$agent_handled == 0">
+        <write_to_logbook category="general" text="'[x4-agent] %s'.[event.param]"/>
+      </do_if>
     </actions>
   </library>
 

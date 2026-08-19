@@ -107,17 +107,30 @@ def _int(value: str | None) -> int | None:
 
 
 def _orders(elem) -> list[dict]:
+    """Orders of an object, the active one first.
+
+    An object usually carries a `default="1"` fallback order (typically Wait)
+    plus zero or more real orders. The fallback is written first in the file, so
+    naively taking orders[0] reports a busy ship as idle. Measured on a scout
+    that had just been given an Explore order: the file held the default Wait
+    first and `<order order="Explore" state="started">` second.
+    """
     node = elem.find("orders")
     if node is None:
         return []
     out = []
     for order in node.findall("order"):
-        entry = {"order": order.get("order"), "state": order.get("state")}
+        entry = {"order": order.get("order"),
+                 "state": order.get("state"),
+                 "default": order.get("default") == "1"}
         params = {p.get("name"): p.get("value") for p in order.findall("param")
                   if p.get("value") is not None}
         if params:
             entry["params"] = params
         out.append(entry)
+
+    # Active first: a started, non-default order beats everything else.
+    out.sort(key=lambda o: (o["default"], o["state"] != "started"))
     return out
 
 

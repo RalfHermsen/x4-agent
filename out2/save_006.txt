@@ -1,0 +1,77 @@
+### save_006.xml.gz
+
+# SITUATION
+Playtime: 9270s. Capital: 220,067,340 Cr.
+Owned: 1 station(s), 205 ship(s).
+
+# OWN STATIONS
+JES-282 (station_gen_factory_base_01_macro) in Argon Prime
+  produces: energycells, refinedmetals, graphene, hullparts
+  buys energycells at 21 Cr (stock 9211)
+  sells energycells at 22 Cr (stock 0)
+  buys graphene at 224 Cr (stock 543)
+  sells graphene at 230 Cr (stock 0)
+  sells hullparts at 272 Cr (stock 0)
+  buys methane at 44 Cr (stock 0)
+  buys ore at 52 Cr (stock 240)
+  buys refinedmetals at 205 Cr (stock 10595)
+  sells refinedmetals at 206 Cr (stock 0)
+
+# FLEET (205 ships)
+combat     195   Escort 100, Assist 94, ProtectPosition 1
+              examples: BQE-237, FAL-705, HZW-674
+miner        6   MiningRoutine 4, MiningRoutine_Advanced 1, MiningRoutine_Expert 1
+              examples: NCD-755, CXZ-697, RLS-466
+trader       2   TradeRoutine 1, Middleman 1
+              examples: FSV-160, KUC-084
+explorer     1   SectorExplorer 1
+              examples: AAW-573
+IDLE         1   Wait 1
+              examples: FBW-151
+
+# KNOWN MARKET
+Stations known to us that belong to other factions: 751.
+Best margins within what we know (per unit):
+  stimulants: buy 153 at GRV-480 (stock 14989) -> sell 935 at WVL-683, margin 782 Cr
+  majadust: buy 98 at GWG-835 (stock 15744) -> sell 573 at WVL-683, margin 475 Cr
+  spaceweed: buy 75 at UXZ-506 (stock 12093) -> sell 456 at WVL-683, margin 381 Cr
+  advancedelectronics: buy 1014 at KUN-743 (stock 7) -> sell 1318 at EJO-213, margin 304 Cr
+  spacefuel: buy 69 at VSY-028 (stock 9949) -> sell 367 at WVL-683, margin 298 Cr
+  claytronics: buy 1898 at PUL-314 (stock 1638) -> sell 2193 at YSI-625, margin 295 Cr
+  plasmaconductors: buy 1047 at BSP-816 (stock 1126) -> sell 1282 at QQD-872, margin 235 Cr
+  dronecomponents: buy 914 at MYT-657 (stock 214) -> sell 1142 at ZLC-255, margin 228 Cr
+  scanningarrays: buy 1045 at VNF-945 (stock 1454) -> sell 1264 at OEX-524, margin 219 Cr
+  microchips: buy 923 at FCV-671 (stock 2963) -> sell 1106 at HEZ-723, margin 183 Cr
+
+# ATTENTION
+Idle ships: FBW-151.
+
+# REASONING
+The player is in Phase C (Scaling), with capital well above 20M Cr. The current economy is focused on intermediate goods (refined metals, graphene) and hull parts. To optimize for durable growth and end-product production, the following actions are recommended:
+
+1. **Expand Production (End Products):** Establish a new station to produce **microchips**. Current market data shows a high margin of 183 Cr per unit with significant demand at HEZ-723. This aligns with Phase C goals for end-product production.
+2. **Optimize Logistics:** Assign the idle ship **FBW-151** to an explorer role or a trader/miner role to increase market visibility and resource gathering, as there is currently one unassigned ship in a large fleet.
+3. **Expand Production (End Products):** Establish a new station for **claytronics**. The market shows a strong margin of 295 Cr per unit at YSI-625, making it a high-priority end product for scaling.
+4. **Consolidate Logistics:** Assign the existing **trader** fleet to perform "AutoTrade" on high-margin goods like **stimulants** or **majadust** if they have the capacity, to maximize liquid capital generation while waiting for station construction.
+
+# ADVICE (gemma4:26b-a4b-it-qat, 7.5s reasoning + 8.3s structuring)
+
+The player is in Phase C (Scaling), with capital well above 20M Cr. The current economy is focused on intermediate goods (refined metals, graphene) and hull parts. To optimize for durable growth and end-product production, the following actions are recommended:
+
+[normal] build_station
+    {'station_type': 'microchips', 'sector': 'HEZ-723', 'max_spend': 0.0}
+    why: Establish a new station to produce microchips. Current market data shows a high margin of 183 Cr per unit with significant demand at HEZ-723.
+[normal] set_behaviour
+    {'ship_ref': 'FBW-151', 'behaviour': 'autotrade'}
+    why: Assign the idle ship FBW-151 to an explorer role or a trader/miner role to increase market visibility and resource gathering.
+[normal] build_station
+    {'station_type': 'claytronics', 'sector': 'YSI-625', 'max_spend': 0.0}
+    why: Establish a new station for claytronics. The market shows a strong margin of 295 Cr per unit at YSI-625.
+[normal] set_behaviour
+    {'ship_ref': 'FSV-160', 'behaviour': 'autotrade'}
+    why: Assign the existing trader fleet to perform AutoTrade on high-margin goods like stimulants or majadust.
+[normal] set_behaviour
+    {'ship_ref': 'KUC-084', 'behaviour': 'autotrade'}
+    why: Assign the existing trader fleet to perform AutoTrade on high-margin goods like stimulants or majadust.
+
+confidence: medium

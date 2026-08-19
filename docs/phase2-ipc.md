@@ -167,3 +167,64 @@ you must restart X4 completely, reloading a save is not enough.
 A logbook line is not an order. The next step is one real order type through the
 pipe, using `create_order` from `common.xsd`, which completes the closed loop as
 the brief defines it.
+
+---
+
+## Closed loop complete: a real order
+
+Verified 2026-08-19. The bridge sent `explore TJL-171` over the pipe, and the
+game executed it. Three independent confirmations:
+
+1. Host log: `[x4-agent] sending order: explore TJL-171`
+2. In-game logbook: `[x4-agent] ORDER: TJL-171 sent to explore`
+3. The savegame afterwards:
+
+```xml
+<order id="[0x7b14]" order="Explore" state="started" temp="1">
+  <param name="targetspace" type="component" value="[0x2396f]"/>
+  <param name="radius" type="length" value="257856"/>
+```
+
+The ship undocked (`connection="space"`) and the game UI showed
+`Explore [executing]` in its order queue, with parameters the game filled in
+itself. That is Phase 2 as the brief defines it: state out of the running game,
+a decision outside it, and a real order back in.
+
+### The Mission Director cannot manipulate strings
+
+This shapes the whole command design. There is no `split`, no `substring`, no
+`startswith`, nothing (checked against `libraries/scriptproperties.xml`). A
+command like `explore TJL-171` cannot be taken apart inside MD.
+
+What does exist is string formatting and equality. So invert it: let MD look up
+its own ships, build the command string each one would answer to, and compare
+whole strings.
+
+```xml
+<find_object name="$agent_ships"
+             class="[class.ship_xs, class.ship_s, class.ship_m, class.ship_l, class.ship_xl]"
+             owner="faction.player" space="player.galaxy" multiple="true" recursive="true"/>
+<do_for_each name="$agent_ship" in="$agent_ships">
+  <do_if value="event.param == 'explore %s'.[$agent_ship.idcode]">
+    <create_order object="$agent_ship" id="'Explore'"/>
+  </do_if>
+</do_for_each>
+```
+
+Linear in fleet size, and it only uses primitives that exist. It also settles
+how the agent must address things: **`idcode`** (the `AAA-123` code) is the only
+identifier that is readable and comparable on both sides. Internal ids like
+`[0xa27c2]` are not.
+
+Everything used here was verified rather than assumed: the order id `Explore`
+comes from `aiscripts/order.move.recon.explore.xml`, `create_order` from
+`libraries/common.xsd`, and the `find_object` syntax was copied from the game's
+own MD scripts (`md/gm_repairobject.xml` and friends).
+
+### Bonus finding: the first order in the file is not the active one
+
+An object carries a `default="1"` fallback order, usually `Wait`, and that one is
+written first. Reading `orders[0]` therefore reports a busy ship as idle. The
+active order is the non-default one with `state="started"`. `save_parser._orders()`
+now sorts the active order first, which also fixes role classification in the
+sitrep.

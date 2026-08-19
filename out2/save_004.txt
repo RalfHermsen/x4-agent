@@ -1,0 +1,120 @@
+### save_004.xml.gz
+
+# SITUATION
+Playtime: 90181s. Capital: 26,875,840 Cr.
+Owned: 1 station(s), 20 ship(s).
+
+# OWN STATIONS
+QDA-703 (station_gen_factory_base_01_macro) in The Reach
+  produces: siliconwafers, energycells, antimattercells, graphene, refinedmetals
+  sells antimattercells at 205 Cr (stock 12085)
+  buys energycells at 18 Cr (stock 1600, short 50937)
+  sells energycells at 18 Cr (stock 0)
+  sells graphene at 223 Cr (stock 2754)
+  buys hydrogen at 66 Cr (stock 5835, short 186003)
+  buys methane at 55 Cr (stock 1312, short 97088)
+  buys ore at 55 Cr (stock 0, short 72414)
+  sells refinedmetals at 168 Cr (stock 10409)
+  buys silicon at 148 Cr (stock 363, short 74034)
+  sells siliconwafers at 331 Cr (stock 6805)
+
+# FLEET (20 ships)
+miner        7   MiningRoutine_Basic 5, MiningRoutine 2
+              examples: KSO-271, UYY-816, LRH-796
+trader       6   Middleman 5, TradeRoutine 1
+              examples: HWI-680, GKB-703, WQL-029
+IDLE         4   Wait 3, none 1
+              examples: HVP-005, FBN-755, VMX-437
+combat       3   Escort 1, ProtectStation 1, Patrol 1
+              examples: PUT-408, NFZ-572, MHB-254
+
+# KNOWN MARKET
+Stations known to us that belong to other factions: 277.
+Best margins within what we know (per unit):
+  plasmaconductors: buy 776 at OGG-473 (stock 3610) -> sell 1159 at BGQ-146, margin 383 Cr
+  majadust: buy 217 at VOC-332 (stock 3994) -> sell 573 at ABD-008, margin 356 Cr
+  advancedelectronics: buy 1014 at BSL-396 (stock 4) -> sell 1331 at VPA-463, margin 317 Cr
+  microchips: buy 805 at MJI-379 (stock 10400) -> sell 1101 at JET-625, margin 296 Cr
+  spaceweed: buy 174 at TJG-961 (stock 9095) -> sell 456 at ABD-008, margin 282 Cr
+  spacefuel: buy 133 at USP-707 (stock 9) -> sell 367 at ABD-008, margin 234 Cr
+  scanningarrays: buy 1051 at IVJ-729 (stock 686) -> sell 1277 at JZG-939, margin 226 Cr
+  dronecomponents: buy 914 at SCA-097 (stock 76) -> sell 1136 at KTI-203, margin 222 Cr
+  quantumtubes: buy 225 at SII-239 (stock 19618) -> sell 379 at DDU-363, margin 154 Cr
+  advancedcomposites: buy 434 at ENY-248 (stock 3924) -> sell 572 at VSP-589, margin 138 Cr
+
+# ATTENTION
+Idle ships: HVP-005, FBN-755, VMX-437, MUH-634.
+QDA-703 needs 50937 energycells and currently has none.
+QDA-703 needs 186003 hydrogen and currently has none.
+QDA-703 needs 97088 methane and currently has none.
+QDA-703 needs 72414 ore and currently has none.
+QDA-703 needs 74034 silicon and currently has none.
+
+# REASONING
+The player is in Phase C (Scaling) with ~26M Cr. The current station, QDA-703, is a massive production hub but is suffering from severe supply shortages of raw materials and energy cells, which will stall its high-value output (antimattercells, graphene, refinedmetals).
+
+**Strategic Analysis:**
+1. **Immediate Crisis:** QDA-703 has zero stock of energycells, hydrogen, methane, ore, or silicon, despite having massive "short" requirements. This indicates the current fleet is either not assigned to these specific resources or cannot find buyers/suppliers.
+2. **Phase Alignment:** With 26M Cr, the player should be moving toward end-product stations (microchips, etc.) or expanding production capacity. However, stabilizing the existing massive factory is the priority to ensure "durable, defensible growth."
+
+**Concrete Actions:**
+
+1. **Assign miners to QDA-703 for Ore and Silicon.**
+   * *Reasoning:* QDA-703 has critical shortages of ore (72414) and silicon (74034). Assigning the idle ships or existing miners to these resources will secure the supply chain.
+   * *Justification:* Phase B/C stability; "Balance the number of miners against storage and consumption."
+
+2. **Assign traders to QDA-703 for Energy Cells.**
+   * *Reasoning:* The station has a massive deficit in energycells (50937) and zero stock, which is an input for almost all production. 
+   * *Justification:* Phase B/C stability; "Ensure existing assets are self-sufficient."
+
+3. **Assign idle ships (HVP-005, FBN-755, VMX-437) to trade routes for Microchips.**
+   * *Reasoning:* The player has significant capital and the market shows high margins for microchips (296 Cr). This utilizes idle assets to build Phase C wealth.
+   * *Justification:* Phase C: "Microchip profit comfortably beats silicon wafers."
+
+4. **Assign a trader to an Energy Cell loop.**
+   * *Reasoning:* QDA-703 is buying energycells at 18 Cr but has zero stock; it needs a reliable supply of this fundamental input.
+   * *Justification:* Phase B: "Energy Cells... is an input to every other station."
+
+# ADVICE (gemma4:26b-a4b-it-qat, 10.8s reasoning + 15.9s structuring)
+
+The player is in Phase C (Scaling) with ~26M Cr. The current station, QDA-703, is a massive production hub but is suffering from severe supply shortages of raw materials and energy cells, which will stall its high-value output (antimattercells, graphene, refinedmetals).
+
+[normal] assign_ship
+    {'ship_ref': 'HVP-005', 'station_id': 'QDA-703', 'role': 'mine'}
+    why: Assign miners to QDA-703 for Ore and Silicon.
+[normal] assign_ship
+    {'ship_ref': 'FBN-755', 'station_id': 'QDA-703', 'role': 'mine'}
+    why: Assign miners to QDA-703 for Ore and Silicon.
+[normal] assign_ship
+    {'ship_ref': 'VMX-437', 'station_id': 'QDA-703', 'role': 'mine'}
+    why: Assign miners to QDA-703 for Ore and Silicon.
+[normal] assign_ship
+    {'ship_ref': 'MUH-634', 'station_id': 'QDA-703', 'role': 'mine'}
+    why: Assign miners to QDA-703 for Ore and Silicon.
+[normal] assign_ship
+    {'ship_ref': 'HVP-005', 'station_id': 'QDA-703', 'role': 'trade'}
+    why: Assign traders to QDA-703 for Energy Cells.
+[normal] assign_ship
+    {'ship_ref': 'FBN-755', 'station_id': 'QDA-703', 'role': 'trade'}
+    why: Assign traders to QDA-703 for Energy Cells.
+[normal] assign_ship
+    {'ship_ref': 'VMX-437', 'station_id': 'QDA-703', 'role': 'trade'}
+    why: Assign traders to QDA-703 for Energy Cells.
+[normal] assign_ship
+    {'ship_ref': 'MUH-634', 'station_id': 'QDA-703', 'role': 'trade'}
+    why: Assign traders to QDA-703 for Energy Cells.
+[normal] assign_ship
+    {'ship_ref': 'HVP-005', 'station_id': 'QDA-703', 'role': 'trade'}
+    why: Assign a trader to an Energy Cell loop.
+
+# REJECTED (semantic check)
+    assign_ship: station_id=MJI-379 is not ours
+    was: Assign idle ships to trade routes for Microchips.
+    assign_ship: station_id=MJI-379 is not ours
+    was: Assign idle ships to trade routes for Microchips.
+    assign_ship: station_id=MJI-379 is not ours
+    was: Assign idle ships to trade routes for Microchips.
+    assign_ship: station_id=MJI-379 is not ours
+    was: Assign idle ships to trade routes for Microchips.
+
+confidence: medium

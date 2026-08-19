@@ -67,7 +67,12 @@ Pick the fitting type per action:
 - hold           : deliberately do nothing
 
 Use `hold` only when the analysis says nothing should be done. Never describe an
-intended action as `hold`."""
+intended action as `hold`.
+
+Every reference field (ship_ref, station_id, fleet_id, target_id) must be an ID
+code copied literally from the situation report, in the form AAA-123. Never a
+role word such as "miner", "trader" or "scouts", and never a description. If the
+analysis names no specific ship or station for an action, drop that action."""
 
 
 def _chat(model: str, messages: list[dict], schema: dict | None,

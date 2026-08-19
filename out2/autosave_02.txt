@@ -1,0 +1,89 @@
+### autosave_02.xml.gz
+
+# SITUATION
+Playtime: 15841s. Capital: 185,639,004 Cr.
+Owned: 1 station(s), 221 ship(s).
+
+# OWN STATIONS
+JES-282 (station_gen_factory_base_01_macro) in Argon Prime
+  produces: energycells, refinedmetals, graphene, hullparts, siliconwafers, advancedcomposites, quantumtubes
+  sells advancedcomposites at 648 Cr (stock 54)
+  buys energycells at 18 Cr (stock 1472, short 23003)
+  sells energycells at 19 Cr (stock 0)
+  buys graphene at 224 Cr (stock 1038, short 16224)
+  sells graphene at 225 Cr (stock 0)
+  sells hullparts at 272 Cr (stock 294)
+  buys methane at 50 Cr (stock 15780, short 425504)
+  buys ore at 56 Cr (stock 2822, short 130338)
+  buys refinedmetals at 193 Cr (stock 1941, short 30369)
+  sells refinedmetals at 194 Cr (stock 0)
+  buys silicon at 150 Cr (stock 8993, short 123416)
+  sells siliconwafers at 418 Cr (stock 321)
+
+# FLEET (221 ships)
+combat     208   Escort 116, Assist 90, ProtectPosition 2
+              examples: BQE-237, FAL-705, HZW-674
+miner        8   MiningRoutine 7, MiningRoutine_Expert 1
+              examples: WXR-025, RLS-466, KTA-108
+trader       2   TradeRoutine 1, Middleman 1
+              examples: FSV-160, KUC-084
+IDLE         2   Wait 2
+              examples: DBU-555, FBW-151
+explorer     1   SectorExplorer 1
+              examples: AAW-573
+
+# KNOWN MARKET
+Stations known to us that belong to other factions: 798.
+Best margins within what we know (per unit):
+  stimulants: buy 153 at GRV-480 (stock 14673) -> sell 935 at NVW-741, margin 782 Cr
+  majadust: buy 94 at UBT-363 (stock 11810) -> sell 573 at NVW-741, margin 479 Cr
+  spaceweed: buy 83 at WCL-997 (stock 26955) -> sell 456 at NVW-741, margin 374 Cr
+  spacefuel: buy 60 at HEX-900 (stock 8864) -> sell 367 at NVW-741, margin 307 Cr
+  advancedelectronics: buy 1014 at KUN-743 (stock 7) -> sell 1318 at MCI-492, margin 304 Cr
+  dronecomponents: buy 904 at TEK-927 (stock 2130) -> sell 1142 at JUW-553, margin 238 Cr
+  claytronics: buy 1967 at NZN-021 (stock 1431) -> sell 2193 at YSI-625, margin 226 Cr
+  scanningarrays: buy 1048 at ESC-042 (stock 1361) -> sell 1264 at TEK-927, margin 216 Cr
+  microchips: buy 928 at FCV-671 (stock 2898) -> sell 1109 at GNS-324, margin 181 Cr
+  plasmaconductors: buy 1051 at WOT-295 (stock 2269) -> sell 1223 at EUO-527, margin 172 Cr
+
+# ATTENTION
+Idle ships: DBU-555, FBW-151.
+JES-282 needs 23003 energycells and currently has none.
+JES-282 needs 16224 graphene and currently has none.
+JES-282 needs 425504 methane and currently has none.
+JES-282 needs 130338 ore and currently has none.
+JES-282 needs 30369 refinedmetals and currently has none.
+JES-282 needs 123416 silicon and currently has none.
+
+# REASONING
+The player is in Phase C (Scaling) with massive capital (~185M Cr). The current station, JES-282, is a highly complex production hub but is suffering from severe supply shortages across all raw materials and intermediates, causing it to hold zero stock of essential inputs.
+
+**Analysis:**
+JES-282 is currently acting as an end-product manufacturer (Advanced Composites) but lacks the internal logistics or external supply chain to sustain its own production. The massive capital should be used to secure these supply lines immediately via large-scale procurement or by establishing more specialized stations.
+
+**Actions:**
+
+1. **Order: Buy Methane, Ore, Silicon, Refined Metals, Graphene, and Energy Cells for JES-282.**
+   * *Justification:* JES-282 has massive shortages of all primary inputs (e.g., 425,504 Methane) which prevents production; the player has sufficient capital to clear these deficits via market purchases to restart the economy.
+
+2. **Order: Assign idle ships DBU-555 and FBW-151 to TradeRoutine for JES-282.**
+   * *Justification:* The trader fleet is currently underutilized (only 2 traders vs 208 combat ships) while the station's massive shortages require immediate logistics support.
+
+3. **Order: Assign explorer AAW-573 to SectorExplorer in adjacent sectors.**
+   * *Justification:* To optimize trade routes and find better margins for end products like Advanced Composites, more market visibility is required (Phase C scaling).
+
+4. **Goal: Establish a dedicated Hull Parts station or specialized resource refinery.**
+   * *Justification:* JES-282 is attempting to produce too many different goods simultaneously without sufficient supply; consolidating production into specialized stations (Phase B/C strategy) would improve efficiency and stability.
+
+# ADVICE (gemma4:26b-a4b-it-qat, 9.0s reasoning + 5.0s structuring)
+
+The player is in Phase C (Scaling) with massive capital (~185M Cr). The current station, JES-282, is a highly complex production hub but is suffering from severe supply shortages across all raw materials and intermediates, causing it to hold zero stock of essential inputs.
+
+**Analysis:**
+JES-282 is currently acting as an end-product manufacturer (Advanced Composites) but lacks the internal logistics or external supply chain to sustain its own production. The massive capital should be used to secure these supply lines immediately via large-scale procurement or by establishing more specialized stations.
+
+**Actions:**
+
+No actions.
+
+confidence: medium

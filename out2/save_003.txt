@@ -1,0 +1,95 @@
+### save_003.xml.gz
+
+# SITUATION
+Playtime: 82896s. Capital: 24,075,875 Cr.
+Owned: 1 station(s), 20 ship(s).
+
+# OWN STATIONS
+QDA-703 (station_gen_factory_base_01_macro) in The Reach
+  produces: siliconwafers, energycells, antimattercells, graphene, refinedmetals
+  sells antimattercells at 226 Cr (stock 7942)
+  buys energycells at 13 Cr (stock 853, short 4783)
+  sells energycells at 13 Cr (stock 0)
+  sells graphene at 229 Cr (stock 822)
+  buys hydrogen at 68 Cr (stock 22339, short 78001)
+  buys methane at 56 Cr (stock 12067, short 39000)
+  buys ore at 49 Cr (stock 3016, short 16917)
+  sells refinedmetals at 113 Cr (stock 10305)
+  buys silicon at 148 Cr (stock 5176, short 30427)
+  sells siliconwafers at 324 Cr (stock 6216)
+
+# FLEET (20 ships)
+miner        7   MiningRoutine_Basic 5, MiningRoutine 2
+              examples: UYY-816, KSO-271, LRH-796
+trader       6   Middleman 5, TradeRoutine 1
+              examples: HWI-680, BOP-850, WQL-029
+IDLE         4   Wait 3, none 1
+              examples: HVP-005, FBN-755, VMX-437
+combat       3   ProtectStation 1, Escort 1, Patrol 1
+              examples: NFZ-572, PUT-408, MHB-254
+
+# KNOWN MARKET
+Stations known to us that belong to other factions: 282.
+Best margins within what we know (per unit):
+  scanningarrays: buy 885 at YNA-827 (stock 1111) -> sell 1277 at JZG-939, margin 391 Cr
+  spaceweed: buy 78 at GUS-246 (stock 7313) -> sell 456 at ABD-008, margin 378 Cr
+  majadust: buy 196 at VOC-332 (stock 4523) -> sell 573 at ABD-008, margin 376 Cr
+  advancedelectronics: buy 1014 at BSL-396 (stock 440) -> sell 1331 at AHI-975, margin 317 Cr
+  microchips: buy 805 at MJI-379 (stock 14782) -> sell 1101 at OHG-519, margin 296 Cr
+  plasmaconductors: buy 773 at WBA-314 (stock 891) -> sell 1027 at BGQ-146, margin 254 Cr
+  spacefuel: buy 133 at USP-707 (stock 9) -> sell 367 at ABD-008, margin 234 Cr
+  dronecomponents: buy 914 at SCA-097 (stock 76) -> sell 1136 at KTI-203, margin 222 Cr
+  advancedcomposites: buy 443 at ENY-248 (stock 3607) -> sell 648 at UEZ-798, margin 205 Cr
+  quantumtubes: buy 225 at SII-239 (stock 22926) -> sell 375 at RLG-605, margin 150 Cr
+
+# ATTENTION
+Idle ships: HVP-005, FBN-755, VMX-437, MUH-634.
+QDA-703 needs 4783 energycells and currently has none.
+QDA-703 needs 78001 hydrogen and currently has none.
+QDA-703 needs 39000 methane and currently has none.
+QDA-703 needs 16917 ore and currently has none.
+QDA-703 needs 30427 silicon and currently has none.
+
+# REASONING
+The player is in **Phase C: scaling** with over 24M Cr. The current station, QDA-703, is a massive production hub but is suffering from severe supply shortages of raw materials (Hydrogen, Methane, Ore, Silicon) and Energy Cells, which will stall its high-value output.
+
+**Analysis:**
+The trader fleet has 4 idle ships that should be immediately utilized to stabilize the station's economy or pursue high-margin goods. While microchips show a good margin, the immediate priority is preventing production stalls at QDA-703 by filling its massive shortages.
+
+**Concrete Actions:**
+
+1. **Assign HVP-005 (Trader) to buy Hydrogen and Methane for QDA-703.**
+   * *Justification:* Phase C/Scaling: Ensure existing assets are self-sufficient; the station has a critical shortage of 78,001 Hydrogen and 39,000 Methane.
+
+2. **Assign FBN-755 (Trader) to buy Ore and Silicon for QDA-703.**
+   * *Justification:* Phase C/Scaling: Ensure existing assets are self-sufficient; the station has a critical shortage of 16,917 Ore and 30,427 Silicon.
+
+3. **Assign VMX-437 (Trader) to trade Microchips (Buy MJI-379 / Sell OHG-519).**
+   * *Justification:* Phase C: Scaling; Microchip profit is high and represents a move toward end-product trading.
+
+4. **Assign MUH-634 (Trader) to trade Advanced Electronics (Buy BSL-396 / Sell AHI-975).**
+   * *Justification:* Phase C: Scaling; High margin end-product trade to maximize capital growth.
+
+# ADVICE (gemma4:26b-a4b-it-qat, 9.2s reasoning + 9.3s structuring)
+
+The player is in **Phase C: scaling** with over 24M Cr. The current station, QDA-703, is a massive production hub but is suffering from severe supply shortages of raw materials (Hydrogen, Methane, Ore, Silicon) and Energy Cells, which will stall its high-value output.
+
+**Analysis:**
+The trader fleet has 4 idle ships that should be immediately utilized to stabilize the station's economy or pursue high-margin goods. While microchips show a good margin, the immediate priority is preventing production stalls at QDA-703 by filling its massive shortages.
+
+**Concrete Actions:**
+
+[normal] assign_ship
+    {'ship_ref': 'HVP-005', 'station_id': 'QDA-703', 'role': 'trade'}
+    why: Ensure existing assets are self-sufficient; the station has a critical shortage of 78,001 Hydrogen and 39,000 Methane.
+[normal] assign_ship
+    {'ship_ref': 'FBN-755', 'station_id': 'QDA-703', 'role': 'trade'}
+    why: Ensure existing assets are self-sufficient; the station has a critical shortage of 16,917 Ore and 30,427 Silicon.
+
+# REJECTED (semantic check)
+    assign_ship: station_id=MJI-379 is not ours
+    was: Microchip profit is high and represents a move toward end-product trading.
+    assign_ship: station_id=BSL-396 is not ours
+    was: High margin end-product trade to maximize capital growth.
+
+confidence: medium

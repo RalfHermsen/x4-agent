@@ -1,0 +1,94 @@
+### save_001.xml.gz
+
+# SITUATION
+Playtime: 99400s. Capital: 12,620,461 Cr.
+Owned: 1 station(s), 21 ship(s).
+
+# OWN STATIONS
+VWH-943 (station_gen_factory_base_01_macro) in Argon Prime
+  produces: energycells, refinedmetals, smartchips, siliconwafers, hullparts, graphene
+  sells energycells at 15 Cr (stock 74624)
+  buys foodrations at 13 Cr (stock 1047)
+  sells graphene at 193 Cr (stock 2337)
+  sells hullparts at 233 Cr (stock 2226)
+  buys medicalsupplies at 45 Cr (stock 454)
+  buys methane at 41 Cr (stock 320)
+  buys ore at 43 Cr (stock 240)
+  sells refinedmetals at 167 Cr (stock 125)
+  buys silicon at 112 Cr (stock 700)
+  sells siliconwafers at 338 Cr (stock 4035)
+  sells smartchips at 67 Cr (stock 780)
+
+# FLEET (21 ships)
+combat      10   Escort 9, Assist 1
+              examples: LGE-899, JJC-189, MYE-863
+trader       4   TradeRoutine_Advanced 3, Middleman 1
+              examples: UBO-087, TDK-829, TFN-201
+miner        4   MiningRoutine 2, MiningRoutine_Advanced 2
+              examples: PQL-183, OVB-859, TDH-730
+IDLE         1   Wait 1
+              examples: IMW-772
+explorer     1   SectorExplorer 1
+              examples: PVW-326
+other        1   Lasertower 1
+              examples: RDM-506
+
+# KNOWN MARKET
+Stations known to us that belong to other factions: 286.
+Best margins within what we know (per unit):
+  majadust: buy 254 at PYA-881 (stock 4390) -> sell 573 at IRD-862, margin 319 Cr
+  plasmaconductors: buy 1095 at FZI-220 (stock 1973) -> sell 1410 at MTG-061, margin 315 Cr
+  microchips: buy 987 at ODZ-815 (stock 2128) -> sell 1199 at FMO-619, margin 212 Cr
+  siliconwafers: buy 303 at LRA-205 (stock 8189) -> sell 461 at BFT-857, margin 158 Cr
+  scanningarrays: buy 1257 at FYC-985 (stock 149) -> sell 1390 at BDO-467, margin 133 Cr
+  advancedcomposites: buy 557 at NMB-386 (stock 1891) -> sell 685 at CEJ-333, margin 128 Cr
+  superfluidcoolant: buy 92 at EIW-314 (stock 31681) -> sell 214 at CVK-117, margin 122 Cr
+  dronecomponents: buy 914 at QZR-907 (stock 48) -> sell 1028 at AYD-543, margin 114 Cr
+  hullparts: buy 218 at RTW-120 (stock 10787) -> sell 297 at OSM-997, margin 79 Cr
+  graphene: buy 168 at BZM-936 (stock 4156) -> sell 246 at ZUG-522, margin 78 Cr
+
+# ATTENTION
+Idle ships: IMW-772.
+
+# REASONING
+The current capital is ~12.6M, placing the player in **Phase B (Passive Income)**. The goal is to transition from active grinding to a self-running economy by expanding production and optimizing logistics.
+
+**Analysis:**
+*   **Current Assets:** VWH-943 is an integrated factory producing energy cells, refined metals, silicon wafers, smart chips, hull parts, and graphene. It has high stock in several items but relies on external purchases for raw materials (ore, silicon, methane).
+*   **Market Opportunity:** Microchips show a strong margin (212 Cr) and are an end-product. The player currently produces smart chips, which is the precursor to microchips.
+*   **Fleet Status:** One ship (IMW-772) is idle.
+
+**Strategic Actions:**
+
+1.  **Assign IMW-772 to a trader role** to increase market presence and liquidity (Guideline 3: Phase B - Move from active grinding to self-running economy).
+2.  **Expand production by building a Microchip station** to capture the high margin identified in the market report (Guideline 3: Phase C/End-product stations with constant demand).
+3.  **Optimize VWH-943 logistics** by ensuring miners are assigned specifically to "Mine for station" roles for ore and silicon to reduce reliance on external markets (Guideline 4: Standing rules - Station managers).
+4.  **Deploy the SectorExplorer ship to scan adjacent sectors** to increase visibility of trade hubs and potential blueprints, supporting future expansion (Guideline 8: Explorers).
+
+# ADVICE (gemma4:26b-a4b-it-qat, 8.3s reasoning + 11.1s structuring)
+
+The current capital is ~12.6M, placing the player in **Phase B (Passive Income)**. The goal is to transition from active grinding to a self-running economy by expanding production and optimizing logistics.
+
+[normal] set_behaviour
+    {'ship_ref': 'IMW-772', 'behaviour': 'autotrade'}
+    why: Assign IMW-772 to a trader role to increase market presence and liquidity (Guideline 3: Phase B - Move from active grinding to self-running economy).
+[normal] build_station
+    {'station_type': 'Microchip station', 'sector': 'Argon Prime', 'max_spend': 12620461.0}
+    why: Expand production by building a Microchip station to capture the high margin identified in the market report (Guideline 3: Phase C/End-product stations with constant demand).
+[normal] assign_ship
+    {'ship_ref': 'PQL-183', 'station_id': 'VWH-943', 'role': 'mine'}
+    why: Optimize VWH-943 logistics by ensuring miners are assigned specifically to "Mine for station" roles for ore and silicon to reduce reliance on external markets (Guideline 4: Standing rules - Station managers).
+[normal] assign_ship
+    {'ship_ref': 'OVB-859', 'station_id': 'VWH-943', 'role': 'mine'}
+    why: Optimize VWH-943 logistics by ensuring miners are assigned specifically to "Mine for station" roles for ore and silicon to reduce reliance on external markets (Guideline 4: Standing rules - Station managers).
+[normal] assign_ship
+    {'ship_ref': 'TDH-730', 'station_id': 'VWH-943', 'role': 'mine'}
+    why: Optimize VWH-943 logistics by ensuring miners are assigned specifically to "Mine for station" roles for ore and silicon to reduce reliance on external markets (Guideline 4: Standing rules - Station managers).
+[normal] assign_ship
+    {'ship_ref': 'PQL-183', 'station_id': 'VWH-943', 'role': 'mine'}
+    why: Optimize VWH-943 logistics by ensuring miners are assigned specifically to "Mine for station" roles for ore and silicon to reduce reliance on external markets (Guideline 4: Standing rules - Station managers).
+[normal] set_behaviour
+    {'ship_ref': 'PVW-326', 'behaviour': 'repeat_orders'}
+    why: Deploy the SectorExplorer ship to scan adjacent sectors to increase visibility of trade hubs and potential blueprints, supporting future expansion (Guideline 8: Explorers).
+
+confidence: medium

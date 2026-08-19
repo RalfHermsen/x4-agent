@@ -1,0 +1,82 @@
+### autosave_01.xml.gz
+
+# SITUATION
+Playtime: 14072s. Capital: 188,241,224 Cr.
+Owned: 2 station(s), 220 ship(s).
+
+# OWN STATIONS
+JES-282 (station_gen_factory_base_01_macro) in Argon Prime
+  produces: energycells, refinedmetals, graphene, hullparts, siliconwafers
+  buys energycells at 16 Cr (stock 107, short 31594)
+  sells energycells at 20 Cr (stock 0)
+  buys graphene at 161 Cr (stock 4, short 1243)
+  sells graphene at 227 Cr (stock 0)
+  sells hullparts at 272 Cr (stock 0)
+  buys methane at 53 Cr (stock 0, short 465112)
+  buys ore at 58 Cr (stock 0, short 285647)
+  buys refinedmetals at 194 Cr (stock 91, short 26544)
+  sells refinedmetals at 195 Cr (stock 0)
+IFC-397 (station_gen_factory_base_01_macro) in Argon Prime
+
+# FLEET (220 ships)
+combat     208   Escort 115, Assist 92, ProtectPosition 1
+              examples: FAL-705, BQE-237, HZW-674
+miner        6   MiningRoutine 4, MiningRoutine_Expert 1, MiningRoutine_Advanced 1
+              examples: NCD-755, CXZ-697, KTA-108
+IDLE         3   Wait 3
+              examples: DKC-044, FBW-151, UUH-369
+trader       2   Middleman 1, TradeRoutine 1
+              examples: KUC-084, FSV-160
+explorer     1   SectorExplorer 1
+              examples: AAW-573
+
+# KNOWN MARKET
+Stations known to us that belong to other factions: 792.
+Best margins within what we know (per unit):
+  stimulants: buy 153 at GRV-480 (stock 14831) -> sell 935 at NVW-741, margin 782 Cr
+  majadust: buy 94 at UBT-363 (stock 11774) -> sell 573 at NVW-741, margin 479 Cr
+  spaceweed: buy 92 at WCL-997 (stock 24912) -> sell 456 at NVW-741, margin 364 Cr
+  advancedelectronics: buy 1014 at KUN-743 (stock 7) -> sell 1350 at KBP-070, margin 336 Cr
+  spacefuel: buy 60 at HEX-900 (stock 8864) -> sell 367 at NVW-741, margin 307 Cr
+  scanningarrays: buy 1049 at BUB-012 (stock 1435) -> sell 1288 at KBP-070, margin 239 Cr
+  dronecomponents: buy 914 at FWJ-525 (stock 92) -> sell 1142 at SWO-700, margin 228 Cr
+  microchips: buy 915 at FCV-671 (stock 3068) -> sell 1135 at HEZ-723, margin 221 Cr
+  teladianium: buy 133 at XFX-886 (stock 21020) -> sell 311 at FTN-432, margin 178 Cr
+  weaponcomponents: buy 285 at KUN-743 (stock 3) -> sell 399 at MCI-492, margin 114 Cr
+
+# ATTENTION
+Idle ships: DKC-044, FBW-151, UUH-369.
+JES-282 needs 31594 energycells and currently has none.
+JES-282 needs 1243 graphene and currently has none.
+JES-282 needs 465112 methane and currently has none.
+JES-282 needs 285647 ore and currently has none.
+JES-282 needs 26544 refinedmetals and currently has none.
+
+# REASONING
+The player is in Phase C (Scaling) with massive capital (~188M Cr). The current priority should be optimizing the existing industrial chain at JES-282, which is suffering from critical shortages of all raw materials and intermediates, effectively stalling production.
+
+**Analysis:**
+JES-282 is a large factory base but has zero stock of its required inputs (energycells, graphene, methane, ore, refinedmetals). The current trader fleet (2 ships) is insufficient to support an empire of 220 ships or the massive logistics needs of JES-282.
+
+**Actions:**
+
+1. **Assign miners and traders to JES-282** to address critical shortages of ore, methane, graphene, and refinedmetals (Guideline: Section 4 - Assign your own ships).
+2. **Expand trader fleet** by utilizing idle combat/escort capacity or purchasing new ships to fulfill the massive buy orders at JES-282 (Guideline: Section 3 - Phase C scaling/Consolidation).
+3. **Deploy explorers to scan nearby stations** to find more efficient trade routes for high-margin goods like stimulants or majadust to further increase capital (Guideline: Section 8 - Explorer role).
+4. **Assign idle ships (DKC-044, FBW-151, UUH-369) to logistics roles** specifically targeting the supply needs of JES-282 (Guideline: Section 7 - Logistics fleets).
+
+# ADVICE (gemma4:26b-a4b-it-qat, 8.2s reasoning + 6.5s structuring)
+
+JES-282 is a large factory base but has zero stock of its required inputs (energycells, graphene, methane, ore, refinedmetals). The current trader fleet (2 ships) is insufficient to support an empire of 220 ships or the massive logistics needs of JES-282.
+
+[normal] assign_ship
+    {'ship_ref': 'DKC-044', 'station_id': 'JES-282', 'role': 'trade'}
+    why: Address critical shortages at JES-282
+[normal] assign_ship
+    {'ship_ref': 'FBW-151', 'station_id': 'JES-282', 'role': 'trade'}
+    why: Address critical shortages at JES-282
+[normal] assign_ship
+    {'ship_ref': 'UUH-369', 'station_id': 'JES-282', 'role': 'trade'}
+    why: Address critical shortages at JES-282
+
+confidence: medium

@@ -11,9 +11,16 @@ deliberately not wired in yet: if the loop breaks you want to know whether it is
 the pipe or the model, not both at once.
 """
 
+import os
+
 from X4_Python_Pipe_Server import Pipe_Server
 
 PIPE_NAME = "x4_agent"
+
+# Set X4_AGENT_TEST_ORDER to a ship's ID code (for example TJL-171) to send one
+# real order the first time state arrives. This is the Phase 2 write test: the
+# ship should visibly start exploring in game. Leave unset for advice only.
+TEST_ORDER_SHIP = os.environ.get("X4_AGENT_TEST_ORDER")
 
 
 def parse_state(message: str) -> dict:
@@ -53,6 +60,7 @@ def main(args):
     print("[x4-agent] X4 connected")
 
     previous: dict = {}
+    order_sent = False
     while 1:
         message = pipe.Read()
         # Log before filtering out pings. If you only ever see 'state' and never
@@ -65,6 +73,16 @@ def main(args):
             continue
 
         state = parse_state(message)
+
+        # Phase 2 write test: one real order, once.
+        if state and TEST_ORDER_SHIP and not order_sent:
+            command = f"explore {TEST_ORDER_SHIP}"
+            print(f"[x4-agent] sending order: {command}")
+            pipe.Write(command)
+            order_sent = True
+            previous = state
+            continue
+
         reply = decide(state, previous)
         previous = state or previous
         if reply:
