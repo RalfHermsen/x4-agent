@@ -29,8 +29,12 @@ def running_hosts() -> list[int]:
     """PIDs of pipe hosts already running, ours or from an earlier session."""
     if sys.platform != "win32":
         return []
+    # Match python processes only. Filtering on the command line alone also
+    # matches the PowerShell process running this very query, and any shell
+    # wrapper, because their command lines contain the module name too. That
+    # turned a two-process cleanup into a nine-process one on the first try.
     query = (
-        "Get-CimInstance Win32_Process | "
+        "Get-CimInstance Win32_Process -Filter \"Name like '%python%'\" | "
         f"Where-Object {{ $_.CommandLine -like '*{MODULE}*' }} | "
         "Select-Object -ExpandProperty ProcessId"
     )
