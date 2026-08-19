@@ -45,6 +45,18 @@ def _automine(action) -> str:
     return f"automine {action.ship_ref}"
 
 
+# Wares the in-game bridge can build production for. The Mission Director has
+# no ware-by-name lookup, so every ware needs an explicit comparison there; this
+# list must stay in step with the one in bridge/.../x4_agent_bridge.xml.
+EXPANDABLE_WARES = ("energycells", "water", "refinedmetals", "siliconwafers",
+                    "graphene", "hullparts")
+
+
+def _expand(action) -> str:
+    """expand_station -> add production for a ware to an existing station."""
+    return f"expand {action.station_id} {action.ware}"
+
+
 def _budget(action) -> str:
     """set_budget -> raise a station's operating budget to a level."""
     return f"budget {action.station_id} {action.level}"
@@ -57,6 +69,11 @@ def _assign(action) -> str:
 
 def _blocked_reason(action, key) -> str | None:
     """Why this otherwise-executable action still must not be sent."""
+    if key == ("expand_station", None):
+        ware = getattr(action, "ware", "")
+        if ware not in EXPANDABLE_WARES:
+            return (f"the bridge cannot build production for {ware!r}; "
+                    f"it knows {', '.join(EXPANDABLE_WARES)}")
     if key == ("set_behaviour", "autotrade") and getattr(action, "whitelist", None):
         wares = ", ".join(action.whitelist)
         return (f"whitelist ({wares}) cannot be transmitted; MD cannot parse "
@@ -73,6 +90,7 @@ EXECUTABLE: dict[tuple[str, str | None], Callable] = {
     ("assign_ship", None): _assign,
     ("set_behaviour", "automine"): _automine,
     ("set_budget", None): _budget,
+    ("expand_station", None): _expand,
 }
 
 

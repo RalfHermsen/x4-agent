@@ -123,6 +123,68 @@
           <set_value name="$agent_handled" exact="1"/>
         </do_if>
 
+        <!-- Expand an existing station so it produces a ware itself.
+
+             The chain is entirely the game's own: get_god_production_construction_plan
+             hands back the prefab plan its factions use for that product,
+             apply_construction_sequence appends it to a station that already
+             exists ("The construction plan for the station can be empty"), and
+             add_build_to_expand_station turns it into a build task on the
+             station's own build storage. That is exactly what engineer.ai.xml
+             does for NPC stations.
+
+             The ware is matched from a short explicit list. A ware name cannot
+             be parsed out of the command string, and there is no ware-by-name
+             lookup available here, so each supported ware needs its own
+             comparison. The list covers the early and mid game wares from
+             guidelines.md; extending it is one line per ware. -->
+        <set_value name="$agent_ware" exact="null"/>
+        <do_if value="event.param == 'expand %s energycells'.[$agent_station.idcode]">
+          <set_value name="$agent_ware" exact="ware.energycells"/>
+        </do_if>
+        <do_if value="event.param == 'expand %s water'.[$agent_station.idcode]">
+          <set_value name="$agent_ware" exact="ware.water"/>
+        </do_if>
+        <do_if value="event.param == 'expand %s refinedmetals'.[$agent_station.idcode]">
+          <set_value name="$agent_ware" exact="ware.refinedmetals"/>
+        </do_if>
+        <do_if value="event.param == 'expand %s siliconwafers'.[$agent_station.idcode]">
+          <set_value name="$agent_ware" exact="ware.siliconwafers"/>
+        </do_if>
+        <do_if value="event.param == 'expand %s graphene'.[$agent_station.idcode]">
+          <set_value name="$agent_ware" exact="ware.graphene"/>
+        </do_if>
+        <do_if value="event.param == 'expand %s hullparts'.[$agent_station.idcode]">
+          <set_value name="$agent_ware" exact="ware.hullparts"/>
+        </do_if>
+
+        <do_if value="@$agent_ware">
+          <set_value name="$agent_handled" exact="1"/>
+          <do_if value="@$agent_station.buildstorage">
+            <get_god_production_construction_plan result="$agent_plan"
+                                                  product="$agent_ware"
+                                                  faction="faction.player"/>
+            <do_if value="@$agent_plan">
+              <apply_construction_sequence station="$agent_station" sequence="$agent_plan"/>
+              <add_build_to_expand_station object="$agent_station.buildstorage"
+                                           buildobject="$agent_station"
+                                           constructionplan="$agent_station.plannedconstruction.sequence"/>
+              <write_to_logbook category="general"
+                text="'[x4-agent] ORDER: %s expanding to produce %s'.[$agent_station.idcode, $agent_ware.name]"/>
+              <show_notification
+                text="'[x4-agent] %s building %s production'.[$agent_station.idcode, $agent_ware.name]"/>
+            </do_if>
+            <do_else>
+              <write_to_logbook category="general"
+                text="'[x4-agent] no construction plan available for %s'.[$agent_ware.name]"/>
+            </do_else>
+          </do_if>
+          <do_else>
+            <write_to_logbook category="general"
+              text="'[x4-agent] %s has no build storage, cannot expand'.[$agent_station.idcode]"/>
+          </do_else>
+        </do_if>
+
         <do_if value="@$agent_budget and $agent_budget > 0">
           <set_object_min_budget object="$agent_station" amount="$agent_budget"/>
           <set_object_max_budget object="$agent_station" amount="$agent_budget * 3 / 2"/>

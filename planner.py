@@ -65,6 +65,7 @@ Pick the fitting type per action:
 - purchase       : buy a ship, module, seminar or blueprint
 - build_station  : build a station
 - fleet_order    : fleet instruction
+- expand_station : add production for a ware to a station we already own
 - set_budget     : give a station manager an operating budget (low/mid/high)
 - hold           : deliberately do nothing
 

@@ -279,6 +279,23 @@ class FleetOrder(BaseModel):
     rationale: str = _RATIONALE
 
 
+class ExpandStation(BaseModel):
+    """Add production for a ware to a station we already own.
+
+    Cheaper and simpler than building from scratch: no plot to buy, no location
+    to choose, and the station's own build storage does the work. The right
+    answer when a station keeps starving on an input nobody nearby sells.
+
+    The ware must be one the bridge knows; `executor.EXPANDABLE_WARES` lists
+    them, and the planner prompt is built from that list.
+    """
+    type: Literal["expand_station"]
+    station_id: str
+    ware: str = Field(description="Ware the station should start producing itself")
+    priority: Priority = _PRIORITY
+    rationale: str = _RATIONALE
+
+
 class SetBudget(BaseModel):
     """Give a station manager money to work with.
 
@@ -312,6 +329,7 @@ Action = Annotated[
         Purchase,
         BuildStation,
         FleetOrder,
+        ExpandStation,
         SetBudget,
         Hold,
     ],
