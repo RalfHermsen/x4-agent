@@ -78,12 +78,42 @@ SATISFIED_BY_ORDER = {
 
 
 def _active_orders(state: dict) -> dict[str, str]:
-    """{ship code: current order name} for our own ships."""
+    """{ship code: current order name} for our own ships.
+
+    `save_parser` sorts the active order first, so this is what the ship is
+    actually doing, not the `default="1"` fallback that sits at the front of the
+    file.
+    """
     out = {}
     for asset in state.get("assets", []):
         if asset.get("code") and asset.get("orders"):
             out[asset["code"]] = asset["orders"][0].get("order")
     return out
+
+
+def _busy_with(action, state: dict) -> str | None:
+    """The real order a ship is already carrying out, if any.
+
+    A ship on nothing but its `default="1"` fallback is free to be tasked.
+    A ship running a real order is left alone, whoever gave it: you, its station
+    manager, or an earlier cycle of this agent. Overriding it would undo work in
+    progress, and there is no way to tell from the savegame who ordered what.
+
+    The game itself exposes `@object.order.$internalorder` for exactly this
+    distinction, but only in the running game, not in the save. Until the
+    Mission Director side reads that flag, this rule errs on the side of not
+    touching anything that is already busy.
+    """
+    ship = getattr(action, "ship_ref", None)
+    if not ship:
+        return None
+    for asset in state.get("assets", []):
+        if asset.get("code") != ship:
+            continue
+        for order in asset.get("orders", []):
+            if not order.get("default"):
+                return order.get("order")
+    return None
 
 
 def _already_done(action, key, state: dict) -> bool:
@@ -110,6 +140,11 @@ def to_commands(actions: list, state: dict | None = None) -> tuple[list[str], li
             label = key[0] if key[1] is None else f"{key[0]}({key[1]})"
             skipped.append((action, f"{label} is not executable yet, advice only"))
             continue
+        busy = _busy_with(action, state) if state else None
+        if busy and not _already_done(action, key, state):
+            skipped.append((action, f"already busy with {busy}, not overriding"))
+            continue
+
         blocked = _blocked_reason(action, key)
         if blocked:
             skipped.append((action, blocked))
