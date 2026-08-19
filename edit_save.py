@@ -4,10 +4,11 @@ Deliberately narrow and deliberately non-destructive: it never overwrites the
 source, it writes a new save next to it, so the original stays loadable. Use it
 to set up a situation you want to test rather than playing towards it.
 
-Two edits are supported:
+Three edits are supported:
 
 * a station manager's management skill
 * the player's credits
+* adding blueprints the player owns
 
 Skills in the save run 1 to 15 and the game shows them as 0 to 5 stars, so three
 points make one star (measured across 101,543 skill entries in a late-game save).
@@ -16,6 +17,7 @@ Usage:
     python edit_save.py --station KYV-745 --manager-skill 9
     python edit_save.py --credits 10000000
     python edit_save.py --add-credits 10000000 --label "10M test"
+    python edit_save.py --blueprint module_gen_prod_energycells_01
 """
 
 from __future__ import annotations
@@ -90,6 +92,31 @@ def set_credits(xml: str, value: int) -> tuple[str, int]:
     return xml, before
 
 
+def add_blueprints(xml: str, wares: list[str]) -> tuple[str, list[str]]:
+    """Add blueprint entries to the player's owned blueprints.
+
+    They live in a single `<blueprints>` element holding `<blueprint ware=...>`
+    children. Blueprints the player already owns are skipped rather than
+    duplicated, because the game reads the list as a set and a duplicate would
+    just be noise in a file that is hard enough to diff already.
+    """
+    start = xml.find("<blueprints>")
+    if start < 0:
+        raise LookupError("no blueprints element found in this save")
+    end = xml.find("</blueprints>", start)
+    if end < 0:
+        raise LookupError("the blueprints element is not closed")
+
+    block = xml[start:end]
+    owned = set(re.findall(r'<blueprint ware="([^"]+)"/>', block))
+    added = [w for w in wares if w not in owned]
+    if not added:
+        return xml, []
+
+    entries = "".join(f'<blueprint ware="{w}"/>' for w in added)
+    return xml[:end] + entries + xml[end:], added
+
+
 def set_manager_skill(xml: str, station_code: str, value: int) -> tuple[str, str]:
     """Set the management skill of the manager of one station.
 
@@ -131,12 +158,17 @@ def main() -> int:
                         help="new management value, 1 to 15 (3 points per star)")
     parser.add_argument("--credits", type=int, help="set the player's credits to this")
     parser.add_argument("--add-credits", type=int, help="add this many credits")
+    parser.add_argument("--blueprint", action="append", metavar="WARE",
+                        help="add a blueprint, e.g. module_gen_prod_energycells_01; "
+                             "repeat for more")
     parser.add_argument("--out", help="name of the new save, without extension")
     parser.add_argument("--label", help="display name shown in the load menu")
     args = parser.parse_args()
 
-    if args.manager_skill is None and args.credits is None and args.add_credits is None:
-        parser.error("nothing to change; give --manager-skill, --credits or --add-credits")
+    if (args.manager_skill is None and args.credits is None
+            and args.add_credits is None and not args.blueprint):
+        parser.error("nothing to change; give --manager-skill, --credits, "
+                     "--add-credits or --blueprint")
     if args.manager_skill is not None:
         if not args.station:
             parser.error("--manager-skill needs --station")
@@ -161,6 +193,11 @@ def main() -> int:
                   else read_credits(xml) + args.add_credits)
         xml, before_credits = set_credits(xml, target)
         changes.append(f"credits: {before_credits:,} -> {target:,}")
+
+    if args.blueprint:
+        xml, added = add_blueprints(xml, args.blueprint)
+        changes.append(f"blueprints added: {', '.join(added)}" if added
+                       else "blueprints: all already owned")
 
     label = args.label or "; ".join(changes)[:60]
     xml = set_save_name(xml, label)
