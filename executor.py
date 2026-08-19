@@ -149,7 +149,35 @@ def _busy_with(action, state: dict) -> str | None:
     return None
 
 
+# What each budget level means as a share of the player's money. Must match the
+# arithmetic in the bridge, which does the same sum on the game side.
+BUDGET_SHARE = {"low": 0.10, "mid": 0.25, "high": 0.50}
+
+
+def _budget_already_set(action, state: dict) -> bool:
+    """True if the station already holds roughly the budget being asked for.
+
+    Without this the agent re-sends the same budget every single cycle, because
+    the plan does not change until the world does. The station's account carries
+    `min` in whole credits, and so does the player money in the savegame, so the
+    comparison is like for like.
+    """
+    share = BUDGET_SHARE.get(getattr(action, "level", ""), 0)
+    money = (state.get("player") or {}).get("money") or 0
+    if not share or not money:
+        return False
+    target = money * share
+    for asset in state.get("assets", []):
+        if asset.get("code") != getattr(action, "station_id", None):
+            continue
+        current = int((asset.get("account") or {}).get("min", 0) or 0)
+        return current >= target * 0.9
+    return False
+
+
 def _already_done(action, key, state: dict) -> bool:
+    if key == ("set_budget", None):
+        return _budget_already_set(action, state)
     wanted = SATISFIED_BY_ORDER.get(key)
     if not wanted or state is None:
         return False

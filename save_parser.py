@@ -79,10 +79,18 @@ def documents_dir() -> Path:
     return Path.home() / "Documents"
 
 
+# X4 writes to this name while a save is in progress and renames it afterwards.
+# It is the newest file in the folder exactly when the agent asks for a fresh
+# save, and reading it gives "Compressed file ended before the end-of-stream
+# marker was reached". Worse, a failed save leaves it behind, so it can sit
+# there looking like the newest save indefinitely.
+IN_PROGRESS = "temp_save.xml.gz"
+
+
 def latest_save() -> Path:
-    """Newest save across all X4 profiles under the Documents folder."""
+    """Newest finished save across all X4 profiles under the Documents folder."""
     root = documents_dir() / "Egosoft" / "X4"
-    saves = [p for p in root.glob("*/save/*.xml.gz")]
+    saves = [p for p in root.glob("*/save/*.xml.gz") if p.name != IN_PROGRESS]
     if not saves:
         raise FileNotFoundError(f"no saves found under {root}")
     return max(saves, key=lambda p: p.stat().st_mtime)

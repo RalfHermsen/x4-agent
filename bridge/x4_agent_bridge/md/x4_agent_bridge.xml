@@ -189,9 +189,9 @@
           <set_object_min_budget object="$agent_station" amount="$agent_budget"/>
           <set_object_max_budget object="$agent_station" amount="$agent_budget * 3 / 2"/>
           <write_to_logbook category="general"
-            text="'[x4-agent] ORDER: budget of %s set to %s Cr'.[$agent_station.idcode, $agent_budget]"/>
+            text="'[x4-agent] ORDER: budget of %s set to %s Cr'.[$agent_station.idcode, $agent_budget / 1Cr]"/>
           <show_notification
-            text="'[x4-agent] %s budget %s Cr'.[$agent_station.idcode, $agent_budget]"/>
+            text="'[x4-agent] %s budget %s Cr'.[$agent_station.idcode, $agent_budget / 1Cr]"/>
           <set_value name="$agent_budget" exact="0"/>
         </do_if>
       </do_for_each>

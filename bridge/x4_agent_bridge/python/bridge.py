@@ -39,6 +39,11 @@ PIPE_NAME = "x4_agent"
 REPO = os.environ.get("X4_AGENT_REPO")
 MODE = os.environ.get("X4_AGENT_MODE", "advise").lower()
 INTERVAL = float(os.environ.get("X4_AGENT_INTERVAL", "300"))
+# Only ask the game for a fresh save if the newest one is older than this. Each
+# autosave is tens of megabytes, and asking every cycle put enough pressure on
+# the game (and on a synced folder) that saves started failing outright. A save
+# a couple of minutes old is fine to plan on.
+SAVE_MAX_AGE = float(os.environ.get("X4_AGENT_SAVE_MAX_AGE", "150"))
 LOG_PATH = os.environ.get("X4_AGENT_LOG")
 
 _agent = None
@@ -88,6 +93,17 @@ def log_cycle(agent, result) -> None:
             handle.write(os.linesep.join(parts))
     except Exception as exc:  # noqa: BLE001 - logging must never break the loop
         print(f"[x4-agent] could not write the log: {type(exc).__name__}: {exc}")
+
+
+def save_age() -> float | None:
+    """Seconds since the newest finished savegame, or None if unknown."""
+    agent = load_agent()
+    if not agent:
+        return None
+    try:
+        return time.time() - agent.latest_save().stat().st_mtime
+    except Exception:  # noqa: BLE001 - a missing save must not break the loop
+        return None
 
 
 def parse_state(message: str) -> dict:
@@ -174,9 +190,15 @@ def main(args):
         if now - last_cycle < INTERVAL:
             continue
 
-        # Ask for a fresh save rather than planning on a stale one. The cycle
-        # runs when 'saved' comes back. Stamp the clock now so a failed save
-        # does not cause a request every heartbeat.
+        # Ask for a fresh save rather than planning on a stale one, but only if
+        # what is on disk has actually gone stale. The cycle then runs when
+        # 'saved' comes back. Stamp the clock now either way, so a failed save
+        # does not turn into a request on every heartbeat.
         last_cycle = now
+        age = save_age()
+        if age is not None and age < SAVE_MAX_AGE:
+            print(f"[x4-agent] newest save is {age:.0f}s old, planning on that")
+            run_cycle(pipe)
+            continue
         print("[x4-agent] requesting a savegame before planning")
         pipe.Write("save")
