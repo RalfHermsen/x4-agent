@@ -94,6 +94,13 @@
                    multiple="true"
                    recursive="true"/>
 
+      <find_object name="$agent_stations"
+                   class="class.station"
+                   owner="faction.player"
+                   space="player.galaxy"
+                   multiple="true"
+                   recursive="true"/>
+
       <do_for_each name="$agent_ship" in="$agent_ships">
         <!-- Vanilla explore order; id verified in
              aiscripts/order.move.recon.explore.xml -->
@@ -115,6 +122,39 @@
             text="'[x4-agent] ORDER: %s put on autotrade'.[$agent_ship.idcode]"/>
           <set_value name="$agent_handled" exact="1"/>
         </do_if>
+
+        <!-- Attach a ship to one of our stations as its trader or miner, which
+             is the "Trade for station" / "Mine for station" subordinate role.
+             Assignment values verified in the assignmentexprlookup enumeration
+             of libraries/common.xsd.
+
+             This command carries two identifiers, so the string-matching trick
+             needs a nested loop. Only our own stations are searched, so the
+             product stays small.
+
+             The commander check makes a repeat harmless: re-sending the same
+             assignment changes nothing and writes no logbook line. -->
+        <do_for_each name="$agent_station" in="$agent_stations">
+          <do_if value="event.param == 'assign %s %s trade'.[$agent_ship.idcode, $agent_station.idcode]">
+            <set_value name="$agent_handled" exact="1"/>
+            <do_if value="$agent_ship.commander != $agent_station">
+              <set_object_commander object="$agent_ship" commander="$agent_station"
+                                    assignment="assignment.trade"/>
+              <write_to_logbook category="general"
+                text="'[x4-agent] ORDER: %s now trades for %s'.[$agent_ship.idcode, $agent_station.idcode]"/>
+            </do_if>
+          </do_if>
+
+          <do_if value="event.param == 'assign %s %s mine'.[$agent_ship.idcode, $agent_station.idcode]">
+            <set_value name="$agent_handled" exact="1"/>
+            <do_if value="$agent_ship.commander != $agent_station">
+              <set_object_commander object="$agent_ship" commander="$agent_station"
+                                    assignment="assignment.mining"/>
+              <write_to_logbook category="general"
+                text="'[x4-agent] ORDER: %s now mines for %s'.[$agent_ship.idcode, $agent_station.idcode]"/>
+            </do_if>
+          </do_if>
+        </do_for_each>
       </do_for_each>
 
       <!-- Deliberately no fallback logbook entry. The logbook is the player's

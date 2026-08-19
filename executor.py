@@ -38,6 +38,11 @@ def _autotrade(action) -> str:
     return f"autotrade {action.ship_ref}"
 
 
+def _assign(action) -> str:
+    """assign_ship -> attach a ship to one of our stations as trader or miner."""
+    return f"assign {action.ship_ref} {action.station_id} {action.role}"
+
+
 def _blocked_reason(action, key) -> str | None:
     """Why this otherwise-executable action still must not be sent."""
     if key == ("set_behaviour", "autotrade") and getattr(action, "whitelist", None):
@@ -53,6 +58,7 @@ def _blocked_reason(action, key) -> str | None:
 EXECUTABLE: dict[tuple[str, str | None], Callable] = {
     ("set_behaviour", "explore"): _explore,
     ("set_behaviour", "autotrade"): _autotrade,
+    ("assign_ship", None): _assign,
 }
 
 
@@ -111,7 +117,14 @@ def to_commands(actions: list, state: dict | None = None) -> tuple[list[str], li
         if _already_done(action, key, state):
             skipped.append((action, "already in effect, not re-sent"))
             continue
-        commands.append(builder(action))
+
+        command = builder(action)
+        if command in commands:
+            # The model happily emits the same action twice with different
+            # reasons ("buy energycells", "buy water"). One command is enough.
+            skipped.append((action, "duplicate of a command already queued"))
+            continue
+        commands.append(command)
 
     return commands, skipped
 

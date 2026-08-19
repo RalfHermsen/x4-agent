@@ -30,6 +30,7 @@ from pathlib import Path
 
 import httpx
 
+import executor
 import sitrep as sitrep_mod
 from save_parser import latest_save, parse_save
 from schemas import PlannerResponse
@@ -72,7 +73,12 @@ intended action as `hold`.
 Every reference field (ship_ref, station_id, fleet_id, target_id) must be an ID
 code copied literally from the situation report, in the form AAA-123. Never a
 role word such as "miner", "trader" or "scouts", and never a description. If the
-analysis names no specific ship or station for an action, drop that action."""
+analysis names no specific ship or station for an action, drop that action.
+
+When the analysis describes an intent that fits more than one action type, pick
+one the executor can actually carry out. Attaching a ship to one of our stations
+so its manager directs it is `assign_ship`, not `set_behaviour`. Currently
+executable: %s. The rest is recorded as advice."""
 
 
 def _chat(model: str, messages: list[dict], schema: dict | None,
@@ -114,9 +120,14 @@ def reason(report: str, guidelines: str, model: str) -> tuple[str, float]:
 
 
 def extract(analysis: str, report: str, model: str) -> tuple[PlannerResponse, float]:
-    """Call 2: turn the analysis into the schema."""
+    """Call 2: turn the analysis into the schema.
+
+    The prompt names the currently executable action types. That is information,
+    not steering: the analysis is unchanged, only the mapping onto a type is
+    guided, so an intent the body can perform does not land in a type it cannot.
+    """
     content, elapsed = _chat(model, [
-        {"role": "system", "content": EXTRACT_SYSTEM},
+        {"role": "system", "content": EXTRACT_SYSTEM % executor.describe()},
         {"role": "user", "content": f"{report}\n\n# ANALYSIS\n{analysis}"},
     ], schema=PlannerResponse.model_json_schema())
     return PlannerResponse.model_validate_json(content), elapsed
