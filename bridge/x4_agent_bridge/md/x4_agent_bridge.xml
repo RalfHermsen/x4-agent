@@ -75,6 +75,16 @@
       <debug_text text="'[x4-agent] received: %s'.[event.param]" filter="general"/>
 
       <set_value name="$agent_handled" exact="0"/>
+
+      <!-- 'save' asks the game to write an autosave. The agent reads its state
+           from the savegame, so this is how it gets a fresh picture instead of
+           planning on whatever was last written. Confirmation comes back
+           through the On_Game_Saved cue below. -->
+      <do_if value="event.param == 'save'">
+        <trigger_autosave/>
+        <set_value name="$agent_handled" exact="1"/>
+      </do_if>
+
       <find_object name="$agent_ships"
                    class="[class.ship_xs, class.ship_s, class.ship_m, class.ship_l, class.ship_xl]"
                    owner="faction.player"
@@ -83,12 +93,24 @@
                    recursive="true"/>
 
       <do_for_each name="$agent_ship" in="$agent_ships">
+        <!-- Vanilla explore order; id verified in
+             aiscripts/order.move.recon.explore.xml -->
         <do_if value="event.param == 'explore %s'.[$agent_ship.idcode]">
-          <!-- Vanilla explore order; id verified in
-               aiscripts/order.move.recon.explore.xml -->
           <create_order object="$agent_ship" id="'Explore'"/>
           <write_to_logbook category="general"
             text="'[x4-agent] ORDER: %s sent to explore'.[$agent_ship.idcode]"/>
+          <set_value name="$agent_handled" exact="1"/>
+        </do_if>
+
+        <!-- Vanilla autotrade; id verified in aiscripts/order.trade.routine.xml.
+             Its warebasket and range parameters keep their defaults, because a
+             ware list cannot travel through the pipe: MD cannot parse strings.
+             The executor refuses to send this command when the model asked for
+             a specific whitelist, rather than quietly dropping it. -->
+        <do_if value="event.param == 'autotrade %s'.[$agent_ship.idcode]">
+          <create_order object="$agent_ship" id="'TradeRoutine'"/>
+          <write_to_logbook category="general"
+            text="'[x4-agent] ORDER: %s put on autotrade'.[$agent_ship.idcode]"/>
           <set_value name="$agent_handled" exact="1"/>
         </do_if>
       </do_for_each>
@@ -109,6 +131,20 @@
         param="table[$pipe = 'x4_agent',
                      $msg  = 'state money=%s time=%s'.[player.money, player.age],
                      $cue  = Write_Callback]"/>
+    </actions>
+  </cue>
+
+  <!-- Tell the agent a savegame has been written, so it can read fresh state.
+       This fires for player saves too, which is useful: saving the game is a
+       natural moment to replan. -->
+  <cue name="On_Game_Saved" instantiate="true">
+    <conditions>
+      <event_game_saved/>
+    </conditions>
+    <actions>
+      <signal_cue_instantly
+        cue="md.Named_Pipes.Write"
+        param="table[$pipe = 'x4_agent', $msg = 'saved']"/>
     </actions>
   </cue>
 

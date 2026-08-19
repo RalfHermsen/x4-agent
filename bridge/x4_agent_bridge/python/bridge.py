@@ -122,11 +122,24 @@ def main(args):
             # The Server_Reader pings until connected; no reply expected.
             continue
 
+        # The game just wrote a savegame, so the state on disk is current. This
+        # also fires for the player's own saves, which is a sensible moment to
+        # replan anyway.
+        if message == "saved":
+            last_cycle = time.monotonic()
+            run_cycle(pipe)
+            continue
+
         if not parse_state(message):
             continue
 
         now = time.monotonic()
         if now - last_cycle < INTERVAL:
             continue
+
+        # Ask for a fresh save rather than planning on a stale one. The cycle
+        # runs when 'saved' comes back. Stamp the clock now so a failed save
+        # does not cause a request every heartbeat.
         last_cycle = now
-        run_cycle(pipe)
+        print("[x4-agent] requesting a savegame before planning")
+        pipe.Write("save")

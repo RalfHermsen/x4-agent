@@ -28,11 +28,31 @@ def _explore(action) -> str:
     return f"explore {action.ship_ref}"
 
 
+def _autotrade(action) -> str:
+    """set_behaviour(autotrade) -> the vanilla TradeRoutine order, on its defaults.
+
+    A ware whitelist cannot travel through the pipe, because the Mission
+    Director cannot parse strings. Rather than silently dropping the model's
+    whitelist, `_blocked_reason` refuses the action when one was given.
+    """
+    return f"autotrade {action.ship_ref}"
+
+
+def _blocked_reason(action, key) -> str | None:
+    """Why this otherwise-executable action still must not be sent."""
+    if key == ("set_behaviour", "autotrade") and getattr(action, "whitelist", None):
+        wares = ", ".join(action.whitelist)
+        return (f"whitelist ({wares}) cannot be transmitted; MD cannot parse "
+                f"strings, so sending this would ignore half the instruction")
+    return None
+
+
 # (action type, discriminating value) -> command builder.
 # The value is whatever second key makes the action executable; None means the
 # action type alone is enough.
 EXECUTABLE: dict[tuple[str, str | None], Callable] = {
     ("set_behaviour", "explore"): _explore,
+    ("set_behaviour", "autotrade"): _autotrade,
 }
 
 
@@ -47,6 +67,7 @@ def _key(action) -> tuple[str, str | None]:
 # change until the world does.
 SATISFIED_BY_ORDER = {
     ("set_behaviour", "explore"): "Explore",
+    ("set_behaviour", "autotrade"): "TradeRoutine",
 }
 
 
@@ -82,6 +103,10 @@ def to_commands(actions: list, state: dict | None = None) -> tuple[list[str], li
         if builder is None:
             label = key[0] if key[1] is None else f"{key[0]}({key[1]})"
             skipped.append((action, f"{label} is not executable yet, advice only"))
+            continue
+        blocked = _blocked_reason(action, key)
+        if blocked:
+            skipped.append((action, blocked))
             continue
         if _already_done(action, key, state):
             skipped.append((action, "already in effect, not re-sent"))
