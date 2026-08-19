@@ -160,7 +160,17 @@
 
         <do_if value="@$agent_ware">
           <set_value name="$agent_handled" exact="1"/>
-          <do_if value="@$agent_station.buildstorage">
+          <!-- Refuse to stack plans. The agent replans every few minutes and
+               the situation that triggered the expansion (a shortage nobody
+               supplies) stays true for as long as the build takes, so without
+               this check it would append the same construction plan over and
+               over. The game already knows: hasplannedconstruction is "true if
+               there are plans to expand this object". -->
+          <do_if value="$agent_station.hasplannedconstruction">
+            <write_to_logbook category="general"
+              text="'[x4-agent] %s already has an expansion planned, leaving it alone'.[$agent_station.idcode]"/>
+          </do_if>
+          <do_elseif value="@$agent_station.buildstorage">
             <get_god_production_construction_plan result="$agent_plan"
                                                   product="$agent_ware"
                                                   faction="faction.player"/>
@@ -178,7 +188,7 @@
               <write_to_logbook category="general"
                 text="'[x4-agent] no construction plan available for %s'.[$agent_ware.name]"/>
             </do_else>
-          </do_if>
+          </do_elseif>
           <do_else>
             <write_to_logbook category="general"
               text="'[x4-agent] %s has no build storage, cannot expand'.[$agent_station.idcode]"/>

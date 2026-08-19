@@ -44,6 +44,8 @@ INTERVAL = float(os.environ.get("X4_AGENT_INTERVAL", "300"))
 # the game (and on a synced folder) that saves started failing outright. A save
 # a couple of minutes old is fine to plan on.
 SAVE_MAX_AGE = float(os.environ.get("X4_AGENT_SAVE_MAX_AGE", "150"))
+# Pause between two commands. Without it the pipe drops after the first one.
+COMMAND_GAP = float(os.environ.get("X4_AGENT_COMMAND_GAP", "2"))
 LOG_PATH = os.environ.get("X4_AGENT_LOG")
 
 _agent = None
@@ -147,9 +149,22 @@ def run_cycle(pipe) -> None:
         print(f"[x4-agent] advise mode, NOT sending: {commands}")
         return
 
+    # Send one at a time, with a pause, and never let one failure swallow the
+    # rest. Firing several commands back to back broke the connection: the log
+    # showed the first command going out, then "Pipe client garbage collected,
+    # restarting", and the remaining commands were simply lost. X4 processes a
+    # command before reading the next one, and the matching loop on the game
+    # side walks every ship and station, so the pipe is not ready again
+    # immediately.
     for command in commands:
         print(f"[x4-agent] sending: {command}")
-        pipe.Write(command)
+        try:
+            pipe.Write(command)
+        except Exception as exc:  # noqa: BLE001 - one lost command is not fatal
+            print(f"[x4-agent] send failed for {command!r}: "
+                  f"{type(exc).__name__}: {exc}")
+            break
+        time.sleep(COMMAND_GAP)
 
 
 def main(args):
