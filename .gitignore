@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# Secrets & local config
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+
+# Runtime data
+data/
+out/
+*.duckdb
+
+# X4 saves and extracted game data (huge, licensed content, never commit)
+saves/
+*.xml.gz
+gamedata/
+extracted/
+
+# lokale parser-output
+state*.json

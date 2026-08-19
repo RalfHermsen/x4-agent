@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<mdscript name="X4_Agent_Bridge"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+
+<!--
+  Spike: proves the full round trip game -> pipe -> external process -> pipe -> game.
+
+  The shape is taken from sn_mod_support_apis/md/time_api.xml and the
+  Server_Reader section of documentation/Named_Pipes_API.md. Every action and
+  property used here was verified against libraries/common.xsd, libraries/md.xsd
+  and libraries/scriptproperties.xml of X4 9.00 rather than written from memory.
+
+  The file name must be lowercase, or X4 ignores the file without a word.
+-->
+
+<cues>
+
+  <!-- Register our Python module with the pipe host. Must be resent on every
+       Reloaded, hence instantiate. -->
+  <cue name="Register_Pipe_Server" instantiate="true">
+    <conditions>
+      <event_cue_signalled cue="md.Pipe_Server_Host.Reloaded" />
+    </conditions>
+    <actions>
+      <signal_cue_instantly
+        cue="md.Pipe_Server_Host.Register_Module"
+        param="'extensions/x4_agent_bridge/python/bridge.py'"/>
+    </actions>
+  </cue>
+
+  <!-- The documentation warns that a cue using Server_Reader must not be
+       created alongside its own action libraries. Hence this dummy wrapper. -->
+  <cue name="Server_Reader_Wrapper">
+    <cues>
+      <cue name="Server_Reader" ref="md.Pipe_Server_Lib.Server_Reader">
+        <param name="Actions_On_Reload"  value="Actions_On_Reload"/>
+        <param name="Actions_On_Connect" value="Actions_On_Connect"/>
+        <param name="Actions_On_Read"    value="Actions_On_Read"/>
+      </cue>
+    </cues>
+  </cue>
+
+  <library name="Actions_On_Reload">
+    <actions>
+      <set_value name="$Pipe_Name" exact="'x4_agent'" />
+      <!-- This starts the whole connection routine: ping until the host
+           answers, then connect, then read. The example in the API
+           documentation only signals $Start_Reading from Actions_On_Connect,
+           which is circular: connect runs after a connection exists, and the
+           connection only happens because of this signal. hotkey_api.xml does
+           it here, on line 253, and that works. -->
+      <signal_cue cue="$Start_Reading" />
+    </actions>
+  </library>
+
+  <library name="Actions_On_Connect">
+    <actions>
+      <signal_cue cue="$Start_Reading" />
+    </actions>
+  </library>
+
+  <!-- Return path: whatever the planner sends back lands visibly in the
+       logbook, so the round trip can be observed inside the game itself. -->
+  <library name="Actions_On_Read">
+    <actions>
+      <write_to_logbook category="general" text="'[x4-agent] %s'.[event.param]"/>
+      <debug_text text="'[x4-agent] received: %s'.[event.param]" filter="general"/>
+    </actions>
+  </library>
+
+  <!-- Outbound: a minimal state every 30 seconds. Deliberately small; the real
+       sitrep only goes through once this loop is proven. Note that cues with a
+       checkinterval do not fire while the game is paused. -->
+  <cue name="Send_State" instantiate="true" checkinterval="30s">
+    <actions>
+      <signal_cue_instantly
+        cue="md.Named_Pipes.Write"
+        param="table[$pipe = 'x4_agent',
+                     $msg  = 'state money=%s time=%s'.[player.money, player.age],
+                     $cue  = Write_Callback]"/>
+    </actions>
+  </cue>
+
+  <cue name="Write_Callback" instantiate="true">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>
+    <actions>
+      <debug_text text="'[x4-agent] write result: %s'.[event.param]" filter="general"/>
+    </actions>
+  </cue>
+
+</cues>
+
+</mdscript>

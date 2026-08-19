@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<content
+  id="x4_agent_bridge"
+  name="X4 Agent Bridge"
+  description="Sends game state to an external Python host over named pipes and writes the reply to the logbook."
+  author="RalfHermsen"
+  version="100"
+  date="2026-08-19"
+  save="false"
+  sync="false">
+  <dependency id="ws_2042901274" name="Mod Support APIs"/>
+  <text language="44" description="Bridge between X4 and an external LLM planner, over named pipes. Requires SirNukes Mod Support APIs."/>
+</content>
