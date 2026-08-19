@@ -126,6 +126,24 @@ def build(state: dict) -> str:
         for st in stations:
             add(f"{st['code']} ({st['macro']}) in "
                 f"{gamedata.pretty(st['place'].get('sector'), names)}")
+            # The account element carries min, max and amount only once they are
+            # non-zero: X4 omits empty attributes. An account element with just
+            # an id therefore means no operating budget at all, which is the
+            # difference between a manager that can buy and one that cannot.
+            acct = st.get("account") or {}
+            if acct:
+                amount = int(acct.get("amount", 0) or 0)
+                expected = int(acct.get("min", 0) or 0)
+                if expected:
+                    share = amount / expected * 100
+                    warn = ("  TOO LOW: a manager needs money to open purchase "
+                            "orders" if share < 20 else "")
+                    add(f"  operating budget {amount:,} Cr of "
+                        f"{expected:,} recommended ({share:.0f}%).{warn}")
+                else:
+                    add("  operating budget: none set. "
+                        "TOO LOW: a manager needs money to open purchase orders")
+
             mgr = st.get("manager")
             if mgr and mgr.get("management_raw") is not None:
                 stars = mgr["management_stars"]
