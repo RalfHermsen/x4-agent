@@ -101,6 +101,39 @@
                    multiple="true"
                    recursive="true"/>
 
+      <!-- Operating budget. A manager without money cannot open purchase
+           orders, and a station with a zero budget silently does nothing: the
+           account element in the savegame does not even carry an amount.
+
+           The level is a word rather than a number, because a number cannot be
+           parsed out of the command string. The model picks how aggressive to
+           be, the game does the arithmetic. Capped at the player's own money so
+           this can never overcommit. -->
+      <do_for_each name="$agent_station" in="$agent_stations">
+        <do_if value="event.param == 'budget %s low'.[$agent_station.idcode]">
+          <set_value name="$agent_budget" exact="player.money / 10"/>
+          <set_value name="$agent_handled" exact="1"/>
+        </do_if>
+        <do_if value="event.param == 'budget %s mid'.[$agent_station.idcode]">
+          <set_value name="$agent_budget" exact="player.money / 4"/>
+          <set_value name="$agent_handled" exact="1"/>
+        </do_if>
+        <do_if value="event.param == 'budget %s high'.[$agent_station.idcode]">
+          <set_value name="$agent_budget" exact="player.money / 2"/>
+          <set_value name="$agent_handled" exact="1"/>
+        </do_if>
+
+        <do_if value="@$agent_budget and $agent_budget > 0">
+          <set_object_min_budget object="$agent_station" amount="$agent_budget"/>
+          <set_object_max_budget object="$agent_station" amount="$agent_budget * 3 / 2"/>
+          <write_to_logbook category="general"
+            text="'[x4-agent] ORDER: budget of %s set to %s Cr'.[$agent_station.idcode, $agent_budget]"/>
+          <show_notification
+            text="'[x4-agent] %s budget %s Cr'.[$agent_station.idcode, $agent_budget]"/>
+          <set_value name="$agent_budget" exact="0"/>
+        </do_if>
+      </do_for_each>
+
       <do_for_each name="$agent_ship" in="$agent_ships">
         <!-- Vanilla explore order; id verified in
              aiscripts/order.move.recon.explore.xml -->
@@ -148,6 +181,17 @@
              ware list cannot travel through the pipe: MD cannot parse strings.
              The executor refuses to send this command when the model asked for
              a specific whitelist, rather than quietly dropping it. -->
+        <!-- Vanilla mining routine, the counterpart of TradeRoutine. Same
+             reasoning: parameters keep their defaults because a ware list
+             cannot travel through the pipe. -->
+        <do_if value="event.param == 'automine %s'.[$agent_ship.idcode]">
+          <create_order object="$agent_ship" id="'MiningRoutine'"/>
+          <write_to_logbook category="general"
+            text="'[x4-agent] ORDER: %s put on mining'.[$agent_ship.idcode]"/>
+          <show_notification text="'[x4-agent] %s mining'.[$agent_ship.idcode]"/>
+          <set_value name="$agent_handled" exact="1"/>
+        </do_if>
+
         <do_if value="event.param == 'autotrade %s'.[$agent_ship.idcode]">
           <create_order object="$agent_ship" id="'TradeRoutine'"/>
           <write_to_logbook category="general"

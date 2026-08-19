@@ -279,6 +279,22 @@ class FleetOrder(BaseModel):
     rationale: str = _RATIONALE
 
 
+class SetBudget(BaseModel):
+    """Give a station manager money to work with.
+
+    The level is a word, not an amount. A number cannot travel through the pipe
+    (the Mission Director cannot parse strings), and the split is sound anyway:
+    the model decides how aggressive to be, the game works out what that means
+    against the player's current balance.
+    """
+    type: Literal["set_budget"]
+    station_id: str
+    level: Literal["low", "mid", "high"] = Field(
+        description="low = 10% of the player's money, mid = 25%, high = 50%")
+    priority: Priority = _PRIORITY
+    rationale: str = _RATIONALE
+
+
 class Hold(BaseModel):
     """Deliberately do nothing (consolidate, hold cash). Rationale required."""
     type: Literal["hold"]
@@ -296,6 +312,7 @@ Action = Annotated[
         Purchase,
         BuildStation,
         FleetOrder,
+        SetBudget,
         Hold,
     ],
     Field(discriminator="type"),

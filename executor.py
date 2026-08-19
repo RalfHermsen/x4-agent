@@ -11,7 +11,9 @@ narrow. Three separate gates stand between a model's idea and your empire:
 3. The caller decides whether to send at all (advise vs execute mode).
 
 The executable vocabulary grows only when the matching MD command has been
-written and verified. Today that is one entry.
+written and verified against the game's own schemas. `describe()` reports what
+that currently is, and the planner prompt is built from it, so the model is told
+what its body can actually do.
 
 Usage:
     from executor import to_commands
@@ -38,6 +40,16 @@ def _autotrade(action) -> str:
     return f"autotrade {action.ship_ref}"
 
 
+def _automine(action) -> str:
+    """set_behaviour(automine) -> the vanilla MiningRoutine order."""
+    return f"automine {action.ship_ref}"
+
+
+def _budget(action) -> str:
+    """set_budget -> raise a station's operating budget to a level."""
+    return f"budget {action.station_id} {action.level}"
+
+
 def _assign(action) -> str:
     """assign_ship -> attach a ship to one of our stations as trader or miner."""
     return f"assign {action.ship_ref} {action.station_id} {action.role}"
@@ -59,6 +71,8 @@ EXECUTABLE: dict[tuple[str, str | None], Callable] = {
     ("set_behaviour", "explore"): _explore,
     ("set_behaviour", "autotrade"): _autotrade,
     ("assign_ship", None): _assign,
+    ("set_behaviour", "automine"): _automine,
+    ("set_budget", None): _budget,
 }
 
 
@@ -74,6 +88,7 @@ def _key(action) -> tuple[str, str | None]:
 SATISFIED_BY_ORDER = {
     ("set_behaviour", "explore"): "Explore",
     ("set_behaviour", "autotrade"): "TradeRoutine",
+    ("set_behaviour", "automine"): "MiningRoutine",
 }
 
 

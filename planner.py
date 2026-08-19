@@ -65,6 +65,7 @@ Pick the fitting type per action:
 - purchase       : buy a ship, module, seminar or blueprint
 - build_station  : build a station
 - fleet_order    : fleet instruction
+- set_budget     : give a station manager an operating budget (low/mid/high)
 - hold           : deliberately do nothing
 
 Use `hold` only when the analysis says nothing should be done. Never describe an
