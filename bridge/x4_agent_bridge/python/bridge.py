@@ -87,12 +87,12 @@ def run_cycle(pipe) -> None:
           f"{len(result['rejected'])} rejected")
 
     if not commands:
-        pipe.Write("agent: nothing to execute this cycle")
+        # Nothing to say. Writing "nothing happened" back would put a line in
+        # the player's logbook every cycle, which is noise, not information.
         return
 
     if MODE != "execute":
         print(f"[x4-agent] advise mode, NOT sending: {commands}")
-        pipe.Write(f"agent (advice only): {'; '.join(commands)}")
         return
 
     for command in commands:

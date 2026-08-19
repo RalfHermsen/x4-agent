@@ -59,9 +59,11 @@
     </actions>
   </library>
 
-  <!-- Return path. Two kinds of message arrive here:
-         'explore <IDCODE>'  -> a real order, executed below
-         anything else       -> written to the logbook as text
+  <!-- Return path. Recognised messages:
+         'save'              -> ask the game to write an autosave
+         'explore <IDCODE>'  -> vanilla Explore order
+         'autotrade <IDCODE>'-> vanilla TradeRoutine order
+       Anything else is ignored apart from a debug line.
 
        Note the shape of the command matching. The Mission Director has **no
        string manipulation at all**: no split, no substring, no startswith
@@ -115,9 +117,11 @@
         </do_if>
       </do_for_each>
 
-      <do_if value="$agent_handled == 0">
-        <write_to_logbook category="general" text="'[x4-agent] %s'.[event.param]"/>
-      </do_if>
+      <!-- Deliberately no fallback logbook entry. The logbook is the player's
+           record of what happened in the game, not a protocol trace: commands
+           the agent sends and status chatter do not belong there. Only actual
+           orders write a line, inside the branches above. Unrecognised messages
+           go to the debug log via the debug_text at the top. -->
     </actions>
   </library>
 
