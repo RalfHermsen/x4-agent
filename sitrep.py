@@ -233,17 +233,17 @@ def price_gaps(stations: list[dict], known: list[dict]) -> list[str]:
             held = stock.get(ware, 0)
             bid = bids.get(ware)
             if not bid:
-                lines.append(f"  {station['code']} asks {ask:.0f} Cr for {ware} "
+                lines.append(f"  {station['code']} sell price for {ware} is {ask:.0f} Cr "
                              f"(stock {held}); nobody we know buys it at any price.")
                 continue
             top, wanted, who = bid
             if ask > top * (1 + PRICE_GAP):
-                lines.append(f"  {station['code']} asks {ask:.0f} Cr for {ware} "
+                lines.append(f"  {station['code']} sell price for {ware} is {ask:.0f} Cr "
                              f"(stock {held}); the best bid we know is {top:.0f} Cr "
                              f"from {who}, who wants {wanted}. Nothing will sell "
                              f"until the price comes down.")
             elif ask < top * (1 - PRICE_GAP):
-                lines.append(f"  {station['code']} asks {ask:.0f} Cr for {ware} "
+                lines.append(f"  {station['code']} sell price for {ware} is {ask:.0f} Cr "
                              f"(stock {held}) while {who} pays {top:.0f} Cr for "
                              f"{wanted}. We are underselling.")
     return lines
@@ -431,7 +431,8 @@ def build(state: dict, goals: list[str] | None = None,
     pricing = price_gaps(stations, known)
     if pricing:
         add("")
-        add("# PRICING (our ask against the best bid we know)")
+        add("# PRICING (our sell price against the best bid we know). "
+            "Every line here is the sell side:")
         for line in pricing:
             add(line)
 
@@ -454,8 +455,15 @@ def build(state: dict, goals: list[str] | None = None,
                    + ".") if cargo else ""
         add(f"{code} has been unable to carry out {order} for "
             f"{age / 60:.0f} minutes. The game says: \"{message}\"{holding}")
-    if idle:
-        add(f"Idle ships: {', '.join(idle)}.")
+    # Name the type, not just the code. "Idle ships: EBR-694, POS-705" was read
+    # and ignored: two freshly bought miners sat doing nothing while the model
+    # went off pricing wares, because nothing in that line said what they were
+    # or that it mattered. A ship without orders is the most expensive thing on
+    # the report, so it says so.
+    for code in idle:
+        ship = next((sh for sh in ships if sh["code"] == code), {})
+        add(f"{code} is a {ship_type(ship.get('macro'))} with no orders at all. "
+            f"It is earning nothing until it is given work.")
     for code, kind in stuck_miners:
         add(f"{code} is an idle {kind} miner, and no station of ours buys "
             f"anything it can mine ({', '.join(sorted(executor.MINABLE[kind]))}). "

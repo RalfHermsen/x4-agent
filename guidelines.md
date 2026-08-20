@@ -163,6 +163,16 @@ Overview):
 
 ---
 
+* **An idle ship outranks everything else in the report.** A ship without
+  orders earns nothing, and it cost more than any price adjustment will make
+  back this hour. Before touching prices, budgets or plans, give every ship
+  without orders a job: miners assigned to a station that buys what they can
+  extract, freighters assigned to a station or put on autotrade, scouts sent to
+  explore. If a ship genuinely has nothing useful to do, say so explicitly
+  rather than passing over it.
+
+---
+
 ## 6. Standing rules: traders
 
 * **AutoTrade is a behaviour, not an order:** Behaviour -> Default Behaviour,
