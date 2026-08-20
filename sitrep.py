@@ -324,6 +324,17 @@ def build(state: dict, goals: list[str] | None = None,
         for failure in failures:
             add(f"  {failure}")
 
+    # Where we could buy a ship. Nothing in the report said this before, so the
+    # model could reason its way to "we need more miners" and no further.
+    yards = [st for st in state.get("known_stations", []) if st.get("builds")]
+    if yards:
+        add("")
+        add("# SHIPYARDS WE KNOW")
+        for yard in yards:
+            add(f"  {yard['code']} ({yard.get('owner')}) builds "
+                f"{', '.join(c.upper() for c in yard['builds'])} class ships, in "
+                f"{gamedata.pretty(yard['place'].get('sector'), names)}")
+
     construction = build_lines(state)
     if construction:
         add("")

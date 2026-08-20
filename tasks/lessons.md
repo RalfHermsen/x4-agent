@@ -49,6 +49,13 @@ lands in the middle of the list, next to a nearly identically named autosave.
 `edit_save.py` now stamps the current time, which is also the truthful answer,
 since the file is written at that moment.
 
+**L6c. A wharf does not look like a wharf.** No faction station macro contains
+"wharf" or "shipyard"; only Xenon shipyards carry it in their own macro. Every
+other one is an ordinary station that happens to hold a `buildmodule` whose
+macro names a ship class, as in `buildmodule_gen_ships_m_dockarea_01_macro`.
+Searching the obvious way returns nothing and reads as "we know no shipyards",
+which is a wrong answer rather than an empty one.
+
 **L7. MD file names must be lowercase.** X4 ignores the file otherwise, without
 a word.
 

@@ -58,6 +58,8 @@ class Asset:
     failures: list[dict] = field(default_factory=list)
     cargo: dict[str, int] = field(default_factory=dict)
     build: dict = field(default_factory=dict)
+    owner: str | None = None
+    builds: list[str] = field(default_factory=list)
     software: list[str] = field(default_factory=list)
     account: dict[str, str] = field(default_factory=dict)
     offers: list[Offer] = field(default_factory=list)
@@ -276,6 +278,30 @@ def _production(elem) -> list[dict]:
     return out
 
 
+# Ship classes a build module can produce, read out of its macro name:
+# buildmodule_gen_ships_m_dockarea_01_macro builds M ships. There is no station
+# macro that says "wharf"; only Xenon shipyards carry it in their own macro, and
+# every faction wharf looks like an ordinary station until you look at what
+# modules it has. Searching for "wharf" finds nothing, which is why the agent
+# concluded it knew no shipyards at all.
+SHIP_SIZES = ("xs", "s", "m", "l", "xl")
+
+
+def _shipyard(elem) -> list[str]:
+    """Which ship classes this station can build, empty if it is not a wharf."""
+    classes = set()
+    for comp in elem.iter("component"):
+        if comp.get("class") != "buildmodule":
+            continue
+        parts = (comp.get("macro") or "").split("_")
+        if "ships" not in parts:
+            continue
+        after = parts[parts.index("ships") + 1:]
+        if after and after[0] in SHIP_SIZES:
+            classes.add(after[0])
+    return sorted(classes, key=SHIP_SIZES.index)
+
+
 def _build_tasks(elem) -> dict:
     """What a build storage is working on, and what it still lacks.
 
@@ -323,6 +349,7 @@ def _asset(elem, ancestors: list[dict]) -> Asset:
         orders=_orders(elem),
         failures=_failures(elem),
         cargo=_cargo(elem),
+        owner=elem.get("owner"),
         software=[s.get("wares") for s in elem.iter("software") if s.get("wares")],
         account=dict(elem.find("account").items()) if elem.find("account") is not None else {},
     )
@@ -330,6 +357,7 @@ def _asset(elem, ancestors: list[dict]) -> Asset:
         asset.offers = _offers(elem)
         asset.build = _build_tasks(elem)
     if asset.cls == "station":
+        asset.builds = _shipyard(elem)
         asset.manager = _manager(elem)
         asset.offers = _offers(elem)
         asset.production = _production(elem)
