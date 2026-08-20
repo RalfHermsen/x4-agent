@@ -21,6 +21,7 @@ import sys
 from pathlib import Path
 
 import executor
+import memory
 import planner
 import sitrep as sitrep_mod
 from save_parser import latest_save, parse_save
@@ -32,13 +33,24 @@ def cycle(model: str | None = None, save: Path | None = None) -> dict:
     target = save or latest_save()
 
     state = parse_save(target)
-    report = sitrep_mod.build(state)
+
+    # What the agent remembers: goals it set itself last time, and whether the
+    # commands it sent actually changed anything. Both go into the report, so
+    # the model plans with continuity and can see its own failures.
+    remembered = memory.load()
+    failures = memory.check(remembered, state)
+    report = sitrep_mod.build(state, goals=remembered.get("goals"),
+                              failures=failures)
 
     analysis, reason_s = planner.reason(
         report, planner.GUIDELINES.read_text(encoding="utf-8"), model)
     plan, extract_s = planner.extract(analysis, report, model)
     ok, rejected = planner.check_actions(plan, state)
     commands, skipped = executor.to_commands(ok, state)
+
+    remembered["goals"] = plan.updated_goals or remembered.get("goals", [])
+    memory.record(remembered, commands)
+    memory.save(remembered)
 
     return {
         "save": target,
@@ -49,6 +61,8 @@ def cycle(model: str | None = None, save: Path | None = None) -> dict:
         "rejected": rejected,
         "commands": commands,
         "skipped": skipped,
+        "failures": failures,
+        "goals": remembered["goals"],
         "seconds": reason_s + extract_s,
     }
 

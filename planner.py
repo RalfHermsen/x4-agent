@@ -51,7 +51,11 @@ most four concrete actions.
 - For each action, state which ship or station it concerns and which guideline
   justifies it.
 - If there is nothing sensible to do, say so explicitly.
-- Be concise."""
+- Be concise.
+
+End with one to three standing goals: what this empire is working towards over
+the next hours, not this minute. They are carried into the next cycle, so write
+them so a later you can tell whether they are done."""
 
 EXTRACT_SYSTEM = """You convert a given analysis into structured actions. You add
 nothing and drop nothing; you only translate.
@@ -88,7 +92,12 @@ analysis names no specific ship or station for an action, drop that action.
 When the analysis describes an intent that fits more than one action type, pick
 one the executor can actually carry out. Attaching a ship to one of our stations
 so its manager directs it is `assign_ship`, not `set_behaviour`. Currently
-executable: %s. The rest is recorded as advice."""
+executable: %s. The rest is recorded as advice.
+
+Fill `updated_goals` with the standing goals the analysis ends on. If the report
+already listed standing goals, carry forward the ones still worth pursuing and
+drop the ones that are done. This is the only thing the agent remembers between
+cycles, so an empty list throws that memory away."""
 
 
 def _chat(model: str, messages: list[dict], schema: dict | None,

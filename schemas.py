@@ -339,9 +339,13 @@ Action = Annotated[
 
 class PlannerResponse(BaseModel):
     assessment: str = Field(description="Two or three sentences reading the situation. Logged.")
+    # No default. A field with one is left out of `required`, and the grammar
+    # then lets the model skip it: the reasoning ended on two clear standing
+    # goals and the structured answer came back with none. Same trap as the
+    # action discriminator; see docs/contracts.md.
     updated_goals: list[str] = Field(
-        default_factory=list,
-        description="Standing goals to persist for the next cycle",
+        description="Standing goals to persist for the next cycle. May be empty, "
+                    "but the field itself must be present.",
     )
     actions: list[Action] = Field(
         default_factory=list, description="Ordered by priority, highest first"

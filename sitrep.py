@@ -103,7 +103,8 @@ def trade_margins(stations: list[dict], limit: int = 10) -> list[dict]:
     return out[:limit]
 
 
-def build(state: dict) -> str:
+def build(state: dict, goals: list[str] | None = None,
+          failures: list[str] | None = None) -> str:
     meta, player = state["meta"], state["player"]
     assets = state["assets"]
     ships = [a for a in assets if a["cls"] in SHIP_CLASSES]
@@ -235,6 +236,21 @@ def build(state: dict) -> str:
         kind = executor._miner_kind(ship.get("macro"))
         if kind and not (wanted & executor.MINABLE[kind]):
             stuck_miners.append((ship["code"], kind))
+
+    if goals:
+        add("")
+        add("# STANDING GOALS (set by you in an earlier cycle)")
+        for goal in goals:
+            add(f"  {goal}")
+
+    if failures:
+        # An order that was sent but did not take effect. Saying so beats
+        # silently planning as if it had worked, which is what happened before
+        # this existed.
+        add("")
+        add("# LAST CYCLE DID NOT TAKE EFFECT")
+        for failure in failures:
+            add(f"  {failure}")
 
     add("")
     add("# ATTENTION")

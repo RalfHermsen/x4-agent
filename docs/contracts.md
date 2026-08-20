@@ -213,3 +213,28 @@ sitrep already separates "# OWN STATIONS" from "# KNOWN MARKET".
 
 This is exactly why the second sieve exists. Without the ownership check those
 actions would have passed as schema-valid and gone to the game.
+
+---
+
+## The same trap, twice
+
+Two months of care about the discriminator field and it still caught us again.
+
+`PlannerResponse.updated_goals` carried `default_factory=list`. Pydantic
+therefore left it out of `required`, the grammar allowed the model to omit it,
+and it did: the free-reasoning call ended on
+
+```
+**Standing Goals:**
+* Stabilize KYV-745 production by ensuring sufficient budget and internal logistics.
+* Accumulate capital toward the 2M Cr threshold.
+```
+
+and the structured answer came back with an empty list. The agent's entire
+memory between cycles was being thrown away at the last step, silently, while
+every visible part of the pipeline looked healthy.
+
+**The rule, restated:** in a grammar-constrained schema, a default is not a
+convenience, it is permission to skip. Any field you actually need must be
+required, even when an empty value is legal. `updated_goals` is now required and
+documented as "may be empty, but the field itself must be present".
