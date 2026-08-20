@@ -137,6 +137,11 @@ def _trade_rule_pointless(action, state: dict) -> str | None:
 # to come down.
 UNDERCUT = 0.98
 MIN_BUYERS_TO_CUT = 2
+# How far a price must be off before it is worth a command. Bids drift by a
+# credit or two between cycles, and without a deadband refined metals was
+# repriced five times in an hour, 204 to 203 to 202, on a pipe that takes one
+# command every two seconds. Chasing the last credit costs more than it earns.
+PRICE_DEADBAND = 0.02
 
 
 def repricing(state: dict) -> list[str]:
@@ -168,7 +173,7 @@ def repricing(state: dict) -> list[str]:
                 continue
             top, _, _, buyers = bid
             target = int(top * UNDERCUT)
-            if target == int(offer["price"]):
+            if abs(target - offer["price"]) < offer["price"] * PRICE_DEADBAND:
                 continue
             if target < offer["price"] and buyers < MIN_BUYERS_TO_CUT:
                 continue
