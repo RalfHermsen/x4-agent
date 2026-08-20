@@ -42,6 +42,27 @@
     </actions>
   </cue>
 
+  <!-- Say which build of the bridge is live.
+       "/refreshmd" in the in-game chat window reloads MD scripts without
+       restarting the game, which turns a five-minute restart into a keystroke.
+       The catch is that a refresh looks exactly like no refresh: the game says
+       nothing, and the next command behaves the same either way unless the
+       change happens to be visible. So the bridge now announces itself, and
+       "did my refresh take" is answerable by looking at the logbook.
+
+       Bump BRIDGE_BUILD whenever this file changes in a way worth confirming. -->
+  <cue name="Announce_Build" instantiate="true">
+    <conditions>
+      <event_ui_triggered screen="'Chat_Window_API'" control="'refreshmd'" />
+    </conditions>
+    <actions>
+      <write_to_logbook category="general"
+        text="'[x4-agent] bridge reloaded, build 2026-08-20.3 (expand: own sequence, failsafe off)'"/>
+      <show_notification
+        text="'[x4-agent] bridge build 2026-08-20.3'"/>
+    </actions>
+  </cue>
+
   <!-- Independent proof that the Lua file was actually required, separate from
        whether anything inside it ran. The Lua Loader raises this itself. -->
   <cue name="Lua_Loaded" instantiate="true">
