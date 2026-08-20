@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Loads the Lua side into the menu environment.
+
+  This is the documented way, and it is not how this mod started. The Lua file
+  was originally pulled in by the MD script, which raises Lua_Loader.Load in
+  response to the loader's "Ready" signal. The Lua Loader API's own
+  documentation calls that path legacy support for mods written before X4 7.5,
+  and says newer mods should use ui.xml instead. Ignoring that cost a day: a
+  file loaded in reaction to "Ready" arrives after the loader has already run
+  and discarded its init list, so its init never ran at all.
+
+  Loaded from here, the file is in place before the game initialises, which is
+  the order everything in the Lua Loader assumes.
+
+  The MD cue that loads the same file is kept as a fallback. Loading twice is
+  harmless: require caches the module, and the file guards its own init.
+-->
+<addon name="x4_agent_bridge"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="../../core/coreaddon.xsd">
+  <environment type="menus">
+    <file name="ui/x4agent.lua" />
+  </environment>
+</addon>
