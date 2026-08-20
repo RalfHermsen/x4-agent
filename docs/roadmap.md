@@ -67,7 +67,14 @@ input the moment the station starts producing it.
 ## Plausible, needs building and testing
 
 **Notice losses.** The agent remembers what it did but not what it had. A ship
-that is destroyed simply stops appearing, and nothing says so. For unattended
+that is destroyed simply stops appearing, and nothing says so.
+
+Caution learned the hard way: a **hired construction vessel comes under player
+control and then leaves again** when its contract ends. Comparing fleets
+naively would report every finished build as a lost ship. One such vessel was
+briefly reported as an idle ship of ours and was gone an hour later, and it took
+a while to establish that nothing had been lost at all. Loss detection has to
+tell owned ships from rented ones before it is worth having. For unattended
 play this may matter more than anything else on this list, and it needs no new
 game API: compare the fleet against the previous cycle, which the memory store
 already persists.
