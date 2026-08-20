@@ -174,6 +174,56 @@ def build_lines(state: dict) -> list[str]:
     return lines
 
 
+# How far our asking price may sit above the best bid we know before it is worth
+# reporting. A little above is normal and healthy; a third above means the goods
+# do not move at all, which is what 6,160 refined metals priced at 194 Cr looked
+# like while the only known buyer paid 117.
+PRICE_GAP = 0.05
+
+
+def price_gaps(stations: list[dict], known: list[dict]) -> list[str]:
+    """Our asking price against the best price anyone we know actually pays.
+
+    A station manager prices against its own storage, not against the market, so
+    it will happily sit on a full warehouse at a price nobody will meet, and
+    equally sell below what buyers are offering. Neither shows up anywhere: the
+    stock is simply there and the money is simply not.
+    """
+    bids: dict[str, tuple] = {}
+    for station in known:
+        for offer in station.get("offers", []):
+            if offer.get("side") != "buy" or not offer.get("desired"):
+                continue
+            best = bids.get(offer["ware"])
+            if best is None or offer["price"] > best[0]:
+                bids[offer["ware"]] = (offer["price"], offer["desired"], station["code"])
+
+    lines = []
+    for station in stations:
+        stock = station.get("cargo") or {}
+        for offer in station.get("offers", []):
+            if offer.get("side") != "sell" or not offer.get("price"):
+                continue
+            ware, ask = offer["ware"], offer["price"]
+            held = stock.get(ware, 0)
+            bid = bids.get(ware)
+            if not bid:
+                lines.append(f"  {station['code']} asks {ask:.0f} Cr for {ware} "
+                             f"(stock {held}); nobody we know buys it at any price.")
+                continue
+            top, wanted, who = bid
+            if ask > top * (1 + PRICE_GAP):
+                lines.append(f"  {station['code']} asks {ask:.0f} Cr for {ware} "
+                             f"(stock {held}); the best bid we know is {top:.0f} Cr "
+                             f"from {who}, who wants {wanted}. Nothing will sell "
+                             f"until the price comes down.")
+            elif ask < top * (1 - PRICE_GAP):
+                lines.append(f"  {station['code']} asks {ask:.0f} Cr for {ware} "
+                             f"(stock {held}) while {who} pays {top:.0f} Cr for "
+                             f"{wanted}. We are underselling.")
+    return lines
+
+
 def build(state: dict, goals: list[str] | None = None,
           failures: list[str] | None = None) -> str:
     meta, player = state["meta"], state["player"]
@@ -334,6 +384,13 @@ def build(state: dict, goals: list[str] | None = None,
             add(f"  {yard['code']} ({yard.get('owner')}) builds "
                 f"{', '.join(c.upper() for c in yard['builds'])} class ships, in "
                 f"{gamedata.pretty(yard['place'].get('sector'), names)}")
+
+    pricing = price_gaps(stations, known)
+    if pricing:
+        add("")
+        add("# PRICING (our ask against the best bid we know)")
+        for line in pricing:
+            add(line)
 
     construction = build_lines(state)
     if construction:

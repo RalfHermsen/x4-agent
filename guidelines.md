@@ -149,6 +149,20 @@ Overview):
 
 ---
 
+* **Price against the market, not against your warehouse.** A station manager
+  sets prices from how full its storage is, which is not the same thing as what
+  anyone will pay. The report gives our asking price beside the best bid we
+  actually know of. Above it, nothing sells however long you wait; below it, we
+  are giving stock away. Move the price to just under the best known bid, and
+  use `set_price` rather than hoping the manager works it out.
+* **A single low bid is not a market.** When only one station we know buys a
+  ware, that is a statement about how little of the map we have seen, not about
+  what the ware is worth. Selling an intermediate good like refined metals into
+  the only bid we know can mean handing over a third of its value. Send
+  explorers before cutting the price.
+
+---
+
 ## 6. Standing rules: traders
 
 * **AutoTrade is a behaviour, not an order:** Behaviour -> Default Behaviour,
