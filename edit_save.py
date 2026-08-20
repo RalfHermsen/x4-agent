@@ -25,6 +25,7 @@ from __future__ import annotations
 import argparse
 import gzip
 import re
+import time
 import sys
 from pathlib import Path
 
@@ -50,6 +51,20 @@ def set_save_name(xml: str, label: str) -> str:
     guessing which of two identical-looking entries is the edited one.
     """
     return re.sub(r'(<save name=")[^"]*(")', lambda m: m.group(1) + label + m.group(2),
+                  xml, count=1)
+
+
+def stamp_date(xml: str) -> str:
+    """Set the save's timestamp to now.
+
+    The load menu sorts on the date inside the file, not on the file's own
+    modification time. Carrying the source's date over meant a freshly written
+    save appeared halfway down the list, wedged between the autosaves it was
+    copied from, which is genuinely hard to find. This file was written now, so
+    saying so is also the honest answer.
+    """
+    return re.sub(r'(<save name="[^"]*" date=")[0-9]+(")',
+                  lambda m: m.group(1) + str(int(time.time())) + m.group(2),
                   xml, count=1)
 
 
@@ -201,6 +216,7 @@ def main() -> int:
 
     label = args.label or "; ".join(changes)[:60]
     xml = set_save_name(xml, label)
+    xml = stamp_date(xml)
 
     name = args.out or next_save_name(source.parent)
     target_file = source.parent / f"{name}.xml.gz"

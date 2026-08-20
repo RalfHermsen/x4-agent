@@ -36,6 +36,19 @@ game timestamp. This beats anything inferable from outside: a miner that cannot
 sell is still formally on a mining order, so nothing about its state looks
 wrong.
 
+**L6a. The load menu does not rescan the save folder.** X4 reads the folder at
+startup and maintains its own list afterwards, adding the saves it writes
+itself. A file created by an external tool while the game runs does not appear,
+and going back to the menu or reloading does not help: the game has to be
+restarted. Symptom: `save_011` and `save_012` absent from a list that happily
+showed `save_008` through `save_010`, written by the same tool the day before.
+
+**L6b. The load menu sorts on the date inside the file.** Not on the file's
+modification time. A save copied from another one inherits its timestamp and
+lands in the middle of the list, next to a nearly identically named autosave.
+`edit_save.py` now stamps the current time, which is also the truthful answer,
+since the file is written at that moment.
+
 **L7. MD file names must be lowercase.** X4 ignores the file otherwise, without
 a word.
 
