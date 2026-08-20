@@ -47,6 +47,7 @@ def cycle(model: str | None = None, save: Path | None = None) -> dict:
     plan, extract_s = planner.extract(analysis, report, model)
     ok, rejected = planner.check_actions(plan, state)
     commands, skipped = executor.to_commands(ok, state)
+    commands, repeats = memory.drop_repeats(remembered, commands)
 
     remembered["goals"] = plan.updated_goals or remembered.get("goals", [])
     memory.record(remembered, commands)
@@ -60,6 +61,7 @@ def cycle(model: str | None = None, save: Path | None = None) -> dict:
         "valid": ok,
         "rejected": rejected,
         "commands": commands,
+        "repeats": repeats,
         "skipped": skipped,
         "failures": failures,
         "goals": remembered["goals"],
@@ -73,6 +75,11 @@ def render(result: dict) -> str:
 
     lines.append(f"# COMMANDS TO SEND ({len(result['commands'])})")
     lines += [f"    {c}" for c in result["commands"]] or ["    none"]
+
+    if result.get("repeats"):
+        lines.append("")
+        lines.append("# ALREADY SET (not re-sent)")
+        lines += [f"    {c}" for c in result["repeats"]]
 
     if result["skipped"]:
         lines.append("")

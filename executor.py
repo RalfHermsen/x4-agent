@@ -24,6 +24,8 @@ from __future__ import annotations
 
 from typing import Callable
 
+from schemas import TradeRule
+
 
 def _explore(action) -> str:
     """set_behaviour(explore) -> the MD command that issues the vanilla Explore order."""
@@ -90,6 +92,40 @@ def _price_out_of_band(action, state: dict) -> str | None:
         return (f"{action.price:.0f} Cr is outside the sane band "
                 f"{low:.0f}-{high:.0f} Cr around the current {current:.0f} Cr")
     return None
+
+
+# The whole-container form: a rule that applies to everything the station
+# trades rather than to one ware. The model reaches for these words when it
+# means "all wares", and the game addresses that case with an empty ware id.
+ALL_WARES = {"all", "any", "-", "*", ""}
+
+
+def _trade_rule(action) -> str:
+    """set_trade_rule -> who a station is allowed to trade with, on the Lua side.
+
+    `open_market` restores the empire default rather than opening the station up
+    unconditionally. On a game where no default has been set those are the same
+    thing, and where one has been set, following it is the honest reversal.
+    """
+    ware = "-" if action.ware.lower() in ALL_WARES else action.ware
+    mode = "own" if action.rule == TradeRule.own_faction_only else "default"
+    return f"traderule {action.station_id} {ware} {action.side} {mode}"
+
+
+def _trade_rule_pointless(action, state: dict) -> str | None:
+    """A rule on a ware the station does not trade changes nothing."""
+    if action.ware.lower() in ALL_WARES:
+        return None
+    station = next((a for a in state.get("assets", [])
+                    if a.get("code") == action.station_id), None)
+    if not station:
+        return None
+    sides = ("buy", "sell") if action.side == "both" else (action.side,)
+    for offer in station.get("offers", []):
+        if offer.get("ware") == action.ware and offer.get("side") in sides:
+            return None
+    return (f"{action.station_id} does not {action.side} {action.ware}, "
+            f"so a trade rule on it changes nothing")
 
 
 def _assign(action) -> str:
@@ -169,6 +205,7 @@ EXECUTABLE: dict[tuple[str, str | None], Callable] = {
     ("set_budget", None): _budget,
     ("expand_station", None): _expand,
     ("set_price", None): _price,
+    ("set_trade_rule", None): _trade_rule,
 }
 
 
@@ -293,6 +330,8 @@ def to_commands(actions: list, state: dict | None = None) -> tuple[list[str], li
         blocked = _blocked_reason(action, key)
         if not blocked and key == ("assign_ship", None) and state:
             blocked = _mining_pointless(action, state)
+        if not blocked and key == ("set_trade_rule", None) and state:
+            blocked = _trade_rule_pointless(action, state)
         if blocked:
             skipped.append((action, blocked))
             continue

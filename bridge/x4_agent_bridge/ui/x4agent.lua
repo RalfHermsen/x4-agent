@@ -30,6 +30,18 @@ declare [[ void SetContainerGlobalPriceFactor(UniverseID containerid, float valu
 declare [[ void SetContainerWareIsBuyable(UniverseID containerid, const char* wareid, bool allowed); ]]
 declare [[ void SetContainerWareIsSellable(UniverseID containerid, const char* wareid, bool allowed); ]]
 
+-- Trade rules. A rule is a faction whitelist or blacklist, defined once at the
+-- empire level and then pointed at by any number of stations and wares.
+declare [[ typedef int32_t TradeRuleID; ]]
+declare [[ typedef struct { uint32_t numfactions; } TradeRuleCounts; ]]
+declare [[ typedef struct { uint32_t id; const char* name; uint32_t numfactions; const char** factions; bool iswhitelist; } TradeRuleInfo; ]]
+declare [[ uint32_t GetNumAllTradeRules(void); ]]
+declare [[ uint32_t GetAllTradeRules(TradeRuleID* result, uint32_t resultlen); ]]
+declare [[ TradeRuleCounts GetTradeRuleInfoCounts(TradeRuleID id); ]]
+declare [[ bool GetTradeRuleInfo(TradeRuleInfo* info, TradeRuleID id); ]]
+declare [[ TradeRuleID CreateTradeRule(TradeRuleInfo info); ]]
+declare [[ void SetContainerTradeRule(UniverseID containerid, TradeRuleID id, const char* ruletype, const char* wareid, bool value); ]]
+
 local X4Agent = {}
 
 local function log(message)
@@ -98,9 +110,122 @@ local function set_tradeware(station, args)
     return true
 end
 
+-- The rule the agent applies when it wants "our own ships only". Created once,
+-- on first use, and found again by this exact name afterwards. Rules the player
+-- made by hand are never touched.
+local OWN_FACTION_RULE = "x4-agent: own faction only"
+
+--- A C string that stays alive as long as `keep` does.
+--
+-- Assigning a Lua string straight into a `const char*` field looks like it
+-- works and then hands the engine a pointer to memory LuaJIT is free to
+-- reclaim. The game's own menus solve this with Helper.ffiNewString; this is
+-- the same idea without the dependency.
+local function cstring(text, keep)
+    local buffer = ffi.new("char[?]", #text + 1)
+    ffi.copy(buffer, text)
+    keep[#keep + 1] = buffer
+    return buffer
+end
+
+--- The id of the empire trade rule with this name, or nil.
+local function find_trade_rule(name)
+    local count = C.GetNumAllTradeRules()
+    if count == 0 then
+        return nil
+    end
+    local ids = ffi.new("TradeRuleID[?]", count)
+    count = C.GetAllTradeRules(ids, count)
+    for i = 0, count - 1 do
+        local info = ffi.new("TradeRuleInfo")
+        -- GetTradeRuleInfo fills a faction array the caller allocates, so its
+        -- size has to be asked for first. Zero factions still needs somewhere
+        -- to point.
+        local numfactions = C.GetTradeRuleInfoCounts(ids[i]).numfactions
+        local factions = ffi.new("const char*[?]", math.max(numfactions, 1))
+        info.numfactions = numfactions
+        info.factions = factions
+        if C.GetTradeRuleInfo(info, ids[i]) and ffi.string(info.name) == name then
+            return ids[i]
+        end
+    end
+    return nil
+end
+
+--- Create the "own faction only" rule: a whitelist containing just us.
+local function create_own_faction_rule()
+    local keep = {}
+    local factions = ffi.new("const char*[1]")
+    factions[0] = cstring("player", keep)
+
+    local info = ffi.new("TradeRuleInfo")
+    info.name = cstring(OWN_FACTION_RULE, keep)
+    info.iswhitelist = true
+    info.numfactions = 1
+    info.factions = factions
+
+    local id = C.CreateTradeRule(info)
+    if id == 0 then
+        log("could not create the trade rule " .. OWN_FACTION_RULE)
+        return nil
+    end
+    log("created trade rule " .. OWN_FACTION_RULE .. " (id " .. tonumber(id) .. ")")
+    return id
+end
+
+local RULE_TYPES = { buy = true, sell = true, supply = true, build = true }
+local ALL_WARES = { ["-"] = true, all = true, any = true, ["*"] = true }
+
+--- "traderule KYV-745 ore buy own" -> only buy ore from our own ships.
+--
+-- This is the one rule that reliably saves money on an unattended empire: a
+-- station manager with credits will happily pay an NPC trader for ore that our
+-- own miners are already bringing in for nothing.
+--
+-- `default` is the reverse, and it is deliberately not called "anyone": it
+-- clears this station's own rule so it follows the empire default again, which
+-- is what the station configuration menu's override checkbox does.
+local function set_trade_rule(station, args)
+    local ware, side, mode = args[1], args[2], args[3]
+    if not (ware and side and mode) then
+        log("traderule needs: traderule <IDCODE> <ware|-> <buy|sell|both> <own|default>")
+        return false
+    end
+    if not (RULE_TYPES[side] or side == "both") then
+        log("traderule side must be buy, sell, both, supply or build, got " .. tostring(side))
+        return false
+    end
+
+    -- An empty ware id is how the game addresses the container as a whole.
+    ware = ALL_WARES[ware] and "" or ware
+    local sides = (side == "both") and { "buy", "sell" } or { side }
+
+    local id, value
+    if mode == "own" then
+        id = find_trade_rule(OWN_FACTION_RULE) or create_own_faction_rule()
+        if not id then
+            return false
+        end
+        value = true
+    elseif mode == "default" then
+        id, value = -1, false
+    else
+        log("traderule mode must be own or default, got " .. tostring(mode))
+        return false
+    end
+
+    for _, ruletype in ipairs(sides) do
+        C.SetContainerTradeRule(station, id, ruletype, ware, value)
+    end
+    log(string.format("%s: %s %s is now %s", args.code, side,
+                      (ware == "") and "everything" or ware, mode))
+    return true
+end
+
 local HANDLERS = {
     price = set_price,
     tradeware = set_tradeware,
+    traderule = set_trade_rule,
 }
 
 --- Commands arrive as one string, forwarded by MD when it does not recognise
@@ -140,7 +265,7 @@ end
 
 local function init()
     RegisterEvent("X4Agent.Command", X4Agent.onCommand)
-    log("ready, handling: price, tradeware")
+    log("ready, handling: price, tradeware, traderule")
 end
 
 -- Register_OnLoad_Init comes from the Lua Loader API, and delays this until the

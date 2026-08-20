@@ -206,3 +206,41 @@ parsing there dissolves all three at once.
 MD remains the right place for what MD is good at: cues, game events, and
 creating orders. The split should be by capability, not by whichever layer the
 first spike happened to use.
+
+## Trade rules, and what the last argument means
+
+`SetContainerTradeRule(container, id, ruletype, wareid, value)` is the whole
+"own faction only" rule from the strategy document, but four of its five
+arguments only make sense once you have read the menu that calls it.
+
+* **`id`** is not the rule; it is a pointer to one. Rules are empire-level
+  objects with a name, a faction list and a whitelist/blacklist flag, created
+  once with `CreateTradeRule(TradeRuleInfo)` and then pointed at from any number
+  of stations and wares. The agent creates exactly one, named
+  `x4-agent: own faction only`, and finds it again by that name afterwards.
+  Rules the player made by hand are never touched.
+* **`ruletype`** is `buy`, `sell`, `supply`, `build` or `transmute`. "Trade" in
+  the UI is not a rule type; it is both `buy` and `sell` set together.
+* **`wareid`** is a string, and an empty one addresses the container as a whole.
+  This is exactly the string handling MD does not have.
+* **`value`** is not "on". It means "this container has a rule of its own".
+  `menu_map.checkboxSetTradeRuleOverride` sets `(-1, ..., false)` to make a
+  station follow the empire default again, and `(currentid, ..., true)` to give
+  it back its own. So the reverse of `own_faction_only` is not "trade with
+  anyone", it is "follow the default", which is what the executor sends.
+
+`GetTradeRuleInfo` fills a faction array the caller allocates, so the size has
+to be asked for first with `GetTradeRuleInfoCounts`. Strings written into a
+`TradeRuleInfo` must be C buffers that stay alive across the call: assigning a
+Lua string looks like it works and hands the engine a pointer LuaJIT is free to
+reclaim.
+
+### Settings are invisible to the savegame
+
+Trade rules, price overrides and ware toggles are not in the save, so the
+"is this already true" gate cannot see them, and the agent would re-send the
+same setting every cycle for ever on a pipe that takes one command every two
+seconds. `memory.py` therefore records what it configured as
+`subject -> value`, keeping the two apart so a price can be moved and later
+moved back. A setting the player undoes by hand is not re-applied: the player
+outranks the agent.

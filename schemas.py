@@ -67,8 +67,13 @@ class ShipRole(str, Enum):
 
 
 class TradeRule(str, Enum):
-    own_faction_only = "own_faction_only"   # restrict all, own faction unticked
-    open_market = "open_market"             # no restrictions
+    # Trade only with our own ships: a whitelist containing just us. This is
+    # what stops a station manager paying an NPC for ore our own miners are
+    # already delivering.
+    own_faction_only = "own_faction_only"
+    # Clear this station's own rule so it follows the empire default again.
+    # Unrestricted only in so far as the default is.
+    open_market = "open_market"
 
 
 class Priority(str, Enum):

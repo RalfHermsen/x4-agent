@@ -37,15 +37,25 @@ EXPECTED = {
 }
 
 
+# Commands that configure something rather than tell somebody to do something.
+# A trade rule or a price stays true until it is changed, and none of them are
+# visible in the savegame, so the "is this already true" gate cannot see them.
+# Without this the agent re-sends the same setting every cycle for ever, on a
+# pipe that accepts one command every two seconds.
+CONFIGURATION = ("traderule", "price", "tradeware")
+
+_EMPTY = {"goals": [], "pending": [], "applied": {}}
+
+
 def load(path: Path = STORE) -> dict:
     if not path.exists():
-        return {"goals": [], "pending": []}
+        return dict(_EMPTY)
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError):
-        return {"goals": [], "pending": []}
-    data.setdefault("goals", [])
-    data.setdefault("pending", [])
+        return dict(_EMPTY)
+    for key, default in _EMPTY.items():
+        data.setdefault(key, type(default)())
     return data
 
 
@@ -54,10 +64,45 @@ def save(data: dict, path: Path = STORE) -> None:
     path.write_text(json.dumps(data, indent=2), encoding="utf-8")
 
 
+def _setting(command: str) -> tuple[str, str] | None:
+    """A configuration command as (what it configures, what it was set to).
+
+    All three share one shape: `<verb> <station> <ware> <side> <value>`. Keeping
+    the subject and the value apart is what lets a setting be changed back to an
+    earlier value later; keying on the whole command would swallow that.
+    """
+    parts = command.split()
+    if len(parts) != 5 or parts[0] not in CONFIGURATION:
+        return None
+    return " ".join(parts[:4]), parts[4]
+
+
+def drop_repeats(data: dict, commands: list[str]) -> tuple[list[str], list[str]]:
+    """Split off configuration commands that are already in force.
+
+    The cost is that a setting the player undoes by hand is not re-applied. That
+    is the right way round: the player outranks the agent.
+    """
+    applied = data.get("applied", {})
+    fresh, repeats = [], []
+    for command in commands:
+        setting = _setting(command)
+        if setting and applied.get(setting[0]) == setting[1]:
+            repeats.append(command)
+        else:
+            fresh.append(command)
+    return fresh, repeats
+
+
 def record(data: dict, commands: list[str]) -> dict:
     """Remember commands just sent, so the next cycle can check them."""
     stamp = time.time()
     data["pending"] = [{"command": c, "sent": stamp} for c in commands]
+    applied = data.setdefault("applied", {})
+    for command in commands:
+        setting = _setting(command)
+        if setting:
+            applied[setting[0]] = setting[1]
     return data
 
 

@@ -41,12 +41,15 @@ The general rule the agent should learn from this: **an input with no known
 seller is a reason to produce it, not a reason to keep looking**, as long as its
 own inputs are mineable or already produced.
 
-## Verified mechanisms, not yet wired up
+## Done since this was written
 
-**Trade rules.** `SetContainerTradeRule(containerid, TradeRuleID, ruletype,
-wareid, value)`. This is "own faction first on buy orders": stop the manager
-paying NPCs for what your own miners deliver for nothing. The single largest
-recurring saving available, and the Lua path is open.
+**Trade rules.** `set_trade_rule` reaches the game through the Lua side: the
+agent creates one empire rule, `x4-agent: own faction only`, and points a
+station and ware at it. That is "buy this only from our own ships", which stops
+a manager paying an NPC for ore our own miners already deliver. See
+[phase3-acting.md](phase3-acting.md) for what the arguments actually mean.
+
+## Verified mechanisms, not yet wired up
 
 **Turning wares on and off.** `SetContainerWareIsBuyable` and
 `SetContainerWareIsSellable`, both taking the ware as a string. Already written
