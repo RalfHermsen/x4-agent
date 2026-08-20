@@ -324,9 +324,15 @@ def build(state: dict, goals: list[str] | None = None,
     add("")
     add("# KNOWN MARKET")
     add(f"Stations known to us that belong to other factions: {len(known)}.")
-    margins = trade_margins(known + stations)
+    # Other people's stations only. Including our own put our sell prices into
+    # this table as well as into the PRICING section below, with a different
+    # framing and a different best-price rule, and the model mixed the two: it
+    # read one number here and quoted it as the best bid there. One ware, one
+    # set of numbers, in one place.
+    margins = trade_margins(known)
     if margins:
-        add("Best margins within what we know (per unit):")
+        add("Best margins between other people's stations (per unit). "
+            "Our own prices are under PRICING, further down:")
         for row in margins:
             add(f"  {row['ware']}: buy {row['buy_price']:.0f} at {row['buy_from']} "
                 f"(stock {row['available']}) -> sell {row['sell_price']:.0f} "

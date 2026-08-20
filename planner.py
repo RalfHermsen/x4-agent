@@ -53,6 +53,9 @@ most four concrete actions.
 - If there is nothing sensible to do, say so explicitly.
 - Be concise.
 
+Write the actions as a numbered list under the heading ACTIONS, one line each,
+and number them from 1. If there is nothing to do, write "ACTIONS: none".
+
 End with one to three standing goals: what this empire is working towards over
 the next hours, not this minute. They are carried into the next cycle, so write
 them so a later you can tell whether they are done."""
@@ -77,6 +80,16 @@ nothing more:
 - build_station  : station type, sector, max spend
 - fleet_order    : fleet code, order
 - hold           : nothing
+
+You are given a numbered list of decisions and nothing else. Translate the list
+and only the list, in the same order.
+
+Never fewer: an action you find hard to type is still an action, and dropping it
+silently throws away a decision somebody already made. Never anything that is
+not in the list, however sensible it looks.
+
+One numbered point usually becomes one action, but not always: a point naming
+two ships is two actions, one per ship. Count decisions, not line numbers.
 
 Never drop an action because some detail is missing that its type does not ask
 for. If the analysis says to assign a miner to a station, that is a complete
@@ -145,6 +158,29 @@ def reason(report: str, guidelines: str, model: str) -> tuple[str, float]:
     ], schema=None, temperature=0.0)
 
 
+ACTIONS_HEADING = "ACTIONS"
+
+
+def _decisions(analysis: str) -> str:
+    """The part of the analysis that says what to do, plus the standing goals.
+
+    The reasoning step is asked to end in a numbered list under ACTIONS, and
+    when it does, that list is the entire input to the translation step. If the
+    heading is missing the whole analysis is passed instead: a heading the model
+    forgot must not silently cost a cycle.
+    """
+    if ACTIONS_HEADING not in analysis:
+        return analysis
+    _, _, tail = analysis.partition(ACTIONS_HEADING)
+    goals = ""
+    for marker in ("STANDING GOALS", "GOALS"):
+        if marker in tail:
+            tail, _, rest = tail.partition(marker)
+            goals = f"\n\nSTANDING GOALS\n{rest}"
+            break
+    return f"{ACTIONS_HEADING}{tail}{goals}"
+
+
 def extract(analysis: str, report: str, model: str) -> tuple[PlannerResponse, float]:
     """Call 2: turn the analysis into the schema.
 
@@ -158,7 +194,7 @@ def extract(analysis: str, report: str, model: str) -> tuple[PlannerResponse, fl
     """
     content, elapsed = _chat(model, [
         {"role": "system", "content": EXTRACT_SYSTEM % executor.describe()},
-        {"role": "user", "content": f"{report}\n\n# ANALYSIS\n{analysis}"},
+        {"role": "user", "content": _decisions(analysis)},
     ], schema=PlannerResponse.model_json_schema(), temperature=0.0)
     return PlannerResponse.model_validate_json(content), elapsed
 
