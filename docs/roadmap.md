@@ -125,10 +125,37 @@ BuildTaskID AddBuildTask6(UniverseID containerid, UniverseID defensibleid,
                           AddBuildTask6Container* additionalinfo);
 ```
 
-Followed by `SetBuildTaskTransferredMoney`. Three structs have to be built by
-hand, including a loadout, and `menu_ship_configuration.lua` goes through
-`Helper.callLoadoutFunction` to produce one. `CanContainerBuildShip` answers
+Followed by `SetBuildTaskTransferredMoney`. `CanContainerBuildShip` answers
 whether a given wharf can build it at all.
+
+**The engine does not take the money.** `AddBuildTask6` has a `price`
+parameter, but the payment is a separate call the UI makes itself:
+
+```lua
+TransferPlayerMoneyTo(entry.amount * (entry.price + entry.crewprice), menu.container)
+...
+C.SetBuildTaskTransferredMoney(buildtaskid, objectprice + objectcrewprice)
+```
+
+So an agent that calls `AddBuildTask6` and nothing else gets ships for free.
+Paying is our obligation, not the game's, and it is the single thing to get
+right before any of this is wired up: an agent that can conjure a mining fleet
+out of nothing is not playing the same game as the player, and every conclusion
+it draws afterwards is worthless.
+
+**The loadout does not have to be assembled by hand**, which was the other
+worry. The game generates one, and both helpers are globals in the menu Lua
+environment this mod already runs in:
+
+```lua
+local loadout = Helper.getLoadoutHelper2(C.GenerateShipLoadout2,
+                                         C.GenerateShipLoadoutCounts2,
+                                         "UILoadout2", container, 0, macro, preset)
+local upgradeplan = Helper.convertLoadout(0, macro, loadout, software, "UILoadout2")
+Helper.callLoadoutFunction(upgradeplan, crewplan, function (lo, crew)
+    return C.AddBuildTask6(container, 0, macro, lo, price, crew, immediate, name, info)
+end, nil, "UILoadout2")
+```
 
 The Mission Director also has `add_build_to_construct_ship`, which
 `job_helper.xml` uses to build NPC job ships. Whether that route charges the
@@ -169,8 +196,9 @@ Roughly in order. Each one is a change to this repo unless it says otherwise.
       "the player outranks the agent" a button rather than a code comment.
 - [ ] Hire a construction vessel from the Lua side, so a planned build starts
       itself. Every call is known; the missing piece is finding the candidates.
-- [ ] Buy a ship through `AddBuildTask6`. Known to exist, three structs deep.
-      Check first whether the money actually leaves the player's account.
+- [ ] Buy a ship through `AddBuildTask6`. Reachable, and the loadout can be
+      generated rather than assembled. Pay with `TransferPlayerMoneyTo` in the
+      same breath: the engine does not charge for it.
 - [ ] Event-driven cadence instead of a fixed interval.
 - [ ] Use `/refreshmd` and `/reloadui` in the in-game chat window rather than
       restarting the game for every bridge change.
