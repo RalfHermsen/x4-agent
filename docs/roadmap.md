@@ -49,6 +49,14 @@ station and ware at it. That is "buy this only from our own ships", which stops
 a manager paying an NPC for ore our own miners already deliver. See
 [phase3-acting.md](phase3-acting.md) for what the arguments actually mean.
 
+**A Lua layer that runs.** Both Lua verbs were dead until 2026-08-20: the
+init never executed, so nothing forwarded from MD was ever handled. Fixed, and
+confirmed from inside the game. See `tasks/lessons.md` L8.
+
+**Ships say why they are stuck.** X4 records the reason an order failed, with a
+timestamp, so the sitrep reports it with how long it has been going on rather
+than guessing from the outside.
+
 ## Verified mechanisms, not yet wired up
 
 **Turning wares on and off.** `SetContainerWareIsBuyable` and
@@ -94,3 +102,27 @@ gap in `guidelines.md`, not in the code. Miners sat idle because the rules say
 to prefer station-assigned mining and never say what to do when no station wants
 minerals. That kind of fix costs one line and no restart, and it is the cheapest
 way to make the agent smarter.
+
+
+## The list, as items
+
+Roughly in order. Each one is a change to this repo unless it says otherwise.
+
+- [ ] Expose `tradeware` as an action, so the agent can stop a station buying an
+      input it now produces itself.
+- [ ] Notice losses: compare the fleet against the previous cycle and report
+      what is no longer there. Needs no game API.
+- [ ] Fill `Threat` in the sitrep, so the guidelines' combat chapter becomes
+      reachable at all.
+- [ ] Repeat orders, most likely through `set_current_loop_order`.
+- [ ] Habitation and workforce expansion, probably another construction plan
+      source.
+- [ ] An in-game panel: standing goals, recent actions, ships the game reports
+      as failing. Simple Menu API, already installed.
+- [ ] Interact menu entries: hand a ship to the agent, or take it back. Makes
+      "the player outranks the agent" a button rather than a code comment.
+- [ ] Establish whether a mod can buy a ship at a wharf. Unknown, and it is the
+      ceiling on unattended growth.
+- [ ] Event-driven cadence instead of a fixed interval.
+- [ ] Use `/refreshmd` and `/reloadui` in the in-game chat window rather than
+      restarting the game for every bridge change.
