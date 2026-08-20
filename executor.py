@@ -67,6 +67,53 @@ def _assign(action) -> str:
     return f"assign {action.ship_ref} {action.station_id} {action.role}"
 
 
+# Which wares can actually be mined, and with what. Straight from the game's own
+# libraries/wares.xml, where these carry the "minable" tag alongside "solid" or
+# "liquid". Water is not in the list: it is produced, not mined.
+MINABLE = {
+    "solid": {"ore", "silicon", "ice", "nividium"},
+    "liquid": {"hydrogen", "helium", "methane"},
+}
+
+
+def _miner_kind(macro: str | None) -> str | None:
+    """solid or liquid, from the ship macro (…_miner_solid_… / …_miner_liquid_…)."""
+    for kind in MINABLE:
+        if macro and f"miner_{kind}" in macro:
+            return kind
+    return None
+
+
+def _mining_pointless(action, state: dict) -> str | None:
+    """Reject sending a miner to a station that wants nothing it can mine.
+
+    The game accepts the assignment happily and then gives the ship nothing to
+    do: two solid miners sat docked for a night because their station buys only
+    energycells and water, and neither is a mineral. From the outside that looks
+    like the order never arrived.
+    """
+    if getattr(action, "role", None) != "mine":
+        return None
+
+    ship = next((a for a in state.get("assets", [])
+                 if a.get("code") == action.ship_ref), None)
+    station = next((a for a in state.get("assets", [])
+                    if a.get("code") == action.station_id), None)
+    if not ship or not station:
+        return None
+
+    kind = _miner_kind(ship.get("macro"))
+    if not kind:
+        return f"{action.ship_ref} is not a mining ship"
+
+    wanted = {o["ware"] for o in station.get("offers", []) if o.get("side") == "buy"}
+    if wanted & MINABLE[kind]:
+        return None
+    return (f"{action.station_id} buys nothing a {kind} miner can supply "
+            f"(it wants {', '.join(sorted(wanted)) or 'nothing'}), so the ship "
+            f"would sit idle")
+
+
 def _blocked_reason(action, key) -> str | None:
     """Why this otherwise-executable action still must not be sent."""
     if key == ("expand_station", None):
@@ -207,6 +254,8 @@ def to_commands(actions: list, state: dict | None = None) -> tuple[list[str], li
             continue
 
         blocked = _blocked_reason(action, key)
+        if not blocked and key == ("assign_ship", None) and state:
+            blocked = _mining_pointless(action, state)
         if blocked:
             skipped.append((action, blocked))
             continue

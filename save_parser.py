@@ -56,6 +56,7 @@ class Asset:
     account: dict[str, str] = field(default_factory=dict)
     offers: list[Offer] = field(default_factory=list)
     production_queue: list[str] = field(default_factory=list)
+    production: list[dict] = field(default_factory=list)
     manager: dict | None = None     # stations: the manager and their skill
 
 
@@ -201,6 +202,25 @@ def _manager(elem) -> dict | None:
             "management_stars": None}
 
 
+def _production(elem) -> list[dict]:
+    """Production lines of a station, with what each one is short of.
+
+    A line appears here as soon as the module is planned, so its presence does
+    not mean the station is producing that ware yet. The shortage is the useful
+    part: it says how much of an input the line is missing, which is a much
+    sharper number than the stock on a trade offer.
+    """
+    out = []
+    for queue in elem.iter("queue"):
+        ware = queue.get("ware")
+        if not ware:
+            continue
+        short = {w.get("ware"): _int(w.get("amount"))
+                 for w in queue.findall("shortage/ware") if w.get("ware")}
+        out.append({"ware": ware, "short_of": short})
+    return out
+
+
 def _asset(elem, ancestors: list[dict]) -> Asset:
     """Build an Asset from a component element plus its ancestor chain."""
     place = {}
@@ -229,8 +249,8 @@ def _asset(elem, ancestors: list[dict]) -> Asset:
     if asset.cls == "station":
         asset.manager = _manager(elem)
         asset.offers = _offers(elem)
-        asset.production_queue = [q.get("ware") for q in elem.iter("queue")
-                                  if q.get("ware")]
+        asset.production = _production(elem)
+        asset.production_queue = [line["ware"] for line in asset.production]
     return asset
 
 

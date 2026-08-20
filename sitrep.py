@@ -152,8 +152,13 @@ def build(state: dict) -> str:
                 add(f"  manager {mgr['code']}: management {stars} "
                     f"star{'' if stars == 1 else 's'} "
                     f"({mgr['management_raw']}/15).{warn}")
-            if st["production_queue"]:
-                add(f"  produces: {', '.join(dict.fromkeys(st['production_queue']))}")
+            for line in st.get("production", []):
+                short = ", ".join(f"{amount} {ware}"
+                                  for ware, amount in (line["short_of"] or {}).items())
+                # A production line exists from the moment its module is
+                # planned, so say "line", not "produces".
+                add(f"  production line: {line['ware']}"
+                    + (f", short {short}" if short else ""))
             for offer in st["offers"][:OFFER_LIMIT]:
                 verb = "buys" if offer["side"] == "buy" else "sells"
                 need = ""
