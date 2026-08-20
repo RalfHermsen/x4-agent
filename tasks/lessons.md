@@ -69,6 +69,12 @@ never happens, and every forwarded command is discarded in silence. Load Lua
 through `ui.xml`, which is the documented route; the MD-triggered
 `Lua_Loader.Load` is legacy support for mods written before X4 7.5.
 
+**L8a. `/refreshmd` reloads MD, but `/reloadui` does not reload our Lua.** The
+file is pulled in with `require`, and the loader keeps a `modules_loaded` guard
+besides, so a UI reload leaves the previously loaded chunk resident. Measured:
+the deployed file contained a new diagnostic, the running code logged the old
+lines. MD changes cost a chat command; Lua changes still cost a savegame load.
+
 **L9. Space commands out by two seconds.** Sending several back to back drops
 the pipe: the log showed the first command going out, then "Pipe client garbage
 collected, restarting", and everything after it lost. X4 finishes processing a
