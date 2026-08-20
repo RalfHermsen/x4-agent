@@ -34,14 +34,31 @@ from save_parser import latest_save
 SKILL_POINTS_PER_STAR = 3
 
 
+# X4 does not list whatever it finds in the save folder. It checks each file
+# against a fixed whitelist of names, built in the game's own helper.lua:
+#
+#     for i = 1, 10 do
+#         Helper.validSaveFilenames[string.format("save_%03d", i)] = true
+#     end
+#
+# So there are exactly ten manual slots, plus quicksave, three autosaves and
+# online_save. A file called save_011 is not a save the game will ever show, no
+# matter how valid its contents are. This cost an hour of restarting the game
+# and inventing explanations for why a perfectly good file was invisible.
+SAVE_SLOTS = 10
+
+
 def next_save_name(folder: Path) -> str:
-    """A save_NNN name that is not taken yet."""
+    """A save_NNN name X4 will actually list, or an error saying why not."""
     used = {p.name for p in folder.glob("save_*.xml.gz")}
-    for n in range(1, 1000):
+    for n in range(1, SAVE_SLOTS + 1):
         name = f"save_{n:03d}"
         if f"{name}.xml.gz" not in used:
             return name
-    raise RuntimeError("no free save slot found")
+    raise RuntimeError(
+        f"all {SAVE_SLOTS} save slots are taken, and X4 only lists "
+        f"save_001 to save_{SAVE_SLOTS:03d}. Free one in game, or pass --out "
+        f"save_0NN to overwrite a slot on purpose.")
 
 
 def set_save_name(xml: str, label: str) -> str:
@@ -221,7 +238,13 @@ def main() -> int:
     name = args.out or next_save_name(source.parent)
     target_file = source.parent / f"{name}.xml.gz"
     if target_file.exists():
-        parser.error(f"{target_file} already exists; pick another --out")
+        if not args.out:
+            parser.error(f"{target_file} already exists; pick another --out")
+        # Overwriting a slot on purpose is allowed, but the old bytes are kept
+        # under a name X4 does not recognise, so nothing is actually lost.
+        backup = source.parent / f"{name}.replaced-{int(time.time())}.xml.gz"
+        target_file.rename(backup)
+        changes.append(f"previous {name} kept as {backup.name}")
 
     with gzip.open(target_file, "wt", encoding="utf-8") as handle:
         handle.write(xml)
