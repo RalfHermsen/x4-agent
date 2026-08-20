@@ -42,6 +42,21 @@
     </actions>
   </cue>
 
+  <!-- The Lua side has no way to report anything. DebugError only reaches a log
+       file the game does not write unless it was launched for it, so a command
+       that Lua rejected, or a game function that returned nothing, looked
+       exactly like a command that worked. This turns that into a logbook entry,
+       which the agent reads back out of the savegame like any other fact. -->
+  <cue name="Lua_Log" instantiate="true">
+    <conditions>
+      <event_ui_triggered screen="'X4Agent'" control="'log'" />
+    </conditions>
+    <actions>
+      <write_to_logbook category="general"
+        text="'[x4-agent lua] %s'.[event.param3]"/>
+    </actions>
+  </cue>
+
   <!-- The documentation warns that a cue using Server_Reader must not be
        created alongside its own action libraries. Hence this dummy wrapper. -->
   <cue name="Server_Reader_Wrapper">

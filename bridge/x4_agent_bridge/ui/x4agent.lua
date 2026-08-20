@@ -41,11 +41,19 @@ declare [[ TradeRuleCounts GetTradeRuleInfoCounts(TradeRuleID id); ]]
 declare [[ bool GetTradeRuleInfo(TradeRuleInfo* info, TradeRuleID id); ]]
 declare [[ TradeRuleID CreateTradeRule(TradeRuleInfo info); ]]
 declare [[ void SetContainerTradeRule(UniverseID containerid, TradeRuleID id, const char* ruletype, const char* wareid, bool value); ]]
+declare [[ bool HasContainerOwnTradeRule(UniverseID containerid, const char* ruletype, const char* wareid); ]]
 
 local X4Agent = {}
 
+-- DebugError only reaches a log file the game does not write unless it was
+-- started for it, so on an ordinary run the Lua side is silent and a rejected
+-- command is indistinguishable from one that worked. Raising a UI event as well
+-- lets MD put the same line in the player logbook, which ends up in the
+-- savegame and so in the agent's next situation report.
 local function log(message)
-    DebugError("[x4-agent lua] " .. tostring(message))
+    message = tostring(message)
+    DebugError("[x4-agent lua] " .. message)
+    pcall(AddUITriggeredEvent, "X4Agent", "log", message)
 end
 
 --- Every station the player owns, as {idcode = UniverseID}.
@@ -217,8 +225,14 @@ local function set_trade_rule(station, args)
     for _, ruletype in ipairs(sides) do
         C.SetContainerTradeRule(station, id, ruletype, ware, value)
     end
-    log(string.format("%s: %s %s is now %s", args.code, side,
-                      (ware == "") and "everything" or ware, mode))
+
+    -- Report what the game says afterwards, not what we asked for. Trade rules
+    -- are not written to the savegame, so this logbook line is the only
+    -- evidence that the call landed.
+    local confirmed = C.HasContainerOwnTradeRule(station, sides[1], ware)
+    log(string.format("%s: %s %s is now %s (own rule: %s)", args.code, side,
+                      (ware == "") and "everything" or ware, mode,
+                      tostring(confirmed)))
     return true
 end
 

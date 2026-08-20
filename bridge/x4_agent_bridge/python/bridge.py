@@ -121,6 +121,39 @@ def parse_state(message: str) -> dict:
     return out
 
 
+def outbox_path() -> str | None:
+    """Where a human can drop commands to be sent on the next heartbeat.
+
+    Every verb on the Lua side has so far been written and deployed without any
+    way to try it once by hand: the only route into the game was to talk the
+    model into proposing it. That is a poor way to find out whether a command
+    even parses. One line per command, the file is emptied once read.
+    """
+    return os.path.join(REPO, "logs", "outbox.txt") if REPO else None
+
+
+def drain_outbox(pipe) -> None:
+    path = outbox_path()
+    if not path or not os.path.exists(path):
+        return
+    try:
+        with open(path, encoding="utf-8") as handle:
+            commands = [line.strip() for line in handle if line.strip()]
+        os.remove(path)
+    except OSError as exc:
+        print(f"[x4-agent] outbox unreadable: {exc}")
+        return
+    for command in commands:
+        print(f"[x4-agent] sending by hand: {command}")
+        try:
+            pipe.Write(command)
+        except Exception as exc:  # noqa: BLE001 - same reasoning as run_cycle
+            print(f"[x4-agent] send failed for {command!r}: "
+                  f"{type(exc).__name__}: {exc}")
+            break
+        time.sleep(COMMAND_GAP)
+
+
 def run_cycle(pipe) -> None:
     """Plan once, and send the commands if we are allowed to."""
     agent = load_agent()
@@ -200,6 +233,10 @@ def main(args):
 
         if not parse_state(message):
             continue
+
+        # Anything a human queued goes out first, regardless of the cycle
+        # interval, so trying a command by hand does not mean waiting minutes.
+        drain_outbox(pipe)
 
         now = time.monotonic()
         if now - last_cycle < INTERVAL:
