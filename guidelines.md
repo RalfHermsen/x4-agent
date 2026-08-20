@@ -149,6 +149,11 @@ Overview):
 
 ---
 
+* **Prices are corrected automatically every cycle, so do not spend a cycle on
+  them.** Python moves each sell price to just under the best bid we know, and
+  refuses to cut a price when only one buyer is known. Propose a price yourself
+  only when you disagree with that rule for a specific ware and can say why;
+  your decision wins where you make one.
 * **Price against the market, not against your warehouse.** A station manager
   sets prices from how full its storage is, which is not the same thing as what
   anyone will pay. The report gives our asking price beside the best bid we

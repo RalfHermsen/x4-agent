@@ -206,6 +206,27 @@ def build_lines(state: dict) -> list[str]:
 PRICE_GAP = 0.05
 
 
+def best_bids(known: list[dict]) -> dict[str, tuple]:
+    """Per ware, the highest price anyone we know is actually offering to pay.
+
+    Returns {ware: (price, wanted, station code, number of buyers)}. The buyer
+    count matters: a single low bid is a statement about how little of the map
+    we have seen, not about what the ware is worth.
+    """
+    bids: dict[str, tuple] = {}
+    counts: dict[str, int] = {}
+    for station in known:
+        for offer in station.get("offers", []):
+            if offer.get("side") != "buy" or not offer.get("desired"):
+                continue
+            ware = offer["ware"]
+            counts[ware] = counts.get(ware, 0) + 1
+            best = bids.get(ware)
+            if best is None or offer["price"] > best[0]:
+                bids[ware] = (offer["price"], offer["desired"], station["code"], 0)
+    return {ware: (p, w, c, counts[ware]) for ware, (p, w, c, _) in bids.items()}
+
+
 def price_gaps(stations: list[dict], known: list[dict]) -> list[str]:
     """Our asking price against the best price anyone we know actually pays.
 
@@ -214,15 +235,7 @@ def price_gaps(stations: list[dict], known: list[dict]) -> list[str]:
     equally sell below what buyers are offering. Neither shows up anywhere: the
     stock is simply there and the money is simply not.
     """
-    bids: dict[str, tuple] = {}
-    for station in known:
-        for offer in station.get("offers", []):
-            if offer.get("side") != "buy" or not offer.get("desired"):
-                continue
-            best = bids.get(offer["ware"])
-            if best is None or offer["price"] > best[0]:
-                bids[offer["ware"]] = (offer["price"], offer["desired"], station["code"])
-
+    bids = best_bids(known)
     lines = []
     for station in stations:
         stock = station.get("cargo") or {}
@@ -236,7 +249,7 @@ def price_gaps(stations: list[dict], known: list[dict]) -> list[str]:
                 lines.append(f"  {station['code']} sell price for {ware} is {ask:.0f} Cr "
                              f"(stock {held}); nobody we know buys it at any price.")
                 continue
-            top, wanted, who = bid
+            top, wanted, who, _ = bid
             if ask > top * (1 + PRICE_GAP):
                 lines.append(f"  {station['code']} sell price for {ware} is {ask:.0f} Cr "
                              f"(stock {held}); the best bid we know is {top:.0f} Cr "

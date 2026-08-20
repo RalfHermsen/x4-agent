@@ -132,6 +132,50 @@ def _trade_rule_pointless(action, state: dict) -> str | None:
             f"so a trade rule on it changes nothing")
 
 
+# Just under the best bid: enough to be the obvious seller without giving margin
+# away. And a floor on how many buyers must be known before a price is allowed
+# to come down.
+UNDERCUT = 0.98
+MIN_BUYERS_TO_CUT = 2
+
+
+def repricing(state: dict) -> list[str]:
+    """Price commands that follow mechanically from the market, without the model.
+
+    Pricing to just under the best known bid is arithmetic, not strategy, and
+    the model kept forgetting to do it: prices drift every few minutes as buyers
+    appear and are filled, and a cycle spent elsewhere is a cycle selling at the
+    wrong price. The policy stays in guidelines.md; only the sum happens here.
+
+    Raising is always safe. Cutting is not: a lone lowball bid says more about
+    how little of the map we have seen than about the ware, and cutting to meet
+    it can hand over a third of the value. So a cut needs at least two known
+    buyers, and everything else is left to the model to argue about.
+    """
+    import sitrep
+
+    known = state.get("known_stations", [])
+    bids = sitrep.best_bids(known)
+    out = []
+    for station in state.get("assets", []):
+        if station.get("cls") != "station":
+            continue
+        for offer in station.get("offers", []):
+            if offer.get("side") != "sell" or not offer.get("price"):
+                continue
+            bid = bids.get(offer["ware"])
+            if not bid:
+                continue
+            top, _, _, buyers = bid
+            target = int(top * UNDERCUT)
+            if target == int(offer["price"]):
+                continue
+            if target < offer["price"] and buyers < MIN_BUYERS_TO_CUT:
+                continue
+            out.append(f"price {station['code']} {offer['ware']} sell {target}")
+    return out
+
+
 def _assign(action) -> str:
     """assign_ship -> attach a ship to one of our stations as trader or miner."""
     return f"assign {action.ship_ref} {action.station_id} {action.role}"

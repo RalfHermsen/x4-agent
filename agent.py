@@ -47,6 +47,16 @@ def cycle(model: str | None = None, save: Path | None = None) -> dict:
     plan, extract_s = planner.extract(analysis, report, model)
     ok, rejected = planner.check_actions(plan, state)
     commands, skipped = executor.to_commands(ok, state)
+
+    # Repricing runs every cycle whether the model thought of it or not. Buyers
+    # appear and are filled within minutes, so a price is only ever right for a
+    # little while, and the model spent whole cycles on other things while stock
+    # sold a third under the market. Anything the model did decide about a ware
+    # wins: this only fills the silence.
+    priced = {c.rsplit(" ", 1)[0] for c in commands if c.startswith("price ")}
+    commands += [c for c in executor.repricing(state)
+                 if c.rsplit(" ", 1)[0] not in priced]
+
     commands, repeats = memory.drop_repeats(remembered, commands)
 
     remembered["goals"] = plan.updated_goals or remembered.get("goals", [])
