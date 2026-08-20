@@ -15,6 +15,7 @@ import sys
 from collections import Counter
 from pathlib import Path
 
+import executor
 import gamedata
 from save_parser import SHIP_CLASSES, latest_save, parse_save
 
@@ -221,10 +222,28 @@ def build(state: dict) -> str:
                  if o["side"] == "buy" and o["desired"]
                  and o["desired"] > (o["amount"] or 0)]
 
+    # An idle miner is a different problem from an idle freighter: it may be
+    # idle because nothing we own wants what it can dig up. The game accepts the
+    # assignment and then gives the ship no work, which from the outside looks
+    # like the order never arrived.
+    wanted = {o["ware"] for st in stations for o in st["offers"]
+              if o.get("side") == "buy"}
+    stuck_miners = []
+    for ship in ships:
+        if _first_order(ship) not in IDLE_ORDERS:
+            continue
+        kind = executor._miner_kind(ship.get("macro"))
+        if kind and not (wanted & executor.MINABLE[kind]):
+            stuck_miners.append((ship["code"], kind))
+
     add("")
     add("# ATTENTION")
     if idle:
         add(f"Idle ships: {', '.join(idle)}.")
+    for code, kind in stuck_miners:
+        add(f"{code} is an idle {kind} miner, and no station of ours buys "
+            f"anything it can mine ({', '.join(sorted(executor.MINABLE[kind]))}). "
+            f"Assigning it to a station will leave it idle.")
     for code, ware, short in shortages:
         supply = sellers.get(ware) or []
         if supply:
