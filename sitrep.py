@@ -136,7 +136,8 @@ def failing_ships(ships: list[dict], now: float) -> list[tuple]:
         age = now - last["time"]
         if age < FAILING_FOR:
             continue
-        out.append((ship["code"], last["order"], last["message"], age))
+        out.append((ship["code"], last["order"], last["message"], age,
+                    ship.get("cargo") or {}))
     out.sort(key=lambda item: -item[3])
     return out
 
@@ -293,9 +294,16 @@ def build(state: dict, goals: list[str] | None = None,
 
     add("")
     add("# ATTENTION")
-    for code, order, message, age in failing:
+    for code, order, message, age, cargo in failing:
+        # What it is holding turns "something is wrong" into a specific
+        # problem: a miner sitting on 900 ore nobody buys needs a buyer, not a
+        # new order.
+        holding = (" It is holding "
+                   + ", ".join(f"{amount} {ware}"
+                               for ware, amount in sorted(cargo.items()))
+                   + ".") if cargo else ""
         add(f"{code} has been unable to carry out {order} for "
-            f"{age / 60:.0f} minutes. The game says: \"{message}\"")
+            f"{age / 60:.0f} minutes. The game says: \"{message}\"{holding}")
     if idle:
         add(f"Idle ships: {', '.join(idle)}.")
     for code, kind in stuck_miners:

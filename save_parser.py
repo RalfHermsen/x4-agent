@@ -53,6 +53,7 @@ class Asset:
     docked_at: str | None = None    # code of the object this hangs off
     orders: list[dict] = field(default_factory=list)
     failures: list[dict] = field(default_factory=list)
+    cargo: dict[str, int] = field(default_factory=dict)
     software: list[str] = field(default_factory=list)
     account: dict[str, str] = field(default_factory=dict)
     offers: list[Offer] = field(default_factory=list)
@@ -143,6 +144,27 @@ def _orders(elem) -> list[dict]:
 
     # Active first: a started, non-default order beats everything else.
     out.sort(key=lambda o: (o["default"], o["state"] != "started"))
+    return out
+
+
+def _cargo(elem) -> dict[str, int]:
+    """What this object is carrying, as {ware: amount}.
+
+    Cargo does not sit on the ship. It sits on the storage module hanging off
+    it: ship -> connections/connection/component[class=storage] -> cargo -> ware.
+    Deliberately one level of connections and no deeper, because a docked ship
+    is itself nested under its host, and `iter` would hand a station the cargo of
+    everything parked on it.
+
+    An empty hold writes no element at all, which is why this looked absent at
+    first on exactly the ships it was wanted for. See lesson L1: a missing
+    element is a value.
+    """
+    out: dict[str, int] = {}
+    for ware in elem.findall("connections/connection/component/cargo/ware"):
+        name, amount = ware.get("ware"), _int(ware.get("amount"))
+        if name and amount:
+            out[name] = out.get(name, 0) + amount
     return out
 
 
@@ -273,6 +295,7 @@ def _asset(elem, ancestors: list[dict]) -> Asset:
         docked_at=docked_at,
         orders=_orders(elem),
         failures=_failures(elem),
+        cargo=_cargo(elem),
         software=[s.get("wares") for s in elem.iter("software") if s.get("wares")],
         account=dict(elem.find("account").items()) if elem.find("account") is not None else {},
     )
