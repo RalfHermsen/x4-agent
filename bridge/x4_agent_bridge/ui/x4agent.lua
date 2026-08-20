@@ -26,7 +26,7 @@ declare [[ typedef uint64_t UniverseID; ]]
 declare [[ uint32_t GetNumAllFactionStations(const char* factionid); ]]
 declare [[ uint32_t GetAllFactionStations(UniverseID* result, uint32_t resultlen, const char* factionid); ]]
 declare [[ const char* GetObjectIDCode(UniverseID objectid); ]]
-declare [[ void SetContainerGlobalPriceFactor(UniverseID containerid, float value); ]]
+declare [[ void UpdateProductionTradeOffers(UniverseID containerid); ]]
 declare [[ void SetContainerWareIsBuyable(UniverseID containerid, const char* wareid, bool allowed); ]]
 declare [[ void SetContainerWareIsSellable(UniverseID containerid, const char* wareid, bool allowed); ]]
 
@@ -77,9 +77,14 @@ end
 --
 -- This is the "turn automatic pricing off" rule: left alone, a station manager
 -- drops the price towards the minimum as storage fills, which is exactly what
--- happened to a warehouse full of sunriseflowers. Setting an override also
--- clears the global price factor, because that is what the station
--- configuration menu does when you move a per-ware slider.
+-- happened to a warehouse full of sunriseflowers.
+--
+-- Two corrections, both found by sending a price and watching the savegame not
+-- change. This used to also call SetContainerGlobalPriceFactor(station, -1) on
+-- the belief that the menu does so alongside a per-ware price. It does not: the
+-- game only ever calls that on a build storage, for build resource pricing, and
+-- passing a station was an invention. And the offer itself does not refresh on
+-- its own, so UpdateProductionTradeOffers has to be asked for.
 local function set_price(station, args)
     local ware, side, value = args[1], args[2], tonumber(args[3])
     if not (ware and side and value) then
@@ -92,9 +97,20 @@ local function set_price(station, args)
     end
 
     -- buysellswitch: true is the buy side, matching the menu's own calls.
+    -- Report from inside, because three attempts at this reported success and
+    -- changed nothing. What is wanted is the difference between "the call never
+    -- reached the engine" and "it reached it and the price is computed anyway".
+    local before = GetContainerWarePrice and GetContainerWarePrice(station, ware, side == "buy")
+    log(string.format("price: setter=%s getter=%s before=%s",
+                      type(SetContainerWarePriceOverride), type(GetContainerWarePrice),
+                      tostring(before)))
+
     SetContainerWarePriceOverride(station, ware, side == "buy", value)
-    C.SetContainerGlobalPriceFactor(station, -1)
-    log(string.format("price override on %s: %s %s = %d", args.code, ware, side, value))
+    C.UpdateProductionTradeOffers(station)
+
+    local after = GetContainerWarePrice and GetContainerWarePrice(station, ware, side == "buy")
+    log(string.format("price override on %s: %s %s = %d, engine now says %s",
+                      args.code, ware, side, value, tostring(after)))
     return true
 end
 

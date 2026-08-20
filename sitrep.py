@@ -22,6 +22,11 @@ from save_parser import SHIP_CLASSES, latest_save, parse_save
 # An order the game itself sets as a fallback means "doing nothing useful".
 IDLE_ORDERS = {"Wait", None}
 
+# Below this fraction of its storage target an input counts as low. A station
+# buys towards a full warehouse, so anything short of full is normal; a third
+# full is a working station, not a crisis.
+LOW_STOCK = 0.15
+
 # Above this many ships we aggregate per role instead of naming every ship.
 # Measured: 220 ships listed individually is a 40 kB sitrep, over 10k tokens.
 DETAIL_LIMIT = 12
@@ -340,10 +345,21 @@ def build(state: dict, goals: list[str] | None = None,
 
     idle = [s["code"] for s in ships if _first_order(s) in IDLE_ORDERS]
     failing = failing_ships(ships, state.get("meta", {}).get("playtime_s", 0.0))
-    shortages = [(st["code"], o["ware"], o["desired"] - (o["amount"] or 0))
-                 for st in stations for o in st["offers"]
-                 if o["side"] == "buy" and o["desired"]
-                 and o["desired"] > (o["amount"] or 0)]
+    # A station always wants its storage full, so `desired` is a target and not a
+    # need. Reporting the gap as a shortage turned a station running comfortably
+    # at a third full into "massive shortages in raw materials", and the model
+    # duly proposed dropping everything for mining. Only genuinely low stock is
+    # worth a line, and the fill level goes with it so the size can be judged.
+    shortages = []
+    for st in stations:
+        stock = st.get("cargo") or {}
+        for o in st["offers"]:
+            target = o.get("desired") or 0
+            if o["side"] != "buy" or not target:
+                continue
+            have = stock.get(o["ware"], 0)
+            if have < target * LOW_STOCK:
+                shortages.append((st["code"], o["ware"], have, target))
 
     # An idle miner is a different problem from an idle freighter: it may be
     # idle because nothing we own wants what it can dig up. The game accepts the
@@ -424,9 +440,12 @@ def build(state: dict, goals: list[str] | None = None,
                      if executor._miner_kind(s.get("macro")) == kind]
               for kind in executor.MINABLE}
 
-    for code, ware, short in shortages:
+    for code, ware, have, target in shortages:
+        short = target - have
         kind = next((k for k, wares in executor.MINABLE.items() if ware in wares), None)
         supply = sellers.get(ware) or []
+        add(f"{code} is low on {ware}: {have} in store, room for {target} "
+            f"({100 * have / target:.0f}% full).")
         if kind:
             # This branch exists because the report used to send the model
             # exploring for a seller of ore. Ore is not sold, it is dug up.
