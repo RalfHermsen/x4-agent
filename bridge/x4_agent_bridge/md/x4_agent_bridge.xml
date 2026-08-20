@@ -57,9 +57,9 @@
     </conditions>
     <actions>
       <write_to_logbook category="general"
-        text="'[x4-agent] bridge reloaded, build 2026-08-20.4 (expand: own sequence, failsafe off, adds solid storage)'"/>
+        text="'[x4-agent] bridge reloaded, build 2026-08-20.5 (expand + solid storage, fund build storage)'"/>
       <show_notification
-        text="'[x4-agent] bridge build 2026-08-20.4'"/>
+        text="'[x4-agent] bridge build 2026-08-20.5'"/>
     </actions>
   </cue>
 
@@ -173,6 +173,45 @@
            be, the game does the arithmetic. Capped at the player's own money so
            this can never overcommit. -->
       <do_for_each name="$agent_station" in="$agent_stations">
+        <!-- Fund the build storage.
+
+             A station and its build storage have separate accounts. Measured on
+             KYV-745: the station held 930,744 Cr with a min and a max, while its
+             build storage XQL-000 read <account id="[0x10c]" own="1"/>, which by
+             the rule that X4 omits zero attributes means empty. A planned build
+             with an empty build storage buys no resources and simply waits, and
+             nothing anywhere says why.
+
+             Budget levels rather than an amount, for the same reason as
+             set_budget: a number cannot be parsed out of the command string.
+             transfer_money reports what actually moved, so the logbook says
+             whether it worked instead of what was attempted. -->
+        <set_value name="$agent_fund" exact="0"/>
+        <do_if value="event.param == 'fund %s low'.[$agent_station.idcode]">
+          <set_value name="$agent_fund" exact="player.money / 10"/>
+        </do_if>
+        <do_if value="event.param == 'fund %s mid'.[$agent_station.idcode]">
+          <set_value name="$agent_fund" exact="player.money / 4"/>
+        </do_if>
+        <do_if value="event.param == 'fund %s high'.[$agent_station.idcode]">
+          <set_value name="$agent_fund" exact="player.money / 2"/>
+        </do_if>
+        <do_if value="$agent_fund > 0">
+          <set_value name="$agent_handled" exact="1"/>
+          <do_if value="@$agent_station.buildstorage">
+            <transfer_money from="faction.player" to="$agent_station.buildstorage"
+                            amount="$agent_fund" result="$agent_moved"/>
+            <write_to_logbook category="general"
+              text="'[x4-agent] ORDER: %s build storage funded with %s Cr'.[$agent_station.idcode, $agent_moved / 1Cr]"/>
+            <show_notification
+              text="'[x4-agent] %s build funds %s Cr'.[$agent_station.idcode, $agent_moved / 1Cr]"/>
+          </do_if>
+          <do_else>
+            <write_to_logbook category="general"
+              text="'[x4-agent] %s has no build storage to fund'.[$agent_station.idcode]"/>
+          </do_else>
+        </do_if>
+
         <do_if value="event.param == 'budget %s low'.[$agent_station.idcode]">
           <set_value name="$agent_budget" exact="player.money / 10"/>
           <set_value name="$agent_handled" exact="1"/>

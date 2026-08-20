@@ -22,7 +22,10 @@ from pathlib import Path
 from lxml import etree
 
 SHIP_CLASSES = {"ship_xs", "ship_s", "ship_m", "ship_l", "ship_xl"}
-ASSET_CLASSES = SHIP_CLASSES | {"station"}
+# A build storage is its own component, not part of the station it serves, and
+# it keeps its own account. Leaving it out meant the agent could plan a build
+# and then have no way of seeing that it had stalled.
+ASSET_CLASSES = SHIP_CLASSES | {"station", "buildstorage"}
 # Component classes that describe a location in the universe.
 PLACE_CLASSES = ("galaxy", "cluster", "sector", "zone")
 # Depth at which finished subtrees are released.
@@ -54,6 +57,7 @@ class Asset:
     orders: list[dict] = field(default_factory=list)
     failures: list[dict] = field(default_factory=list)
     cargo: dict[str, int] = field(default_factory=dict)
+    build: dict = field(default_factory=dict)
     software: list[str] = field(default_factory=list)
     account: dict[str, str] = field(default_factory=dict)
     offers: list[Offer] = field(default_factory=list)
@@ -272,6 +276,29 @@ def _production(elem) -> list[dict]:
     return out
 
 
+def _build_tasks(elem) -> dict:
+    """What a build storage is working on, and what it still lacks.
+
+    Structure, measured on a live build:
+
+        <buildtasks>
+          <queue><build type="expand" .../></queue>
+          <inprogress><build type="expand" .../></inprogress>
+        </buildtasks>
+
+    The shortfall is the interesting part. A build with money and no deliveries
+    looks exactly like a build with neither, and the difference decides whether
+    anything can be done about it.
+    """
+    node = elem.find("buildtasks")
+    if node is None:
+        return {}
+    return {
+        "queued": len(node.findall("queue/build")),
+        "in_progress": len(node.findall("inprogress/build")),
+    }
+
+
 def _asset(elem, ancestors: list[dict]) -> Asset:
     """Build an Asset from a component element plus its ancestor chain."""
     place = {}
@@ -299,6 +326,9 @@ def _asset(elem, ancestors: list[dict]) -> Asset:
         software=[s.get("wares") for s in elem.iter("software") if s.get("wares")],
         account=dict(elem.find("account").items()) if elem.find("account") is not None else {},
     )
+    if asset.cls == "buildstorage":
+        asset.offers = _offers(elem)
+        asset.build = _build_tasks(elem)
     if asset.cls == "station":
         asset.manager = _manager(elem)
         asset.offers = _offers(elem)

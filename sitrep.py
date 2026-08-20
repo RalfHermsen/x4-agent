@@ -142,6 +142,38 @@ def failing_ships(ships: list[dict], now: float) -> list[tuple]:
     return out
 
 
+def build_lines(state: dict) -> list[str]:
+    """What our build storages are doing, and what is holding them up.
+
+    A build storage is a separate object with its own account, so a station can
+    be rich while the build beside it is broke and waiting. Neither the station
+    nor the build says anything about it: the build simply does not progress.
+    Reporting the balance, the queue and what is still on order turns "nothing
+    is happening" into something the model can act on.
+    """
+    lines = []
+    for asset in state.get("assets", []):
+        if asset.get("cls") != "buildstorage":
+            continue
+        build = asset.get("build") or {}
+        if not (build.get("queued") or build.get("in_progress")):
+            continue
+        money = asset.get("account", {}).get("amount")
+        money = f"{int(money):,} Cr".replace(",", ".") if money else "NO MONEY"
+        lines.append(f"  {asset['code']}: {build.get('in_progress', 0)} build(s) running, "
+                     f"{build.get('queued', 0)} queued, account {money}")
+        wanted = [(o["ware"], o["amount"]) for o in asset.get("offers", [])
+                  if o.get("side") == "buy" and o.get("amount")]
+        if wanted:
+            lines.append("    still buying: "
+                         + ", ".join(f"{amount} {ware}" for ware, amount in sorted(wanted)))
+        held = asset.get("cargo") or {}
+        if held:
+            lines.append("    delivered so far: "
+                         + ", ".join(f"{a} {w}" for w, a in sorted(held.items())))
+    return lines
+
+
 def build(state: dict, goals: list[str] | None = None,
           failures: list[str] | None = None) -> str:
     meta, player = state["meta"], state["player"]
@@ -291,6 +323,13 @@ def build(state: dict, goals: list[str] | None = None,
         add("# LAST CYCLE DID NOT TAKE EFFECT")
         for failure in failures:
             add(f"  {failure}")
+
+    construction = build_lines(state)
+    if construction:
+        add("")
+        add("# CONSTRUCTION IN PROGRESS")
+        for line in construction:
+            add(line)
 
     add("")
     add("# ATTENTION")
