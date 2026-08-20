@@ -57,9 +57,9 @@
     </conditions>
     <actions>
       <write_to_logbook category="general"
-        text="'[x4-agent] bridge reloaded, build 2026-08-20.3 (expand: own sequence, failsafe off)'"/>
+        text="'[x4-agent] bridge reloaded, build 2026-08-20.4 (expand: own sequence, failsafe off, adds solid storage)'"/>
       <show_notification
-        text="'[x4-agent] bridge build 2026-08-20.3'"/>
+        text="'[x4-agent] bridge build 2026-08-20.4'"/>
     </actions>
   </cue>
 
@@ -201,8 +201,13 @@
              lookup available here, so each supported ware needs its own
              comparison. The list covers the early and mid game wares from
              guidelines.md; extending it is one line per ware. -->
+        <!-- $agent_solidinput: does this ware eat a mined solid? ore, silicon and
+             ice are all transport="solid" in libraries/wares.xml, and a station
+             with no solid storage cannot take delivery of any of them. Water is
+             not liquid in X4; liquid is only hydrogen, helium and methane. -->
         <set_value name="$agent_ware" exact="null"/>
         <set_value name="$agent_module" exact="null"/>
+        <set_value name="$agent_solidinput" exact="false"/>
         <do_if value="event.param == 'expand %s energycells'.[$agent_station.idcode]">
           <set_value name="$agent_ware" exact="ware.energycells"/>
           <set_value name="$agent_module" exact="macro.prod_gen_energycells_macro"/>
@@ -210,14 +215,17 @@
         <do_if value="event.param == 'expand %s water'.[$agent_station.idcode]">
           <set_value name="$agent_ware" exact="ware.water"/>
           <set_value name="$agent_module" exact="macro.prod_gen_water_macro"/>
+          <set_value name="$agent_solidinput" exact="true"/>
         </do_if>
         <do_if value="event.param == 'expand %s refinedmetals'.[$agent_station.idcode]">
           <set_value name="$agent_ware" exact="ware.refinedmetals"/>
           <set_value name="$agent_module" exact="macro.prod_gen_refinedmetals_macro"/>
+          <set_value name="$agent_solidinput" exact="true"/>
         </do_if>
         <do_if value="event.param == 'expand %s siliconwafers'.[$agent_station.idcode]">
           <set_value name="$agent_ware" exact="ware.siliconwafers"/>
           <set_value name="$agent_module" exact="macro.prod_gen_siliconwafers_macro"/>
+          <set_value name="$agent_solidinput" exact="true"/>
         </do_if>
 
         <do_if value="@$agent_ware">
@@ -259,8 +267,22 @@
                  branch below reports. A refused expansion is recoverable; a
                  module floating next to the station is manual work for the
                  player. -->
+            <!-- A production module is not enough on its own. An ore refinery
+                 on a station with no solid storage is a refinery nobody can
+                 deliver ore to, and the build would look entirely successful.
+                 So the storage the ware needs goes into the same sequence, but
+                 only when the station has none at all: adding one on every
+                 expansion would stack storage modules for ever. That does mean
+                 an existing but undersized store is left alone, which the agent
+                 cannot yet judge. -->
+            <set_value name="$agent_macros" exact="[$agent_module]"/>
+            <do_if value="$agent_solidinput and $agent_station.cargo.capacity.solid == 0">
+              <append_to_list name="$agent_macros" exact="macro.storage_tel_m_solid_01_macro"/>
+              <write_to_logbook category="general"
+                text="'[x4-agent] %s has no solid storage, adding one to the plan'.[$agent_station.idcode]"/>
+            </do_if>
             <create_construction_sequence station="$agent_station"
-                                          macros="[$agent_module]"
+                                          macros="$agent_macros"
                                           connectors="[macro.struct_arg_base_02_macro,
                                                        macro.struct_gen_venturerbase_01_macro,
                                                        macro.struct_gen_venturerbase_02_macro,

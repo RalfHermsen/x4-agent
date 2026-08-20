@@ -85,11 +85,57 @@ is the likely route.
 the cheapest yield increase in the game. Probably another construction plan
 source rather than a new mechanism.
 
-## Unknown
+## Growth: all three steps exist
 
-**Buying ships.** This is the real ceiling on unattended growth: the agent can
-run an empire but cannot enlarge it. Whether a mod can buy a ship at a wharf has
-not been established, and no claim is made here either way.
+Established 2026-08-20 by reading the game's own scripts and UI, not by asking
+anyone. Together these close the gap between "plans a build" and "runs an
+economy without you".
+
+**Hiring a construction vessel.** The UI does it in two moves, and every call is
+one a mod can make:
+
+```lua
+local fee = tonumber(C.GetBuilderHiringFee())
+if playermoney >= fee then TransferPlayerMoneyTo(fee, ship) else return end
+-- then order it to the station
+C.RemoveAllOrders(ship)
+local idx = C.CreateDeployToStationOrder(ship)
+SetOrderParam(shipid, idx, 1, nil, stationid)
+C.EnableOrder(ship, idx)
+```
+
+So "hiring" is paying a fee to somebody else's construction vessel and then
+giving it a DeployToStation order. Still open: how the UI decides which vessels
+are on offer.
+
+For a builder we already own the Mission Director is simpler:
+`assign_construction_vessel` followed by `deploy_construction_vessel`, which is
+exactly what `order.build.deploy.xml` does with `this.ship`.
+
+**Starting the build.** `process_build(object, build)`, as used in
+`build.buildstorage.xml`.
+
+**Buying a ship.** Real, and the hardest of the three:
+
+```c
+BuildTaskID AddBuildTask6(UniverseID containerid, UniverseID defensibleid,
+                          const char* macroname, UILoadout2 uiloadout,
+                          int64_t price, CrewTransferInfo2 crewtransfer,
+                          bool immediate, const char* customname,
+                          AddBuildTask6Container* additionalinfo);
+```
+
+Followed by `SetBuildTaskTransferredMoney`. Three structs have to be built by
+hand, including a loadout, and `menu_ship_configuration.lua` goes through
+`Helper.callLoadoutFunction` to produce one. `CanContainerBuildShip` answers
+whether a given wharf can build it at all.
+
+The Mission Director also has `add_build_to_construct_ship`, which
+`job_helper.xml` uses to build NPC job ships. Whether that route charges the
+player has not been established, and it matters: an agent that can conjure
+ships for free is not playing the same game.
+
+## Unknown
 
 ## Structural, no new capability needed
 
@@ -121,8 +167,10 @@ Roughly in order. Each one is a change to this repo unless it says otherwise.
       as failing. Simple Menu API, already installed.
 - [ ] Interact menu entries: hand a ship to the agent, or take it back. Makes
       "the player outranks the agent" a button rather than a code comment.
-- [ ] Establish whether a mod can buy a ship at a wharf. Unknown, and it is the
-      ceiling on unattended growth.
+- [ ] Hire a construction vessel from the Lua side, so a planned build starts
+      itself. Every call is known; the missing piece is finding the candidates.
+- [ ] Buy a ship through `AddBuildTask6`. Known to exist, three structs deep.
+      Check first whether the money actually leaves the player's account.
 - [ ] Event-driven cadence instead of a fixed interval.
 - [ ] Use `/refreshmd` and `/reloadui` in the in-game chat window rather than
       restarting the game for every bridge change.
