@@ -349,9 +349,26 @@ def build(state: dict, goals: list[str] | None = None,
         add(f"{code} is an idle {kind} miner, and no station of ours buys "
             f"anything it can mine ({', '.join(sorted(executor.MINABLE[kind]))}). "
             f"Assigning it to a station will leave it idle.")
+    # Miners we own, by what they can extract. A shortage of a minable ware is a
+    # fleet problem, not a market problem, and telling the two apart is the
+    # difference between "explore for a seller" and "buy another miner".
+    miners = {kind: [s["code"] for s in ships
+                     if executor._miner_kind(s.get("macro")) == kind]
+              for kind in executor.MINABLE}
+
     for code, ware, short in shortages:
+        kind = next((k for k, wares in executor.MINABLE.items() if ware in wares), None)
         supply = sellers.get(ware) or []
-        if supply:
+        if kind:
+            # This branch exists because the report used to send the model
+            # exploring for a seller of ore. Ore is not sold, it is dug up.
+            fleet = miners[kind]
+            add(f"{code} needs {short} {ware}. {ware} is mined, not bought: "
+                f"we have {len(fleet)} {kind} miner(s)"
+                + (f" ({', '.join(fleet)})" if fleet else "")
+                + ". A shortage this size is answered with more mining ships, "
+                  "not with a trader or an explorer.")
+        elif supply:
             best = min(supply)
             add(f"{code} needs {short} {ware}; {best[2]} sells it at "
                 f"{best[0]:.0f} Cr (stock {best[1]}).")

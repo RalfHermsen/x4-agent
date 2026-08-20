@@ -132,6 +132,11 @@ Overview):
   to stay within one sector even with high range.
 * **Balance the number of miners against storage and consumption.** With full
   storage or no buyer in range, miners go idle reporting "no buyer found".
+* **A shortage of a minable ware is a fleet problem, not a market problem.**
+  Ore, silicon, ice, hydrogen, helium and methane are not sold by stations in
+  any quantity that matters; they are extracted. If one of our stations is short
+  tens of thousands of a minable ware, the answer is more mining ships, not a
+  trader and not an explorer. Two miners cannot feed three refineries.
 * **"No buyers found in allowed sectors" is a demand problem, not a ship
   problem.** Re-issuing the mining order changes nothing, and neither does
   assigning the ship to a station that does not buy the mineral. Either give the
