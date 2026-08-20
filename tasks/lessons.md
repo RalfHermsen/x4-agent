@@ -75,6 +75,16 @@ besides, so a UI reload leaves the previously loaded chunk resident. Measured:
 the deployed file contained a new diagnostic, the running code logged the old
 lines. MD changes cost a chat command; Lua changes still cost a savegame load.
 
+**L8b. Not everything in the UI layer is an FFI call.** `SetContainerWarePriceOverride` and `GetContainerWarePrice` are Lua wrappers, and they want the id
+form the menus use, `ConvertStringTo64Bit(tostring(container))`, not the raw
+`UniverseID` that `GetAllFactionStations` returns. Handed the cdata they accept
+the call, return nil and change nothing. Three separate causes were diagnosed
+and fixed before this one, all of them wrong: the price scale, a global price
+factor that the game only ever applies to build storages, and a missing offer
+refresh. What settled it was logging what the engine itself reported before and
+after the call, rather than logging what had been asked of it. Functions called
+with a `C.` prefix take the UniverseID; bare globals may not.
+
 **L9. Space commands out by two seconds.** Sending several back to back drops
 the pipe: the log showed the first command going out, then "Pipe client garbage
 collected, restarting", and everything after it lost. X4 finishes processing a

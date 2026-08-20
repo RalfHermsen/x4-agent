@@ -100,17 +100,21 @@ local function set_price(station, args)
     -- Report from inside, because three attempts at this reported success and
     -- changed nothing. What is wanted is the difference between "the call never
     -- reached the engine" and "it reached it and the price is computed anyway".
-    local before = GetContainerWarePrice and GetContainerWarePrice(station, ware, side == "buy")
-    log(string.format("price: setter=%s getter=%s before=%s",
-                      type(SetContainerWarePriceOverride), type(GetContainerWarePrice),
-                      tostring(before)))
+    -- These are Lua wrappers, not FFI calls, and they want the UI's own id form
+    -- rather than the raw UniverseID that GetAllFactionStations hands out. With
+    -- the cdata they accept the call, return nil and change nothing, which is
+    -- how this went unnoticed through three rounds of fixing the wrong thing.
+    -- The game's own menus always wrap the container the same way.
+    local id = ConvertStringTo64Bit(tostring(station))
+    local buyside = (side == "buy")
 
-    SetContainerWarePriceOverride(station, ware, side == "buy", value)
+    local before = GetContainerWarePrice(id, ware, buyside)
+    SetContainerWarePriceOverride(id, ware, buyside, value)
     C.UpdateProductionTradeOffers(station)
+    local after = GetContainerWarePrice(id, ware, buyside)
 
-    local after = GetContainerWarePrice and GetContainerWarePrice(station, ware, side == "buy")
-    log(string.format("price override on %s: %s %s = %d, engine now says %s",
-                      args.code, ware, side, value, tostring(after)))
+    log(string.format("price on %s: %s %s was %s, asked %d, now %s",
+                      args.code, ware, side, tostring(before), value, tostring(after)))
     return true
 end
 
