@@ -103,6 +103,44 @@ def trade_margins(stations: list[dict], limit: int = 10) -> list[dict]:
     return out[:limit]
 
 
+# How long a ship must have been failing before it is worth reporting. Orders
+# fail transiently all the time (a target taken by somebody else, a dock briefly
+# full) and recover by themselves, so reporting every failure the moment it
+# happens would drown the report in noise. The game timestamps each failure, so
+# this is measured rather than sampled: no need to look only every few cycles.
+FAILING_FOR = 5 * 60.0
+
+
+def failing_ships(ships: list[dict], now: float) -> list[tuple]:
+    """Ships the game itself says cannot carry out their order.
+
+    X4 writes the reason next to the orders, in plain English. Two conditions
+    count, and both were seen on the same pair of miners: the current order
+    carries `failed="1"`, or the ship has given up and fallen back to its
+    default order while a recent failure explains why.
+
+    A stale failure on a ship that is working again is ignored, which is why
+    this asks about the ship's current state rather than just the presence of a
+    failure record.
+    """
+    out = []
+    for ship in ships:
+        failures = ship.get("failures")
+        if not failures:
+            continue
+        current = (ship.get("orders") or [{}])[0]
+        stuck = current.get("failed") or _first_order(ship) in IDLE_ORDERS
+        if not stuck:
+            continue
+        last = failures[-1]
+        age = now - last["time"]
+        if age < FAILING_FOR:
+            continue
+        out.append((ship["code"], last["order"], last["message"], age))
+    out.sort(key=lambda item: -item[3])
+    return out
+
+
 def build(state: dict, goals: list[str] | None = None,
           failures: list[str] | None = None) -> str:
     meta, player = state["meta"], state["player"]
@@ -218,6 +256,7 @@ def build(state: dict, goals: list[str] | None = None,
                for ware, sides in _offers_by_ware(known).items()}
 
     idle = [s["code"] for s in ships if _first_order(s) in IDLE_ORDERS]
+    failing = failing_ships(ships, state.get("meta", {}).get("playtime_s", 0.0))
     shortages = [(st["code"], o["ware"], o["desired"] - (o["amount"] or 0))
                  for st in stations for o in st["offers"]
                  if o["side"] == "buy" and o["desired"]
@@ -254,6 +293,9 @@ def build(state: dict, goals: list[str] | None = None,
 
     add("")
     add("# ATTENTION")
+    for code, order, message, age in failing:
+        add(f"{code} has been unable to carry out {order} for "
+            f"{age / 60:.0f} minutes. The game says: \"{message}\"")
     if idle:
         add(f"Idle ships: {', '.join(idle)}.")
     for code, kind in stuck_miners:
@@ -269,7 +311,7 @@ def build(state: dict, goals: list[str] | None = None,
         else:
             add(f"{code} needs {short} {ware}, and NO station we know sells it. "
                 f"A trader cannot fix this; the map has to be explored first.")
-    if not idle and not shortages:
+    if not idle and not shortages and not failing:
         add("Nothing.")
 
     return "\n".join(lines)

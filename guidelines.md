@@ -132,6 +132,12 @@ Overview):
   to stay within one sector even with high range.
 * **Balance the number of miners against storage and consumption.** With full
   storage or no buyer in range, miners go idle reporting "no buyer found".
+* **"No buyers found in allowed sectors" is a demand problem, not a ship
+  problem.** Re-issuing the mining order changes nothing, and neither does
+  assigning the ship to a station that does not buy the mineral. Either give the
+  mineral a buyer we control, by expanding a station into something that consumes
+  it, or accept that the ship has no work and say so. Ice is worth checking first:
+  it feeds water, which feeds almost every food and pharmaceutical chain.
 * **One-off hauls: Repeat Orders** with a 1-star pilot. A mine-to-sell loop with
   the "sell in sector" order (right-click empty space) that you cannot get any
   other way.

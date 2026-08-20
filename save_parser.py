@@ -52,6 +52,7 @@ class Asset:
     place: dict[str, str] = field(default_factory=dict)
     docked_at: str | None = None    # code of the object this hangs off
     orders: list[dict] = field(default_factory=list)
+    failures: list[dict] = field(default_factory=list)
     software: list[str] = field(default_factory=list)
     account: dict[str, str] = field(default_factory=dict)
     offers: list[Offer] = field(default_factory=list)
@@ -132,6 +133,7 @@ def _orders(elem) -> list[dict]:
     for order in node.findall("order"):
         entry = {"order": order.get("order"),
                  "state": order.get("state"),
+                 "failed": order.get("failed") == "1",
                  "default": order.get("default") == "1"}
         params = {p.get("name"): p.get("value") for p in order.findall("param")
                   if p.get("value") is not None}
@@ -141,6 +143,33 @@ def _orders(elem) -> list[dict]:
 
     # Active first: a started, non-default order beats everything else.
     out.sort(key=lambda o: (o["default"], o["state"] != "started"))
+    return out
+
+
+def _failures(elem) -> list[dict]:
+    """Why the game itself says an order could not be carried out.
+
+    X4 records this next to the orders, with a game timestamp and a message in
+    plain English:
+
+        <order order="MiningRoutine" state="started" failed="1"/>
+        <failed time="20806.193" order="MiningRoutine"
+                message="No buyers found in allowed sectors."/>
+
+    This is worth more than anything the agent could infer from the outside. A
+    miner that cannot sell what it digs up is still formally on a mining order,
+    so it is not idle and nothing about its state looks wrong; the only evidence
+    is this line, written by the part of the game that actually tried.
+    """
+    node = elem.find("orders")
+    if node is None:
+        return []
+    out = []
+    for failed in node.findall("failed"):
+        out.append({"order": failed.get("order"),
+                    "message": failed.get("message"),
+                    "time": float(failed.get("time") or 0)})
+    out.sort(key=lambda f: f["time"])
     return out
 
 
@@ -243,6 +272,7 @@ def _asset(elem, ancestors: list[dict]) -> Asset:
         place=place,
         docked_at=docked_at,
         orders=_orders(elem),
+        failures=_failures(elem),
         software=[s.get("wares") for s in elem.iter("software") if s.get("wares")],
         account=dict(elem.find("account").items()) if elem.find("account") is not None else {},
     )

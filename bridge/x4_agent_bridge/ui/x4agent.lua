@@ -277,17 +277,32 @@ function X4Agent.onCommand(_, command)
     end
 end
 
+local initialised = false
+
 local function init()
+    if initialised then
+        return
+    end
+    initialised = true
     RegisterEvent("X4Agent.Command", X4Agent.onCommand)
     log("ready, handling: price, tradeware, traderule")
 end
 
--- Register_OnLoad_Init comes from the Lua Loader API, and delays this until the
--- game is actually loaded. Calling the C functions any earlier does not work.
-if Register_OnLoad_Init then
-    Register_OnLoad_Init(init, "extensions.x4_agent_bridge.ui.x4agent")
-else
-    init()
-end
+-- Initialise straight away, and do NOT hand this to Register_OnLoad_Init.
+--
+-- That function looks like the right one: it exists to delay initialisation
+-- until the game is loaded, because the C functions do not work before then.
+-- But it only appends to a list that the Lua Loader walks once, immediately
+-- after it raises its "Ready" signal, and then clears for good. This file is
+-- loaded by the MD script *in response to* that same signal, so it arrives a
+-- frame too late: the init would be appended to a list nothing will ever
+-- iterate again. RegisterEvent would never run, and every command MD forwarded
+-- here would be discarded without a sound. That is what happened, undetected,
+-- for as long as this file has existed.
+--
+-- Being loaded after "Ready" is exactly the condition that function waits for,
+-- so there is nothing left to wait for. The guard above keeps this harmless if
+-- the file is ever loaded twice.
+init()
 
 return X4Agent

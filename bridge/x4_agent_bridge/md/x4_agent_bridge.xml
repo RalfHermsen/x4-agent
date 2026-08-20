@@ -42,6 +42,19 @@
     </actions>
   </cue>
 
+  <!-- Independent proof that the Lua file was actually required, separate from
+       whether anything inside it ran. The Lua Loader raises this itself. -->
+  <cue name="Lua_Loaded" instantiate="true">
+    <conditions>
+      <event_ui_triggered screen="'Lua_Loader'"
+                          control="'Loaded extensions.x4_agent_bridge.ui.x4agent'" />
+    </conditions>
+    <actions>
+      <write_to_logbook category="general"
+        text="'[x4-agent lua] file loaded'"/>
+    </actions>
+  </cue>
+
   <!-- The Lua side has no way to report anything. DebugError only reaches a log
        file the game does not write unless it was launched for it, so a command
        that Lua rejected, or a game function that returned nothing, looked
