@@ -151,3 +151,58 @@ type is informed.
   action that carries one rather than executing half of it. Each ware the bridge
   understands needs its own comparison in MD; a custom order script with typed
   parameters, as `TDM_SupplyAndTradeRoutes` does, is the way out.
+
+---
+
+## Correction: prices and trade rules are settable, in Lua
+
+Earlier in this document, and for most of a day of building, the conclusion was
+that setting a station's prices and trade rules is not possible from a mod. That
+was wrong, and wrong in a way worth recording: **the search was in the wrong
+language.**
+
+The Mission Director genuinely has no action for it. The UI does the work
+through the Lua/C layer, and those functions are as available to a mod as they
+are to the game's own menus:
+
+```c
+void SetContainerTradeRule(UniverseID containerid, TradeRuleID id,
+                           const char* ruletype, const char* wareid, bool value);
+void SetContainerWareIsBuyable(UniverseID containerid, const char* wareid, bool allowed);
+void SetContainerWareIsSellable(UniverseID containerid, const char* wareid, bool allowed);
+void SetContainerGlobalPriceFactor(UniverseID containerid, float value);
+void SetContainerBuildPriceFactor(UniverseID containerid, float value);
+void AddTradeWare(UniverseID containerid, const char* wareid);
+void RemoveTradeWare(UniverseID containerid, const char* wareid);
+void UpdateProductionTradeOffers(UniverseID containerid);
+void SetPlayerTradeRuleDefault(TradeRuleID id, const char* ruletype, bool value);
+void SetPlayerIllegalWare(const char* wareid, bool illegal);
+```
+
+Found by searching the game's own UI Lua (`ui/addons/ego_detailmonitor/*.lua`)
+for C functions that write rather than read. `menu_map.lua` calls
+`C.SetContainerTradeRule(container, tonumber(id), "buy", ware or "", true)`,
+which is exactly the "own faction first on buy orders" rule from a strategy
+document, expressed in one line.
+
+### Why this changes the design
+
+Look at the parameter type: **`const char* wareid`**. Wares are addressed by
+name string, and Lua can take a command apart.
+
+Every workaround in this project for "the Mission Director cannot parse strings"
+exists because the command handling lives in MD:
+
+* the inverted string match, building the expected command per ship and
+  comparing whole strings;
+* the hardcoded list of expandable wares, one comparison per ware;
+* refusing an autotrade action that carries a ware whitelist, because the
+  whitelist cannot travel.
+
+None of those are limits of X4. They are limits of handling commands in MD. The
+Lua side has string handling and takes ware ids as text, so moving command
+parsing there dissolves all three at once.
+
+MD remains the right place for what MD is good at: cues, game events, and
+creating orders. The split should be by capability, not by whichever layer the
+first spike happened to use.
