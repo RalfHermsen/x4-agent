@@ -181,23 +181,22 @@
              comparison. The list covers the early and mid game wares from
              guidelines.md; extending it is one line per ware. -->
         <set_value name="$agent_ware" exact="null"/>
+        <set_value name="$agent_module" exact="null"/>
         <do_if value="event.param == 'expand %s energycells'.[$agent_station.idcode]">
           <set_value name="$agent_ware" exact="ware.energycells"/>
+          <set_value name="$agent_module" exact="macro.prod_gen_energycells_macro"/>
         </do_if>
         <do_if value="event.param == 'expand %s water'.[$agent_station.idcode]">
           <set_value name="$agent_ware" exact="ware.water"/>
+          <set_value name="$agent_module" exact="macro.prod_gen_water_macro"/>
         </do_if>
         <do_if value="event.param == 'expand %s refinedmetals'.[$agent_station.idcode]">
           <set_value name="$agent_ware" exact="ware.refinedmetals"/>
+          <set_value name="$agent_module" exact="macro.prod_gen_refinedmetals_macro"/>
         </do_if>
         <do_if value="event.param == 'expand %s siliconwafers'.[$agent_station.idcode]">
           <set_value name="$agent_ware" exact="ware.siliconwafers"/>
-        </do_if>
-        <do_if value="event.param == 'expand %s graphene'.[$agent_station.idcode]">
-          <set_value name="$agent_ware" exact="ware.graphene"/>
-        </do_if>
-        <do_if value="event.param == 'expand %s hullparts'.[$agent_station.idcode]">
-          <set_value name="$agent_ware" exact="ware.hullparts"/>
+          <set_value name="$agent_module" exact="macro.prod_gen_siliconwafers_macro"/>
         </do_if>
 
         <do_if value="@$agent_ware">
@@ -213,9 +212,32 @@
               text="'[x4-agent] %s already has an expansion planned, leaving it alone'.[$agent_station.idcode]"/>
           </do_if>
           <do_elseif value="@$agent_station.buildstorage">
-            <get_god_production_construction_plan result="$agent_plan"
-                                                  product="$agent_ware"
-                                                  faction="faction.player"/>
+            <!-- Build the sequence ourselves instead of asking for a prefab.
+                 get_god_production_construction_plan reads libraries/god.xml,
+                 where every production entry is owned by an NPC faction: there
+                 is not one for faction.player, so it returned null for every
+                 ware and the expansion silently never happened.
+
+                 create_construction_sequence takes the module macros directly
+                 and works out how to attach them, with `base` extending what
+                 the station already has rather than replacing it. `immediate`
+                 blocks the game while it computes, which is acceptable for one
+                 module and is the only way to get the result inside this cue.
+
+                 The connectors are the ones the player owns in this game. A
+                 connector we have no blueprint for would produce a sequence
+                 that cannot be built. -->
+            <create_construction_sequence station="$agent_station"
+                                          macros="[$agent_module]"
+                                          connectors="[macro.struct_gen_venturerbase_01_macro,
+                                                       macro.struct_gen_venturerbase_02_macro,
+                                                       macro.struct_gen_venturerbase_03_macro,
+                                                       macro.struct_gen_venturercross_01_macro,
+                                                       macro.struct_gen_venturervertical_01_macro,
+                                                       macro.struct_gen_venturervertical_02_macro]"
+                                          base="$agent_station.constructionsequence">
+              <immediate result="$agent_plan"/>
+            </create_construction_sequence>
             <do_if value="@$agent_plan">
               <apply_construction_sequence station="$agent_station" sequence="$agent_plan"/>
               <add_build_to_expand_station object="$agent_station.buildstorage"
@@ -228,7 +250,7 @@
             </do_if>
             <do_else>
               <write_to_logbook category="general"
-                text="'[x4-agent] no construction plan available for %s'.[$agent_ware.name]"/>
+                text="'[x4-agent] could not build a construction sequence for %s'.[$agent_ware.name]"/>
             </do_else>
           </do_elseif>
           <do_else>

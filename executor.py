@@ -48,10 +48,14 @@ def _automine(action) -> str:
 
 
 # Wares the in-game bridge can build production for. The Mission Director has
-# no ware-by-name lookup, so every ware needs an explicit comparison there; this
-# list must stay in step with the one in bridge/.../x4_agent_bridge.xml.
-EXPANDABLE_WARES = ("energycells", "water", "refinedmetals", "siliconwafers",
-                    "graphene", "hullparts")
+# no ware-by-name lookup, so every ware needs an explicit comparison there, and
+# now also the macro of the module that produces it; this list must stay in step
+# with the one in bridge/.../x4_agent_bridge.xml.
+#
+# Shorter than it was: graphene and hullparts were listed while the bridge only
+# had a ware for them and no module, which was harmless only because the whole
+# expansion path was silently doing nothing.
+EXPANDABLE_WARES = ("energycells", "water", "refinedmetals", "siliconwafers")
 
 
 def _expand(action) -> str:
