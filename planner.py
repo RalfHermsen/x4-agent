@@ -70,7 +70,7 @@ nothing more:
 - expand_station : station code, ware the station should start producing
 - set_budget     : station code, level (low / mid / high)
 - set_trade_rule : station code, ware, rule, side
-- set_price      : station code, ware, mode
+- set_price      : station code, ware, side (buy/sell), price in credits
 - claim_ship     : target code
 - purchase       : item, spec, max spend
 - build_station  : station type, sector, max spend

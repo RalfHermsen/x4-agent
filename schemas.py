@@ -229,13 +229,21 @@ class SetTradeRule(BaseModel):
 
 
 class SetPrice(BaseModel):
+    """Set a manual price for one ware at one of our stations.
+
+    This turns automatic pricing off for that ware. Left on automatic, a station
+    manager walks the price down towards the minimum as storage fills, which is
+    exactly what happens to an end product nobody is collecting fast enough.
+
+    The price is absolute, in credits, because the situation report lists what
+    the station currently asks and what the market pays. The executor refuses a
+    value wildly away from the current one.
+    """
     type: Literal["set_price"]
     station_id: str
     ware: str
-    mode: Literal["auto", "manual_max", "manual_offset"]
-    offset_pct: Optional[float] = Field(
-        None, description="E.g. -5 means 5% under average when mode=manual_offset"
-    )
+    side: Literal["buy", "sell"]
+    price: float = Field(description="Price in credits")
     priority: Priority = _PRIORITY
     rationale: str = _RATIONALE
 

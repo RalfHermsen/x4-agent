@@ -28,6 +28,20 @@
     </actions>
   </cue>
 
+  <!-- Load our Lua side. It handles what MD cannot: parsing a command string
+       and setting station prices and trade wares, which only exist as Lua
+       functions. Path uses dots, not slashes, and the file must not be packed
+       into a cat. -->
+  <cue name="Load_Lua" instantiate="true">
+    <conditions>
+      <event_ui_triggered screen="'Lua_Loader'" control="'Ready'" />
+    </conditions>
+    <actions>
+      <raise_lua_event name="'Lua_Loader.Load'"
+                       param="'extensions.x4_agent_bridge.ui.x4agent'"/>
+    </actions>
+  </cue>
+
   <!-- The documentation warns that a cue using Server_Reader must not be
        created alongside its own action libraries. Hence this dummy wrapper. -->
   <cue name="Server_Reader_Wrapper">
@@ -310,6 +324,14 @@
           </do_if>
         </do_for_each>
       </do_for_each>
+
+      <!-- Anything MD did not recognise goes to the Lua side, which can take a
+           string apart and reach functions MD does not have. This is why no new
+           command needs a change here: only the ones MD itself must execute
+           (orders, assignments, builds) live above. -->
+      <do_if value="$agent_handled == 0">
+        <raise_lua_event name="'X4Agent.Command'" param="event.param"/>
+      </do_if>
 
       <!-- Deliberately no fallback logbook entry. The logbook is the player's
            record of what happened in the game, not a protocol trace: commands

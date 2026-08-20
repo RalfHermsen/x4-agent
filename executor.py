@@ -62,6 +62,36 @@ def _budget(action) -> str:
     return f"budget {action.station_id} {action.level}"
 
 
+# How far a manual price may sit from what the station asks today. A model that
+# misreads the report can otherwise put an end product at 3 credits, and a
+# station cheerfully sells its stock at that price.
+PRICE_BAND = (0.5, 2.0)
+
+
+def _price(action) -> str:
+    """set_price -> a manual price override, handled on the Lua side."""
+    return (f"price {action.station_id} {action.ware} {action.side} "
+            f"{int(round(action.price))}")
+
+
+def _price_out_of_band(action, state: dict) -> str | None:
+    station = next((a for a in state.get("assets", [])
+                    if a.get("code") == action.station_id), None)
+    if not station:
+        return None
+    current = next((o.get("price") for o in station.get("offers", [])
+                    if o.get("ware") == action.ware
+                    and o.get("side") == action.side), None)
+    if not current:
+        return (f"{action.station_id} has no {action.side} offer for "
+                f"{action.ware} to price against")
+    low, high = current * PRICE_BAND[0], current * PRICE_BAND[1]
+    if not low <= action.price <= high:
+        return (f"{action.price:.0f} Cr is outside the sane band "
+                f"{low:.0f}-{high:.0f} Cr around the current {current:.0f} Cr")
+    return None
+
+
 def _assign(action) -> str:
     """assign_ship -> attach a ship to one of our stations as trader or miner."""
     return f"assign {action.ship_ref} {action.station_id} {action.role}"
@@ -138,6 +168,7 @@ EXECUTABLE: dict[tuple[str, str | None], Callable] = {
     ("set_behaviour", "automine"): _automine,
     ("set_budget", None): _budget,
     ("expand_station", None): _expand,
+    ("set_price", None): _price,
 }
 
 
@@ -248,6 +279,12 @@ def to_commands(actions: list, state: dict | None = None) -> tuple[list[str], li
             label = key[0] if key[1] is None else f"{key[0]}({key[1]})"
             skipped.append((action, f"{label} is not executable yet, advice only"))
             continue
+        if key == ("set_price", None) and state:
+            out_of_band = _price_out_of_band(action, state)
+            if out_of_band:
+                skipped.append((action, out_of_band))
+                continue
+
         busy = _busy_with(action, state) if state else None
         if busy and not _already_done(action, key, state):
             skipped.append((action, f"already busy with {busy}, not overriding"))
