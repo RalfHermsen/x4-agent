@@ -4,9 +4,10 @@ An agent that plays X4: Foundations according to your own written guidelines,
 driven by a **local** LLM. The model plans, deterministic Python does the maths
 and the execution.
 
-Status: **Phase 1 works end to end, and the Phase 2 round trip is proven.**
-Save parsing, sitrep generation and advice from a local model, plus a working
-game to Python and back again loop over named pipes on X4 9.00.
+Status: **it plays.** The agent reads live game state, plans with a local model
+under your own written guidelines, validates every decision, and issues real
+orders into a running X4 9.00: assigning ships to stations, exploring, mining,
+trading, setting a station budget, and planning a station expansion.
 
 ## Standing on someone else's shoulders
 
@@ -52,6 +53,9 @@ in the model. It is bad and expensive at that, and Python is neither.
 | 2 | One write command through the pipe, proving the closed loop | yes |
 | 3 | More order types, higher decision frequency, guardrails | yes |
 
+Phase 3 is under way: six executable action types and four gates before anything
+reaches the game. See [docs/phase3-acting.md](docs/phase3-acting.md).
+
 Phase 1 deliberately postpones the Mission Director, because that was expected
 to be the bottleneck. It turned out smaller than feared: see
 [docs/phase2-ipc.md](docs/phase2-ipc.md).
@@ -59,7 +63,8 @@ to be the bottleneck. It turned out smaller than feared: see
 ## Usage
 
 ```bash
-python planner.py --latest             # full advice loop on the newest save
+python agent.py                        # one full cycle: plan, validate, translate
+python planner.py --latest             # advice only, no executor
 python sitrep.py --latest              # just the report
 python save_parser.py --latest --json state.json
 python explore_save.py census <save>   # explore the save format
@@ -96,11 +101,14 @@ gamedata.py           reads the .cat archives, turns macros into real names
 explore_save.py       save format explorer (census, dump, find)
 evaluate.py           runs the full loop across many saves, Phase 1 definition of done
 deploy_bridge.py      copies the in-game bridge into the X4 installation
+run_host.py           starts the pipe host, stopping any stale one first
+edit_save.py          edits a savegame into a new file, to set up a test
 bridge/               the X4 extension: MD script + Python pipe module
 agent.py              one full cycle: state, plan, validate, translate to commands
 executor.py           the whitelist: which actions may actually reach the game
 guidelines.md         the strategy rules the model follows (this is yours to edit)
 docs/                 what was measured, and what broke while measuring it
+logs/                 one file per cycle run, for watching outside the game
 vendor/               third-party code, pinned
 ```
 
@@ -149,6 +157,12 @@ All measured, not guessed. Details in [docs/](docs/).
 * **The pipe host refuses unknown extensions** unless their `content.xml` id is
   listed in `permissions.json`. It fails silently.
 * **Mods can break on game updates.** Pin a patch version while developing.
+* **Two commands sent back to back drop the pipe.** The host recovers silently,
+  so everything after the first command is simply lost. Space them out.
+* **Money comes in two scales.** Trade prices and `player.money` are hundredths
+  of a credit; the save header and station accounts are whole credits.
+* **X4 omits zero attributes.** An element missing a value means zero, not
+  "stored elsewhere".
 
 ## Support
 
