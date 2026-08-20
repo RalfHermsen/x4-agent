@@ -190,6 +190,13 @@ For trade and miner fleets. Combat doctrine is in section 9.
 
 ---
 
+* **Send scouts exploring, not freighters.** The report names each ship's type.
+  A container freighter can carry out an Explore order and will do it badly and
+  expensively, while the cargo hold it was bought for sits empty. Use scouts and
+  fighters for that; if none is free, exploring waits.
+
+---
+
 ## 8. Standing rules: explorers
 
 Goal: reveal the map, find resources, wrecks, lockboxes and data vaults, and

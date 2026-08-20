@@ -60,6 +60,26 @@ def role_of(ship: dict) -> str:
     return "other"
 
 
+# What a ship is built for, read from its macro. The report used to give only
+# the macro and leave the model to work it out, and it did not: it sent a
+# container freighter off to explore. A hull type is not a suggestion, and one
+# word here is cheaper than a rule in the guidelines.
+SHIP_TYPES = (
+    ("miner_solid", "solid miner"), ("miner_liquid", "liquid miner"),
+    ("trans_container", "container freighter"), ("trans_solid", "solid freighter"),
+    ("trans_liquid", "liquid freighter"), ("_trans_", "freighter"),
+    ("scout", "scout"), ("fighter", "fighter"), ("builder", "construction vessel"),
+    ("resupply", "resupplier"), ("courier", "courier"),
+)
+
+
+def ship_type(macro: str | None) -> str:
+    for needle, name in SHIP_TYPES:
+        if macro and needle in macro:
+            return name
+    return "ship"
+
+
 def by_role(ships: list[dict]) -> dict[str, list[dict]]:
     groups: dict[str, list[dict]] = {}
     for ship in ships:
@@ -308,7 +328,8 @@ def build(state: dict, goals: list[str] | None = None,
             where = (f"docked at {sh['docked_at']}" if sh["connection"] == "dock"
                      else f"in {gamedata.pretty(sh['place'].get('sector'), names)}")
             extra = f", {', '.join(sh['software'])}" if sh["software"] else ""
-            add(f"{sh['code']} {sh['cls']} ({sh['macro']}): {status}, {where}{extra}")
+            add(f"{sh['code']} {ship_type(sh['macro'])} ({sh['cls']}): "
+                f"{status}, {where}{extra}")
     else:
         # Above the detail limit, aggregate per role. Listing a fleet of 220
         # ships individually cost 40 kB of sitrep; the model gains nothing from
