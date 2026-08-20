@@ -79,6 +79,20 @@ cannot see them and the agent re-sends them for ever. `memory.py` records them
 as subject and value separately, so a value can be changed and later changed
 back.
 
+**L11a. There is no prefab construction plan for the player.**
+`get_god_production_construction_plan` reads `libraries/god.xml`, where every
+production entry is owned by an NPC faction. It returns null for
+`faction.player` for every ware, and a `do_if` around it skips quietly, so the
+whole expansion path did nothing for two days while being recorded as working.
+Build the sequence with `create_construction_sequence` instead, which takes
+module macros directly and extends the existing one through `base`.
+
+**L11b. `failsafe` defaults to true, and that is not a safe default.** When the
+generator cannot connect the modules it "will be added in free space without any
+connections". The build is planned, the logbook says it worked, and the player
+finds a module floating beside the station. Pass `failsafe="false"` and supply
+every connector the station is actually built from.
+
 ## About the model
 
 **L12. Put `type` first in a discriminated union, and give it no default.** With

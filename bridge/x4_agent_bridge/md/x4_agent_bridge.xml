@@ -226,15 +226,28 @@
 
                  The connectors are the ones the player owns in this game. A
                  connector we have no blueprint for would produce a sequence
-                 that cannot be built. -->
+                 that cannot be built, and too few of them produce something
+                 worse: with failsafe on, which is the default, the generator
+                 gives up connecting and drops the module "in free space
+                 without any connections". That is what happened on the first
+                 real expansion, and it looks exactly like success from here.
+                 struct_arg_base_02 is in the list because the station is
+                 already built out of it.
+
+                 failsafe="false" turns that into a plain failure, which the
+                 branch below reports. A refused expansion is recoverable; a
+                 module floating next to the station is manual work for the
+                 player. -->
             <create_construction_sequence station="$agent_station"
                                           macros="[$agent_module]"
-                                          connectors="[macro.struct_gen_venturerbase_01_macro,
+                                          connectors="[macro.struct_arg_base_02_macro,
+                                                       macro.struct_gen_venturerbase_01_macro,
                                                        macro.struct_gen_venturerbase_02_macro,
                                                        macro.struct_gen_venturerbase_03_macro,
                                                        macro.struct_gen_venturercross_01_macro,
                                                        macro.struct_gen_venturervertical_01_macro,
                                                        macro.struct_gen_venturervertical_02_macro]"
+                                          failsafe="false"
                                           base="$agent_station.constructionsequence">
               <immediate result="$agent_plan"/>
             </create_construction_sequence>
