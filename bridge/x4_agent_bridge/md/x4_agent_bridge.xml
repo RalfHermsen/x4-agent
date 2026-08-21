@@ -57,9 +57,9 @@
     </conditions>
     <actions>
       <write_to_logbook category="general"
-        text="'[x4-agent] bridge reloaded, build 2026-08-20.5 (expand + solid storage, fund build storage)'"/>
+        text="'[x4-agent] bridge reloaded, build 2026-08-21.1 (explore widens to 15 jumps and says when it cannot)'"/>
       <show_notification
-        text="'[x4-agent] bridge build 2026-08-20.5'"/>
+        text="'[x4-agent] bridge build 2026-08-21.1'"/>
     </actions>
   </cue>
 
@@ -386,16 +386,37 @@
                default="true" makes it the ship's default behaviour rather than
                a one-shot queue entry, which is what the guidelines ask for: an
                idle scout should go back to exploring by itself. -->
-          <find_sector_in_range name="$agent_nearby" object="$agent_ship"
-                                mindistance="0" maxdistance="3" multiple="true"/>
+          <!-- Widen the search until something unknown turns up. A fixed three
+               jumps was right when 44 stations were known and everything nearby
+               was new. At 183 it found nothing, fell back to the ship's own
+               sector every time, and three scouts spent hours sweeping space
+               they had already seen. Measured: every scout's Explore order
+               targeted the sector it was already sitting in.
+
+               MD has no loop over a widening number, so the rings are written
+               out. Cheap: find_sector_in_range only runs until one hits. -->
           <set_value name="$agent_target" exact="$agent_ship.sector"/>
           <set_value name="$agent_found" exact="0"/>
-          <do_for_each name="$agent_sector" in="$agent_nearby">
-            <do_if value="$agent_found == 0 and not $agent_sector.isknown">
-              <set_value name="$agent_target" exact="$agent_sector"/>
-              <set_value name="$agent_found" exact="1"/>
+          <do_for_each name="$agent_reach" in="[3, 6, 10, 15]">
+            <do_if value="$agent_found == 0">
+              <find_sector_in_range name="$agent_nearby" object="$agent_ship"
+                                    mindistance="0" maxdistance="$agent_reach"
+                                    multiple="true"/>
+              <do_for_each name="$agent_sector" in="$agent_nearby">
+                <do_if value="$agent_found == 0 and not $agent_sector.isknown">
+                  <set_value name="$agent_target" exact="$agent_sector"/>
+                  <set_value name="$agent_found" exact="1"/>
+                </do_if>
+              </do_for_each>
             </do_if>
           </do_for_each>
+
+          <!-- Say when there is nothing left to find. Falling back silently is
+               how three scouts kept "exploring" a sector they had explored. -->
+          <do_if value="$agent_found == 0">
+            <write_to_logbook category="general"
+              text="'[x4-agent] %s found no unknown sector within 15 jumps, sweeping %s instead'.[$agent_ship.idcode, $agent_target.name]"/>
+          </do_if>
 
           <create_order object="$agent_ship" id="'Explore'" default="true">
             <param name="targetspace" value="$agent_target"/>

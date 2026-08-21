@@ -171,6 +171,19 @@ ships for free is not playing the same game.
 
 ## Unknown
 
+## Known gap: a ship busy doing nothing
+
+Gate 3 refuses an order the ship already carries, which is what stops the agent
+re-sending the same command every cycle. It also means a ship stuck in a
+useless version of that order is invisible: three scouts sat on Explore orders
+that targeted the sector they were already in, and from outside they looked
+like three scouts exploring.
+
+The savegame has what is needed to tell the difference. `orders/order/param`
+carries `targetspace` as a component id, and comparing it against the ship's
+own sector would show the order for what it is. That needs an id-to-sector map
+the parser does not build yet.
+
 ## Structural, no new capability needed
 
 **Event-driven cadence.** The loop runs every few minutes whether or not
