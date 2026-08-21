@@ -262,11 +262,40 @@ def price_gaps(stations: list[dict], known: list[dict]) -> list[str]:
     return lines
 
 
+# X4 records a collision and a real attack in the same three attributes; only
+# the method tells them apart. "collided" is bumping into something and means
+# nothing. "lowattentionattack" is a fight that happened out of the player's
+# view, and it is the only warning there is that a route is unsafe.
+HARMLESS_ATTACKS = {"collided"}
+# How long a hit stays worth mentioning, in game seconds.
+ATTACK_MEMORY = 45 * 60.0
+
+
+def attacks(ships: list[dict], now: float) -> list[str]:
+    out = []
+    for ship in ships:
+        hit = ship.get("attack") or {}
+        if not hit or hit.get("method") in HARMLESS_ATTACKS:
+            continue
+        age = now - hit["time"]
+        if age > ATTACK_MEMORY:
+            continue
+        out.append(f"  {ship['code']} ({ship_type(ship.get('macro'))}) was attacked "
+                   f"{age / 60:.0f} minutes ago and survived. Its route is not safe.")
+    return out
+
+
 def build(state: dict, goals: list[str] | None = None,
           failures: list[str] | None = None) -> str:
     meta, player = state["meta"], state["player"]
     assets = state["assets"]
     ships = [a for a in assets if a["cls"] in SHIP_CLASSES]
+    # Which subordinate group means what, read off our own stations. Without
+    # this a ship assigned to a station and a freelancer look identical, because
+    # both carry TradeRoutine as their default behaviour.
+    groups = {}
+    for a in assets:
+        groups.update((a.get("assignment") or {}).get("groups") or {})
     stations = [a for a in assets if a["cls"] == "station"]
     known = state["known_stations"]
     # Sectors are called cluster_19_sector001_macro in the save. The model has
@@ -341,7 +370,10 @@ def build(state: dict, goals: list[str] | None = None,
             where = (f"docked at {sh['docked_at']}" if sh["connection"] == "dock"
                      else f"in {gamedata.pretty(sh['place'].get('sector'), names)}")
             extra = f", {', '.join(sh['software'])}" if sh["software"] else ""
-            add(f"{sh['code']} {ship_type(sh['macro'])} ({sh['cls']}): "
+            job = (sh.get("assignment") or {}).get("group")
+            role = groups.get(job) or groups.get(str(job)) if job else None
+            duty = f", assigned as {role}" if role else ", working for itself"
+            add(f"{sh['code']} {ship_type(sh['macro'])} ({sh['cls']}){duty}: "
                 f"{status}, {where}{extra}")
     else:
         # Above the detail limit, aggregate per role. Listing a fleet of 220
@@ -448,6 +480,13 @@ def build(state: dict, goals: list[str] | None = None,
             add(f"  {yard['code']} ({yard.get('owner')}) builds "
                 f"{', '.join(c.upper() for c in yard['builds'])} class ships, in "
                 f"{gamedata.pretty(yard['place'].get('sector'), names)}")
+
+    hits = attacks(ships, meta.get("playtime_s", 0.0))
+    if hits:
+        add("")
+        add("# UNDER ATTACK")
+        for line in hits:
+            add(line)
 
     pricing = price_gaps(stations, known)
     if pricing:

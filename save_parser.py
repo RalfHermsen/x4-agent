@@ -60,6 +60,8 @@ class Asset:
     build: dict = field(default_factory=dict)
     owner: str | None = None
     builds: list[str] = field(default_factory=list)
+    assignment: dict = field(default_factory=dict)
+    attack: dict = field(default_factory=dict)
     software: list[str] = field(default_factory=list)
     account: dict[str, str] = field(default_factory=dict)
     offers: list[Offer] = field(default_factory=list)
@@ -325,6 +327,53 @@ def _build_tasks(elem) -> dict:
     }
 
 
+def _assignment(elem) -> dict:
+    """Whether this ship works for a commander, and in what role.
+
+    A subordinate carries `<subordinate group="1"/>` and nothing else; the
+    meaning of the group lives on the commander, as
+    `<group index="1" assignmment="trade"/>` (the doubled m is the game's own
+    spelling). There is no commander pointer on the ship at all.
+
+    This matters because the order alone lies about it. An assigned trader still
+    shows TradeRoutine as its default behaviour, exactly like a freelancer on
+    autotrade, so reading orders led to the conclusion that six assigned
+    freighters were trading for themselves.
+    """
+    node = elem.find("subordinate")
+    if node is None:
+        return {}
+    return {"group": _int(node.get("group"))}
+
+
+def _groups(elem) -> dict[int, str]:
+    """A commander's subordinate groups: {1: "trade", 2: "mining"}."""
+    node = elem.find("subordinates")
+    if node is None:
+        return {}
+    out = {}
+    for group in node.findall("group"):
+        index = _int(group.get("index"))
+        # X4 spells it with two m's. Read both, in case that is ever fixed.
+        role = group.get("assignmment") or group.get("assignment")
+        if index and role:
+            out[index] = role
+    return out
+
+
+def _attack(elem, now: float) -> dict:
+    """The last time somebody hit this object, if it was recent enough to matter.
+
+    X4 keeps `attacker`, `attackmethod` and `attacktime` right on the component.
+    Nothing in this project looked at them, so an agent could plan an empire
+    while its freighters were being shot at.
+    """
+    when = elem.get("attacktime") or elem.get("shipattacktime")
+    if not when:
+        return {}
+    return {"method": elem.get("attackmethod"), "time": float(when)}
+
+
 def _asset(elem, ancestors: list[dict]) -> Asset:
     """Build an Asset from a component element plus its ancestor chain."""
     place = {}
@@ -350,6 +399,8 @@ def _asset(elem, ancestors: list[dict]) -> Asset:
         failures=_failures(elem),
         cargo=_cargo(elem),
         owner=elem.get("owner"),
+        assignment=_assignment(elem),
+        attack=_attack(elem, 0.0),
         software=[s.get("wares") for s in elem.iter("software") if s.get("wares")],
         account=dict(elem.find("account").items()) if elem.find("account") is not None else {},
     )
@@ -357,6 +408,7 @@ def _asset(elem, ancestors: list[dict]) -> Asset:
         asset.offers = _offers(elem)
         asset.build = _build_tasks(elem)
     if asset.cls == "station":
+        asset.assignment = {"groups": _groups(elem)}
         asset.builds = _shipyard(elem)
         asset.manager = _manager(elem)
         asset.offers = _offers(elem)
