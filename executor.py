@@ -181,6 +181,82 @@ def repricing(state: dict) -> list[str]:
     return out
 
 
+# Wares the bridge can point a ship at. Same limit as expansion: MD needs one
+# comparison per ware, so the list is explicit on both sides.
+SELLABLE = ("energycells", "water", "refinedmetals", "siliconwafers", "sunriseflowers")
+# Above this share of the station's stored volume, one ware is crowding out the
+# rest and the whole trade fleet goes after it.
+CROWDING = 0.35
+
+
+def _volumes() -> dict:
+    import json
+    path = __import__("pathlib").Path(__file__).parent / "data" / "ware_volumes.json"
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except OSError:
+        return {}
+
+
+def focus_fleet(state: dict) -> list[str]:
+    """Aim every assigned trader at whatever is backing up.
+
+    Storage fills in cubic metres, not in units, so the ware to shift is the one
+    taking the most room, not the one there is most of. Six freighters each
+    picking whichever trade suited them is how a station ends up with 16,809
+    silicon wafers, a full warehouse and a production line stopped dead.
+
+    Only fires when one ware really is crowding the rest out. Below that the
+    manager's own judgement is better than a blanket order, because it can see
+    what each ship is near.
+    """
+    volumes = _volumes()
+    if not volumes:
+        return []
+
+    for station in state.get("assets", []):
+        if station.get("cls") != "station":
+            continue
+        stock = station.get("cargo") or {}
+        selling = {o["ware"] for o in station.get("offers", []) if o.get("side") == "sell"}
+        room = {w: n * volumes.get(w, 0) for w, n in stock.items()
+                if w in selling and w in SELLABLE}
+        total = sum(room.values())
+        if not total:
+            continue
+        ware, taken = max(room.items(), key=lambda kv: kv[1])
+        group = _trade_group(state)
+        traders = [a for a in state.get("assets", [])
+                   if (a.get("assignment") or {}).get("group") == group]
+
+        if taken / total < CROWDING:
+            # Nothing is crowding any more. Hand the ships back, or they keep
+            # hauling one ware for ever and the rest of the warehouse fills up
+            # behind them. A focus that cannot be released is not a focus, it is
+            # a new problem shaped like the old one.
+            return [f"autotrade {a['code']}" for a in traders
+                    if _default_order(a) == "TradeRoutine_Basic"]
+
+        return [f"sellware {a['code']} {ware}" for a in traders]
+    return []
+
+
+def _default_order(ship: dict) -> str | None:
+    for order in ship.get("orders") or []:
+        if order.get("default"):
+            return order.get("order")
+    return None
+
+
+def _trade_group(state: dict) -> int | None:
+    """Which subordinate group number means 'trade' on our stations."""
+    for station in state.get("assets", []):
+        for index, role in ((station.get("assignment") or {}).get("groups") or {}).items():
+            if role == "trade":
+                return int(index)
+    return None
+
+
 def _assign(action) -> str:
     """assign_ship -> attach a ship to one of our stations as trader or miner."""
     return f"assign {action.ship_ref} {action.station_id} {action.role}"

@@ -57,9 +57,9 @@
     </conditions>
     <actions>
       <write_to_logbook category="general"
-        text="'[x4-agent] bridge reloaded, build 2026-08-21.1 (explore widens to 15 jumps and says when it cannot)'"/>
+        text="'[x4-agent] bridge reloaded, build 2026-08-21.2 (sellware: point a ship at one ware)'"/>
       <show_notification
-        text="'[x4-agent] bridge build 2026-08-21.1'"/>
+        text="'[x4-agent] bridge build 2026-08-21.2'"/>
     </actions>
   </cue>
 
@@ -441,6 +441,44 @@
           <write_to_logbook category="general"
             text="'[x4-agent] ORDER: %s put on mining'.[$agent_ship.idcode]"/>
           <show_notification text="'[x4-agent] %s mining'.[$agent_ship.idcode]"/>
+          <set_value name="$agent_handled" exact="1"/>
+        </do_if>
+
+        <!-- Point one ship at one ware.
+
+             TradeRoutine takes no ware list, but TradeRoutine_Basic does: its
+             `warebasket` parameter is described in the game's own script as
+             "Resource that we will supply". That is the per-ship ware selection,
+             and it is what lets the whole fleet be aimed at whatever is backing
+             up, instead of every trader picking whichever trade suits it while
+             one warehouse fills to the roof.
+
+             Each ware needs its own comparison, because MD cannot turn a word
+             into a ware. Same list as the expansion block above. -->
+        <set_value name="$agent_sellware" exact="null"/>
+        <do_if value="event.param == 'sellware %s energycells'.[$agent_ship.idcode]">
+          <set_value name="$agent_sellware" exact="ware.energycells"/>
+        </do_if>
+        <do_if value="event.param == 'sellware %s water'.[$agent_ship.idcode]">
+          <set_value name="$agent_sellware" exact="ware.water"/>
+        </do_if>
+        <do_if value="event.param == 'sellware %s refinedmetals'.[$agent_ship.idcode]">
+          <set_value name="$agent_sellware" exact="ware.refinedmetals"/>
+        </do_if>
+        <do_if value="event.param == 'sellware %s siliconwafers'.[$agent_ship.idcode]">
+          <set_value name="$agent_sellware" exact="ware.siliconwafers"/>
+        </do_if>
+        <do_if value="event.param == 'sellware %s sunriseflowers'.[$agent_ship.idcode]">
+          <set_value name="$agent_sellware" exact="ware.sunriseflowers"/>
+        </do_if>
+        <do_if value="@$agent_sellware">
+          <create_order object="$agent_ship" id="'TradeRoutine_Basic'" default="true">
+            <param name="warebasket" value="[$agent_sellware]"/>
+          </create_order>
+          <write_to_logbook category="general"
+            text="'[x4-agent] ORDER: %s now supplies %s only'.[$agent_ship.idcode, $agent_sellware.name]"/>
+          <show_notification
+            text="'[x4-agent] %s -> %s'.[$agent_ship.idcode, $agent_sellware.name]"/>
           <set_value name="$agent_handled" exact="1"/>
         </do_if>
 

@@ -53,6 +53,11 @@ def cycle(model: str | None = None, save: Path | None = None) -> dict:
     # little while, and the model spent whole cycles on other things while stock
     # sold a third under the market. Anything the model did decide about a ware
     # wins: this only fills the silence.
+    # Aim the trade fleet at whatever is crowding the warehouse, and hand the
+    # ships back when nothing is. Deterministic for the same reason pricing is:
+    # which ware takes the most room is a sum, not a judgement.
+    commands += executor.focus_fleet(state)
+
     priced = {c.rsplit(" ", 1)[0] for c in commands if c.startswith("price ")}
     commands += [c for c in executor.repricing(state)
                  if c.rsplit(" ", 1)[0] not in priced]
