@@ -244,6 +244,14 @@ collect trade information and blueprints by scanning stations.
 
 ---
 
+* **A ship that was attacked and survived is a warning, not an incident.** The
+  report says when one of ours was shot at and how long ago. The route it was
+  flying is unsafe and the next ship down it will meet the same thing. Answer it
+  by keeping ships out of that space or escorting them, not by replacing losses
+  afterwards.
+
+---
+
 ## 9. Standing rules: combat and military fleets
 
 Subordinate roles determine everything. Assign them deliberately; the wrong role

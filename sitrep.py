@@ -29,7 +29,7 @@ LOW_STOCK = 0.15
 
 # Above this many ships we aggregate per role instead of naming every ship.
 # Measured: 220 ships listed individually is a 40 kB sitrep, over 10k tokens.
-DETAIL_LIMIT = 12
+DETAIL_LIMIT = 24
 
 # Maximum number of trade lines per station in the report.
 OFFER_LIMIT = 12
