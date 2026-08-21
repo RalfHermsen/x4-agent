@@ -43,6 +43,21 @@ declare [[ TradeRuleID CreateTradeRule(TradeRuleInfo info); ]]
 declare [[ void SetContainerTradeRule(UniverseID containerid, TradeRuleID id, const char* ruletype, const char* wareid, bool value); ]]
 declare [[ bool HasContainerOwnTradeRule(UniverseID containerid, const char* ruletype, const char* wareid); ]]
 
+-- Blacklists. Same shape as trade rules: an empire-level object, created once
+-- and then pointed at. `relation` is the whole trick: set it to "enemy" and the
+-- list means "anywhere hostile" without naming a single sector, so it keeps up
+-- with the diplomatic situation by itself.
+declare [[ typedef uint32_t BlacklistID; ]]
+declare [[ typedef struct { uint32_t id; const char* type; const char* name; bool usemacrowhitelist; uint32_t nummacros; const char** macros; bool usefactionwhitelist; uint32_t numfactions; const char** factions; const char* relation; bool hazardous; } BlacklistInfo2; ]]
+declare [[ typedef struct { uint32_t nummacros; uint32_t numfactions; } BlacklistCounts; ]]
+declare [[ uint32_t GetNumAllBlacklists(void); ]]
+declare [[ uint32_t GetAllBlacklists(BlacklistID* result, uint32_t resultlen); ]]
+declare [[ BlacklistCounts GetBlacklistInfoCounts(BlacklistID id); ]]
+declare [[ bool GetBlacklistInfo2(BlacklistInfo2* info, BlacklistID id); ]]
+declare [[ BlacklistID CreateBlacklist2(BlacklistInfo2 info); ]]
+declare [[ void SetPlayerBlacklistDefault(BlacklistID id, const char* listtype, const char* defaultgroup, bool value); ]]
+declare [[ bool IsPlayerBlacklistDefault(BlacklistID id, const char* listtype, const char* defaultgroup); ]]
+
 local X4Agent = {}
 
 -- DebugError only reaches a log file the game does not write unless it was
@@ -256,10 +271,107 @@ local function set_trade_rule(station, args)
     return true
 end
 
+-- The blacklist the agent applies when asked to keep ships out of hostile
+-- space. Named so it can be found again, and never confused with one the
+-- player made by hand.
+local AVOID_HOSTILE = "x4-agent: avoid hostile space"
+local BLACKLIST_GROUPS = { "civilian", "military" }
+
+--- The id of the blacklist with this name, or nil.
+local function find_blacklist(name)
+    local count = C.GetNumAllBlacklists()
+    if count == 0 then
+        return nil
+    end
+    local ids = ffi.new("BlacklistID[?]", count)
+    count = C.GetAllBlacklists(ids, count)
+    for i = 0, count - 1 do
+        local counts = C.GetBlacklistInfoCounts(ids[i])
+        local info = ffi.new("BlacklistInfo2")
+        local macros = ffi.new("const char*[?]", math.max(counts.nummacros, 1))
+        local factions = ffi.new("const char*[?]", math.max(counts.numfactions, 1))
+        info.nummacros, info.macros = counts.nummacros, macros
+        info.numfactions, info.factions = counts.numfactions, factions
+        if C.GetBlacklistInfo2(info, ids[i]) and ffi.string(info.name) == name then
+            return ids[i]
+        end
+    end
+    return nil
+end
+
+--- Create the "anywhere hostile" travel blacklist.
+--
+-- No sectors and no factions are listed. `relation = "enemy"` does the work,
+-- and it keeps working as relations change: a faction that turns on us is
+-- covered the moment it does, without anyone editing a list.
+local function create_avoid_hostile()
+    local keep = {}
+    local info = ffi.new("BlacklistInfo2")
+    info.type = cstring("sectortravel", keep)
+    info.name = cstring(AVOID_HOSTILE, keep)
+    info.relation = cstring("enemy", keep)
+    info.hazardous = false
+    info.usemacrowhitelist = false
+    info.nummacros = 0
+    info.macros = ffi.new("const char*[1]")
+    info.usefactionwhitelist = false
+    info.numfactions = 0
+    info.factions = ffi.new("const char*[1]")
+
+    local id = C.CreateBlacklist2(info)
+    if id == 0 then
+        log("could not create the blacklist " .. AVOID_HOSTILE)
+        return nil
+    end
+    log("created blacklist " .. AVOID_HOSTILE .. " (id " .. tonumber(id) .. ")")
+    return id
+end
+
+--- "avoid hostile on" -> no ship of ours travels through hostile sectors.
+--
+-- Set as the player default rather than ship by ship, so it covers ships bought
+-- later as well. That is the difference between a rule and a chore.
+local function set_avoid_hostile(args)
+    local state = args[1]
+    if state ~= "on" and state ~= "off" then
+        log("avoid needs: avoid hostile <on|off>")
+        return false
+    end
+    local wanted = (state == "on")
+
+    local id = find_blacklist(AVOID_HOSTILE)
+    if not id then
+        if not wanted then
+            log("avoid hostile off: no such blacklist, nothing to undo")
+            return true
+        end
+        id = create_avoid_hostile()
+        if not id then
+            return false
+        end
+    end
+
+    local applied = {}
+    for _, group in ipairs(BLACKLIST_GROUPS) do
+        C.SetPlayerBlacklistDefault(id, "sectortravel", group, wanted)
+        applied[#applied + 1] = string.format("%s=%s", group,
+            tostring(C.IsPlayerBlacklistDefault(id, "sectortravel", group)))
+    end
+    log("avoid hostile " .. state .. " -> " .. table.concat(applied, " "))
+    return true
+end
+
 local HANDLERS = {
     price = set_price,
     tradeware = set_tradeware,
     traderule = set_trade_rule,
+}
+
+-- Commands that are not about one station. The station handlers above all take
+-- an id code as their second word; these do not, so they are dispatched before
+-- the station lookup rather than after it.
+local GLOBAL_HANDLERS = {
+    hostile = set_avoid_hostile,
 }
 
 --- Commands arrive as one string, forwarded by MD when it does not recognise
@@ -274,6 +386,21 @@ function X4Agent.onCommand(_, command)
         words[#words + 1] = word
     end
     local verb, code = words[1], words[2]
+
+    -- "avoid hostile on": the second word is the subject, not a station.
+    local global_handler = code and GLOBAL_HANDLERS[code]
+    if verb == "avoid" and global_handler then
+        local args = {}
+        for i = 3, #words do
+            args[#args + 1] = words[i]
+        end
+        local ok, err = pcall(global_handler, args)
+        if not ok then
+            log("avoid failed: " .. tostring(err))
+        end
+        return
+    end
+
     local handler = verb and HANDLERS[verb]
     if not handler or not code then
         return
@@ -305,7 +432,7 @@ local function init()
     end
     initialised = true
     RegisterEvent("X4Agent.Command", X4Agent.onCommand)
-    log("ready, handling: price, tradeware, traderule")
+    log("ready, handling: price, tradeware, traderule, avoid hostile")
 end
 
 -- Initialise straight away, and do NOT hand this to Register_OnLoad_Init.

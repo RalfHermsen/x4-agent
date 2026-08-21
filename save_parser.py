@@ -365,12 +365,37 @@ def _asset(elem, ancestors: list[dict]) -> Asset:
     return asset
 
 
+# Reading a station's trade offers out of the savegame gives the true, current
+# prices, whether or not the player can see them in game. X4 only shows live
+# supply and demand where you have eyes: a ship passing through, a station, or a
+# satellite. Everywhere else the map shows whatever you saw last time, and the
+# save keeps no record of that.
+#
+# Measured on a 27-hour game: presence in 7 sectors, trade data being read from
+# 24. Two thirds of the market picture was information the player did not have.
+# Filtering on presence is the closest honest approximation, and it makes buying
+# satellites a real move rather than a detail.
+#
+# Set X4_FULL_MARKET=1 to read everything anyway.
+FULL_MARKET = os.environ.get("X4_FULL_MARKET") == "1"
+# Player-owned things that count as eyes in a sector.
+EYES = {"satellite", "navbeacon", "resourceprobe"}
+
+
+def _visible(market: list, presence: set[str]) -> list:
+    """Known stations in sectors we can actually see into."""
+    if FULL_MARKET:
+        return market
+    return [a for a in market if a.place.get("sector") in presence]
+
+
 def parse_save(path: str | os.PathLike) -> dict:
     """One streaming pass over the save; returns meta, player and assets."""
     meta: dict = {}
     player: dict = {}
     assets: list[Asset] = []
     market: list[Asset] = []
+    eyes: set[str] = set()   # sectors holding a satellite or beacon of ours
 
     stack: list[str] = []
     comps: list[dict] = []   # ancestor chain of component elements
@@ -412,6 +437,10 @@ def parse_save(path: str | os.PathLike) -> dict:
                         assets.append(_asset(elem, comps))
                     elif cls == "station" and current["knownto"] == "player":
                         market.append(_asset(elem, comps))
+                elif cls in EYES and current["owner"] == "player":
+                    for anc in comps:
+                        if anc["cls"] == "sector":
+                            eyes.add(anc.get("macro"))
 
             if depth == CLEAR_DEPTH:
                 elem.clear()
@@ -420,11 +449,17 @@ def parse_save(path: str | os.PathLike) -> dict:
                     while len(parent) > 1:
                         del parent[0]
 
+    presence = {a.place.get("sector") for a in assets if a.place.get("sector")} | eyes
+    visible = _visible(market, presence)
+
     return {
         "meta": meta,
         "player": player,
         "assets": [asdict(a) for a in assets],
-        "known_stations": [asdict(a) for a in market],
+        "known_stations": [asdict(a) for a in visible],
+        # What was withheld, so the report can say so instead of quietly
+        # showing a smaller market than the player has explored.
+        "unseen_stations": len(market) - len(visible),
     }
 
 

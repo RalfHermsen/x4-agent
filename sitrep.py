@@ -358,6 +358,14 @@ def build(state: dict, goals: list[str] | None = None,
     add("")
     add("# KNOWN MARKET")
     add(f"Stations known to us that belong to other factions: {len(known)}.")
+    unseen = state.get("unseen_stations", 0)
+    if unseen:
+        # Say what is missing. Otherwise a shrunken market looks like a poor
+        # one, and the answer to a poor market ("explore") is the wrong move
+        # when the real answer is "put a satellite there".
+        add(f"A further {unseen} stations have been discovered but sit in "
+            f"sectors we have nothing in, so their prices and stock are not "
+            f"visible to us. A satellite there would make them count.")
     # Other people's stations only. Including our own put our sell prices into
     # this table as well as into the PRICING section below, with a different
     # framing and a different best-price rule, and the model mixed the two: it
