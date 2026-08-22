@@ -58,6 +58,17 @@ declare [[ BlacklistID CreateBlacklist2(BlacklistInfo2 info); ]]
 declare [[ void SetPlayerBlacklistDefault(BlacklistID id, const char* listtype, const char* defaultgroup, bool value); ]]
 declare [[ bool IsPlayerBlacklistDefault(BlacklistID id, const char* listtype, const char* defaultgroup); ]]
 
+-- Standing responses: what every ship of ours does when something happens to
+-- it. Fleet-wide, so it covers ships bought later as well.
+declare [[ typedef struct { const char* id; const char* name; const char* description; } ResponseInfo; ]]
+declare [[ typedef struct { const char* id; const char* name; const char* description; uint32_t numresponses; const char* defaultresponse; bool ask; } SignalInfo; ]]
+declare [[ uint32_t GetNumAllSignals(void); ]]
+declare [[ uint32_t GetAllSignals(SignalInfo* result, uint32_t resultlen); ]]
+declare [[ uint32_t GetNumAllResponsesToSignal(const char* signalid); ]]
+declare [[ uint32_t GetAllResponsesToSignal(ResponseInfo* result, uint32_t resultlen, const char* signalid); ]]
+declare [[ bool SetDefaultResponseToSignalForFaction2(const char* newresponse, bool ask, const char* signalid, const char* factionid, const char* purposeid); ]]
+declare [[ const char* GetDefaultResponseToSignalForFaction2(const char* signalid, const char* factionid, const char* purposeid); ]]
+
 local X4Agent = {}
 
 -- DebugError only reaches a log file the game does not write unless it was
@@ -361,6 +372,55 @@ local function set_avoid_hostile(args)
     return true
 end
 
+--- "list signals" -> write every signal and its responses to the logbook.
+--
+-- The ids are not in any file this project can read; the engine holds them.
+-- Rather than guess at "attacked" and "flee" and then wonder why nothing
+-- changed, ask the game what it accepts and read the answer back.
+local function list_signals()
+    local count = C.GetNumAllSignals()
+    if count == 0 then
+        log("the game reports no signals at all")
+        return false
+    end
+    local buf = ffi.new("SignalInfo[?]", count)
+    count = C.GetAllSignals(buf, count)
+    for i = 0, count - 1 do
+        local id = ffi.string(buf[i].id)
+        local options = {}
+        local n = C.GetNumAllResponsesToSignal(id)
+        if n > 0 then
+            local rbuf = ffi.new("ResponseInfo[?]", n)
+            n = C.GetAllResponsesToSignal(rbuf, n, id)
+            for j = 0, n - 1 do
+                options[#options + 1] = ffi.string(rbuf[j].id)
+            end
+        end
+        log(string.format("signal %s -> now %s, options: %s", id,
+                          ffi.string(buf[i].defaultresponse),
+                          table.concat(options, " ")))
+    end
+    return true
+end
+
+--- "respond <signal> <response>" -> set it for the whole fleet.
+--
+-- purposeid "" means every purpose: traders, miners, scouts and fighters alike.
+-- ask=false so nothing stops to put a question on screen while the agent runs
+-- unattended.
+local function set_response(args)
+    local signal, response = args[1], args[2]
+    if not (signal and response) then
+        log("respond needs: respond <signalid> <responseid>")
+        return false
+    end
+    C.SetDefaultResponseToSignalForFaction2(response, false, signal, "player", "")
+    local now = C.GetDefaultResponseToSignalForFaction2(signal, "player", "")
+    log(string.format("respond %s: asked for %s, game now says %s",
+                      signal, response, now ~= nil and ffi.string(now) or "nil"))
+    return true
+end
+
 local HANDLERS = {
     price = set_price,
     tradeware = set_tradeware,
@@ -372,6 +432,12 @@ local HANDLERS = {
 -- the station lookup rather than after it.
 local GLOBAL_HANDLERS = {
     hostile = set_avoid_hostile,
+}
+
+-- Commands with no subject at all: the verb and its own arguments.
+local BARE_HANDLERS = {
+    signals = list_signals,
+    respond = set_response,
 }
 
 --- Commands arrive as one string, forwarded by MD when it does not recognise
@@ -386,6 +452,19 @@ function X4Agent.onCommand(_, command)
         words[#words + 1] = word
     end
     local verb, code = words[1], words[2]
+
+    local bare = verb and BARE_HANDLERS[verb]
+    if bare then
+        local args = {}
+        for i = 2, #words do
+            args[#args + 1] = words[i]
+        end
+        local ok, err = pcall(bare, args)
+        if not ok then
+            log(verb .. " failed: " .. tostring(err))
+        end
+        return
+    end
 
     -- "avoid hostile on": the second word is the subject, not a station.
     local global_handler = code and GLOBAL_HANDLERS[code]
@@ -432,7 +511,7 @@ local function init()
     end
     initialised = true
     RegisterEvent("X4Agent.Command", X4Agent.onCommand)
-    log("ready, handling: price, tradeware, traderule, avoid hostile")
+    log("ready, handling: price, tradeware, traderule, avoid hostile, signals, respond")
 end
 
 -- Initialise straight away, and do NOT hand this to Register_OnLoad_Init.

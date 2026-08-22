@@ -39,6 +39,7 @@ def cycle(model: str | None = None, save: Path | None = None) -> dict:
     # the model plans with continuity and can see its own failures.
     remembered = memory.load()
     failures = memory.check(remembered, state)
+    failures += memory.check_fleet(remembered, state, sitrep_mod.ship_type)
     report = sitrep_mod.build(state, goals=remembered.get("goals"),
                               failures=failures)
 

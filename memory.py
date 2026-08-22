@@ -44,7 +44,7 @@ EXPECTED = {
 # pipe that accepts one command every two seconds.
 CONFIGURATION = ("traderule", "price", "tradeware")
 
-_EMPTY = {"goals": [], "pending": [], "applied": {}}
+_EMPTY = {"goals": [], "pending": [], "applied": {}, "fleet": {}}
 
 
 def load(path: Path = STORE) -> dict:
@@ -62,6 +62,37 @@ def load(path: Path = STORE) -> dict:
 def save(data: dict, path: Path = STORE) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+
+# Ships that join the fleet on loan and leave again when their work is done. A
+# hired construction vessel comes under player control for the length of a
+# build, so comparing rosters naively reports every finished build as a loss.
+BORROWED = ("construction vessel", "builder")
+
+
+def check_fleet(data: dict, state: dict, ship_type) -> list[str]:
+    """Ships that were here last cycle and are not here now.
+
+    The agent remembered what it did and never what it had, so a ship simply
+    stopped appearing. Nothing said so, and with twenty freighters on routes
+    that are being shot at, nothing noticing is the difference between losing
+    one ship and losing six.
+
+    Says only that a ship is gone, not why: sold, destroyed and returned to its
+    owner look identical from a savegame, and guessing would be worse than the
+    plain fact.
+    """
+    now = {a["code"]: ship_type(a.get("macro"))
+           for a in state.get("assets", [])
+           if a.get("code") and (a.get("cls") or "").startswith("ship")}
+    before = data.get("fleet") or {}
+    data["fleet"] = now
+    if not before:
+        return []
+    gone = [(code, kind) for code, kind in before.items()
+            if code not in now and kind not in BORROWED]
+    return [f"{code} ({kind}) was in the fleet last cycle and is not there now."
+            for code, kind in sorted(gone)]
 
 
 def _setting(command: str) -> tuple[str, str] | None:
