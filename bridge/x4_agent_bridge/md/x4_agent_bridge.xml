@@ -57,9 +57,9 @@
     </conditions>
     <actions>
       <write_to_logbook category="general"
-        text="'[x4-agent] bridge reloaded, build 2026-08-22.1 (sellware knows chips too)'"/>
+        text="'[x4-agent] bridge reloaded, build 2026-08-22.2 (autotrade resets the default behaviour)'"/>
       <show_notification
-        text="'[x4-agent] bridge build 2026-08-22.1'"/>
+        text="'[x4-agent] bridge build 2026-08-22.2'"/>
     </actions>
   </cue>
 
@@ -489,7 +489,12 @@
         </do_if>
 
         <do_if value="event.param == 'autotrade %s'.[$agent_ship.idcode]">
-          <create_order object="$agent_ship" id="'TradeRoutine'"/>
+          <!-- default="true" or the ship keeps whatever default behaviour it
+               had. Without it, releasing a ship from a single-ware focus queued
+               a TradeRoutine order while TradeRoutine_Basic stayed as the
+               default, so the next cycle saw a still-focused ship and sent the
+               release again. Eight ships, every cycle, for ever. -->
+          <create_order object="$agent_ship" id="'TradeRoutine'" default="true"/>
           <write_to_logbook category="general"
             text="'[x4-agent] ORDER: %s put on autotrade'.[$agent_ship.idcode]"/>
           <!-- The ticker does not pause the game; opening the logbook does. -->
