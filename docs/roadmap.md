@@ -185,18 +185,18 @@ missing piece is the station's storage capacity: without it the report can say
 what the distribution is but not that it is full. It is the same number the game
 shows as "16,809 / 16,870", and it is not in the parser yet.
 
-## Known gap: a ship busy doing nothing
+## Closed: a ship busy doing nothing
 
-Gate 3 refuses an order the ship already carries, which is what stops the agent
-re-sending the same command every cycle. It also means a ship stuck in a
-useless version of that order is invisible: three scouts sat on Explore orders
-that targeted the sector they were already in, and from outside they looked
-like three scouts exploring.
+Gate 3 refuses an order the ship already carries, which stops the agent
+re-sending the same command every cycle, and also made a ship stuck in a
+useless version of that order invisible. It happened twice: five explorers on
+Explore orders that targeted the sector they were already sitting in, looking
+from outside exactly like five explorers exploring.
 
-The savegame has what is needed to tell the difference. `orders/order/param`
-carries `targetspace` as a component id, and comparing it against the ship's
-own sector would show the order for what it is. That needs an id-to-sector map
-the parser does not build yet.
+The parser now keeps a component-id to sector map while it streams, resolves
+each order's `targetspace` against it, and the report says plainly that a scout
+is covering ground we have seen. Gate 3 no longer counts such an order as done,
+so the agent will send the ship somewhere real.
 
 ## Structural, no new capability needed
 

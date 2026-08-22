@@ -515,6 +515,22 @@ def _budget_already_set(action, state: dict) -> bool:
     return False
 
 
+def _exploring_nothing(ship: dict) -> bool:
+    """True when a ship is exploring the sector it is already in.
+
+    X4 accepts an Explore order aimed at the ship's own sector and carries it
+    out for ever, sweeping ground it has already covered. From outside it is
+    indistinguishable from real exploring: the order is Explore, the state is
+    started, nothing fails. Five ships sat like that twice, and the third gate
+    kept refusing to send them anywhere because they were already busy.
+    """
+    order = (ship.get("orders") or [{}])[0]
+    if order.get("order") != "Explore":
+        return False
+    target = order.get("target_sector")
+    return bool(target) and target == (ship.get("place") or {}).get("sector")
+
+
 def _already_done(action, key, state: dict) -> bool:
     if key == ("set_budget", None):
         return _budget_already_set(action, state)
@@ -522,7 +538,13 @@ def _already_done(action, key, state: dict) -> bool:
     if not wanted or state is None:
         return False
     ship = getattr(action, "ship_ref", None)
-    return bool(ship) and _active_orders(state).get(ship) == wanted
+    if not ship or _active_orders(state).get(ship) != wanted:
+        return False
+    if key == ("set_behaviour", "explore"):
+        asset = next((a for a in state.get("assets", []) if a.get("code") == ship), None)
+        if asset and _exploring_nothing(asset):
+            return False   # busy, but with nothing
+    return True
 
 
 def to_commands(actions: list, state: dict | None = None) -> tuple[list[str], list[tuple]]:

@@ -470,6 +470,10 @@ def parse_save(path: str | os.PathLike) -> dict:
     assets: list[Asset] = []
     market: list[Asset] = []
     eyes: set[str] = set()   # sectors holding a satellite or beacon of ours
+    # Component id -> sector macro. Orders point at sectors by id, so without
+    # this an Explore order is an opaque "[0x2a340]" and there is no way to see
+    # that a scout has been sent to explore the sector it is already sitting in.
+    sectors: dict[str, str] = {}
 
     stack: list[str] = []
     comps: list[dict] = []   # ancestor chain of component elements
@@ -506,6 +510,8 @@ def parse_save(path: str | os.PathLike) -> dict:
             if elem.tag == "component":
                 current = comps.pop()
                 cls = current["cls"]
+                if cls == "sector" and elem.get("id"):
+                    sectors[elem.get("id")] = current["macro"]
                 if cls in ASSET_CLASSES:
                     if current["owner"] == "player":
                         assets.append(_asset(elem, comps))
@@ -522,6 +528,13 @@ def parse_save(path: str | os.PathLike) -> dict:
                 if parent is not None:
                     while len(parent) > 1:
                         del parent[0]
+
+    # Resolve every order's target sector now that the whole file has been seen.
+    for asset in assets:
+        for order in asset.orders:
+            target = (order.get("params") or {}).get("targetspace")
+            if target and target in sectors:
+                order["target_sector"] = sectors[target]
 
     presence = {a.place.get("sector") for a in assets if a.place.get("sector")} | eyes
     visible = _visible(market, presence)

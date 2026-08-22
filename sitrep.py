@@ -549,6 +549,15 @@ def build(state: dict, goals: list[str] | None = None,
     # went off pricing wares, because nothing in that line said what they were
     # or that it mattered. A ship without orders is the most expensive thing on
     # the report, so it says so.
+    # A scout exploring its own sector is not exploring. It looks busy from
+    # every angle the report used to have, which is how five of them stayed that
+    # way for hours.
+    for ship in ships:
+        if executor._exploring_nothing(ship):
+            add(f"{ship['code']} ({ship_type(ship.get('macro'))}) is exploring "
+                f"{gamedata.pretty(ship['place'].get('sector'), names)}, the sector "
+                f"it is already in. It is covering ground we have seen.")
+
     for code in idle:
         ship = next((sh for sh in ships if sh["code"] == code), {})
         add(f"{code} is a {ship_type(ship.get('macro'))} with no orders at all. "
