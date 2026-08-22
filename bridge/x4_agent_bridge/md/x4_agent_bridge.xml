@@ -57,9 +57,9 @@
     </conditions>
     <actions>
       <write_to_logbook category="general"
-        text="'[x4-agent] bridge reloaded, build 2026-08-21.2 (sellware: point a ship at one ware)'"/>
+        text="'[x4-agent] bridge reloaded, build 2026-08-22.1 (sellware knows chips too)'"/>
       <show_notification
-        text="'[x4-agent] bridge build 2026-08-21.2'"/>
+        text="'[x4-agent] bridge build 2026-08-22.1'"/>
     </actions>
   </cue>
 
@@ -470,6 +470,12 @@
         </do_if>
         <do_if value="event.param == 'sellware %s sunriseflowers'.[$agent_ship.idcode]">
           <set_value name="$agent_sellware" exact="ware.sunriseflowers"/>
+        </do_if>
+        <do_if value="event.param == 'sellware %s microchips'.[$agent_ship.idcode]">
+          <set_value name="$agent_sellware" exact="ware.microchips"/>
+        </do_if>
+        <do_if value="event.param == 'sellware %s smartchips'.[$agent_ship.idcode]">
+          <set_value name="$agent_sellware" exact="ware.smartchips"/>
         </do_if>
         <do_if value="@$agent_sellware">
           <create_order object="$agent_ship" id="'TradeRoutine_Basic'" default="true">

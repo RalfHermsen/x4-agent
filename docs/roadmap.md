@@ -171,6 +171,20 @@ ships for free is not playing the same game.
 
 ## Unknown
 
+## Known gap: one full warehouse, no culprit
+
+`focus_fleet` assumes a warehouse fills because one ware is crowding out the
+rest, and it aims the fleet at that one. Measured at 49 hours: water 28%,
+refined metals 24%, silicon wafers 22%, energy cells 18%. Everything is backing
+up equally, no ware is above the threshold, and the fleet is correctly released
+to the manager's own judgement.
+
+Which is right, and useless. A station whose storage fills across the board is
+short of transport, not short of focus, and nothing in the report says so. The
+missing piece is the station's storage capacity: without it the report can say
+what the distribution is but not that it is full. It is the same number the game
+shows as "16,809 / 16,870", and it is not in the parser yet.
+
 ## Known gap: a ship busy doing nothing
 
 Gate 3 refuses an order the ship already carries, which is what stops the agent

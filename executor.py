@@ -183,7 +183,8 @@ def repricing(state: dict) -> list[str]:
 
 # Wares the bridge can point a ship at. Same limit as expansion: MD needs one
 # comparison per ware, so the list is explicit on both sides.
-SELLABLE = ("energycells", "water", "refinedmetals", "siliconwafers", "sunriseflowers")
+SELLABLE = ("energycells", "water", "refinedmetals", "siliconwafers",
+            "sunriseflowers", "microchips", "smartchips")
 # Above this share of the station's stored volume, one ware is crowding out the
 # rest and the whole trade fleet goes after it.
 CROWDING = 0.35
