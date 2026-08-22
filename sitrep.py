@@ -69,6 +69,10 @@ SHIP_TYPES = (
     ("trans_container", "container freighter"), ("trans_solid", "solid freighter"),
     ("trans_liquid", "liquid freighter"), ("_trans_", "freighter"),
     ("scout", "scout"), ("fighter", "fighter"), ("builder", "construction vessel"),
+    # Not a ship you can give work to. An escape pod is what is left when one of
+    # ours is destroyed, and two of them were being reported every cycle as
+    # ships sitting idle, which is true and useless.
+    ("escapepod", "escape pod"),
     ("resupply", "resupplier"), ("courier", "courier"),
 )
 
@@ -423,6 +427,11 @@ def build(state: dict, goals: list[str] | None = None,
     sellers = {ware: [s for s in sides["sell"] if s[1] > 0]
                for ware, sides in _offers_by_ware(known).items()}
 
+    # Escape pods have no orders by their nature; listing them as idle buries the
+    # ships that genuinely need work. They are still worth knowing about, so they
+    # are counted rather than dropped.
+    pods = [s for s in ships if ship_type(s.get("macro")) == "escape pod"]
+    ships = [s for s in ships if ship_type(s.get("macro")) != "escape pod"]
     idle = [s["code"] for s in ships if _first_order(s) in IDLE_ORDERS]
     failing = failing_ships(ships, state.get("meta", {}).get("playtime_s", 0.0))
     # A station always wants its storage full, so `desired` is a target and not a
@@ -505,6 +514,9 @@ def build(state: dict, goals: list[str] | None = None,
 
     add("")
     add("# ATTENTION")
+    if pods:
+        add(f"{len(pods)} escape pod(s) of ours are adrift. Each one is what is "
+            f"left of a ship that was destroyed.")
     for code, order, message, age, cargo in failing:
         # What it is holding turns "something is wrong" into a specific
         # problem: a miner sitting on 900 ore nobody buys needs a buyer, not a

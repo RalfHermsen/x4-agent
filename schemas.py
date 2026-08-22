@@ -205,7 +205,7 @@ class AssignShip(BaseModel):
     type: Literal["assign_ship"]
     ship_ref: str = Field(description="ship id or fleet id")
     station_id: str
-role: Literal["mine", "trade", "defend"]
+    role: Literal["mine", "trade", "defend"]
     priority: Priority = _PRIORITY
     rationale: str = _RATIONALE
 
