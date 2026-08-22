@@ -505,6 +505,23 @@ def build(state: dict, goals: list[str] | None = None,
         for line in pricing:
             add(line)
 
+    # Who is actually buying. The point of pricing under the competition is to
+    # be worth an outside trader's trip; if every open sale is still one of our
+    # own freighters loading, it has not worked and no amount of stock movement
+    # will show that.
+    ours = {a["id"] for a in assets if a.get("id")}
+    sales = [r for st_ in stations for r in (st_.get("reservations") or [])
+             if r.get("selling")]
+    if sales:
+        outside = [r for r in sales if r.get("other") not in ours]
+        add("")
+        add("# WHO IS BUYING FROM US")
+        add(f"  {len(outside)} of {len(sales)} open sales are to outside traders; "
+            f"the rest are our own ships loading.")
+        if outside:
+            add("  outside: " + ", ".join(f"{r['amount']} {r['ware']}"
+                                          for r in outside[:6]))
+
     construction = build_lines(state)
     if construction:
         add("")

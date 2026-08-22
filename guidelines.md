@@ -149,6 +149,12 @@ Overview):
 
 ---
 
+* **We compete on price, not on margin.** Python prices every ware just under
+  the cheapest supplier we can see. The point is to be worth an outside
+  trader's trip, so that somebody else's ships move our goods and the capital
+  that would have gone into freighters goes into warships instead. The report
+  says how many open sales are to outside traders; if that number stays at
+  zero, the price is still too high whatever the stock level does.
 * **The trade fleet is aimed automatically too.** Python points every assigned
   trader at one ware each cycle: whatever is blocking the warehouse if something
   is, and otherwise whatever pays best per cubic metre of hold. A trip carries

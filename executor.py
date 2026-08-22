@@ -147,6 +147,26 @@ PRICE_DEADBAND = 0.02
 # fleet arrives, empties it in one trip and the other eighteen ships have come
 # for nothing.
 WORTH_A_TRIP = 8000
+# Stock measured against the demand we can actually see, because that is the
+# question: is there more of this than the market in front of us wants? Storage
+# share was the wrong yardstick. It put 361,345 energy cells at 8% of the
+# warehouse, alongside the ore and ice they are stored with, and concluded that
+# the largest pile on the station was not worth discounting.
+#
+# Past the first figure we undercut everyone to pull outside traders in; past
+# the second we merely stop being the most expensive supplier in the region.
+DUMP_SHARE = 2.0
+MATCH_SHARE = 0.5
+
+
+def _oversupply(known: list[dict], ware: str, stock: int) -> float:
+    """How many times over we could fill every order we can see."""
+    demand = sum(o.get("desired") or 0 for station in known
+                 for o in station.get("offers", [])
+                 if o.get("ware") == ware and o.get("side") == "buy")
+    if not demand:
+        return float("inf") if stock else 0.0
+    return stock / demand
 
 
 def repricing(state: dict) -> list[str]:
@@ -166,10 +186,13 @@ def repricing(state: dict) -> list[str]:
 
     known = state.get("known_stations", [])
     bids = sitrep.best_bids(known)
+    volumes = _volumes()
     out = []
     for station in state.get("assets", []):
         if station.get("cls") != "station":
             continue
+        stock = station.get("cargo") or {}
+
         for offer in station.get("offers", []):
             if offer.get("side") != "sell" or not offer.get("price"):
                 continue
@@ -177,7 +200,43 @@ def repricing(state: dict) -> list[str]:
             if not bid:
                 continue
             top, _, _, buyers = bid
-            target = int(top * UNDERCUT)
+
+            # Two prices matter, and for a long time only one of them was used.
+            #
+            # Just under the best bid is right when we deliver: our own ships
+            # take the goods to the buyer and collect the top price. But it also
+            # made this station the most expensive supplier in the region on
+            # five wares out of six, and no trader in the game buys from the
+            # dearest seller. Measured: microchips asked at 1,154 while eight
+            # other suppliers asked between 805 and 1,044, and every single
+            # reservation on the station was one of our own freighters loading.
+            # Nobody came.
+            #
+            # So where somebody else sells the same ware, match them. The middle
+            # of the field, not the bottom: undercutting the cheapest starts a
+            # race that ends at the floor, and we still want the margin when our
+            # own ships do the delivering.
+            # How aggressive to be depends on whether we can shift the stuff
+            # ourselves. Our own ships collect the top price by delivering, so
+            # on a ware that flows there is no reason to discount. On a ware
+            # that is piling up faster than twenty freighters can move it, the
+            # cheapest throughput available is somebody else's ship, and that
+            # only arrives if we are worth the trip.
+            # Undercut the cheapest supplier we can see, on everything.
+            #
+            # This is a deliberate trade of margin for throughput. Pricing just
+            # under the best bid earns the most per unit but only when our own
+            # ships do the delivering, and it made this station the dearest
+            # seller in the region on five wares out of six: every open sale was
+            # one of our own freighters loading, and no outside trader ever
+            # came. Cheap throughput is somebody else's ship, and it only shows
+            # up if we are worth the trip.
+            #
+            # The station's marginal cost is near zero anyway: mined inputs and
+            # its own energy. Almost any price is profit; an unsold pile is not.
+            rivals = _rival_prices(known, offer["ware"])
+            target = int(min(rivals) * UNDERCUT) if rivals else int(top * UNDERCUT)
+
             if abs(target - offer["price"]) < offer["price"] * PRICE_DEADBAND:
                 continue
             if target < offer["price"] and buyers < MIN_BUYERS_TO_CUT:
@@ -202,6 +261,21 @@ def _volumes() -> dict:
         return json.loads(path.read_text(encoding="utf-8"))
     except OSError:
         return {}
+
+
+def _median(values: list[float]) -> float:
+    ordered = sorted(values)
+    middle = len(ordered) // 2
+    if len(ordered) % 2:
+        return ordered[middle]
+    return (ordered[middle - 1] + ordered[middle]) / 2
+
+
+def _rival_prices(known: list[dict], ware: str) -> list[float]:
+    """What everyone else we can see is asking for the same ware, with stock."""
+    return [o["price"] for station in known for o in station.get("offers", [])
+            if o.get("ware") == ware and o.get("side") == "sell"
+            and (o.get("amount") or 0) > 0 and o.get("price")]
 
 
 def focus_fleet(state: dict) -> list[str]:

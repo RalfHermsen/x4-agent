@@ -58,6 +58,7 @@ class Asset:
     failures: list[dict] = field(default_factory=list)
     cargo: dict[str, int] = field(default_factory=dict)
     build: dict = field(default_factory=dict)
+    reservations: list[dict] = field(default_factory=list)
     owner: str | None = None
     builds: list[str] = field(default_factory=list)
     assignment: dict = field(default_factory=dict)
@@ -304,6 +305,26 @@ def _shipyard(elem) -> list[str]:
     return sorted(classes, key=SHIP_SIZES.index)
 
 
+def _reservations(elem) -> list[dict]:
+    """Open trades at this station, and whether the other side is ours.
+
+    The only honest measure of whether outside traders come to us. A falling
+    stock level does not prove a sale: it can equally be one of our own
+    freighters loading up to carry the goods somewhere else, which is the
+    expensive way to move them. Measured once and it was ten out of ten.
+    """
+    node = elem.find("trade/reservations")
+    if node is None:
+        return []
+    out = []
+    for r in node.findall("reservation"):
+        out.append({"ware": r.get("ware"),
+                    "amount": _int(r.get("amount")),
+                    "selling": r.get("seller") is not None,
+                    "other": r.get("reserver")})
+    return out
+
+
 def _build_tasks(elem) -> dict:
     """What a build storage is working on, and what it still lacks.
 
@@ -408,6 +429,7 @@ def _asset(elem, ancestors: list[dict]) -> Asset:
         asset.offers = _offers(elem)
         asset.build = _build_tasks(elem)
     if asset.cls == "station":
+        asset.reservations = _reservations(elem)
         asset.assignment = {"groups": _groups(elem)}
         asset.builds = _shipyard(elem)
         asset.manager = _manager(elem)
