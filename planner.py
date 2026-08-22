@@ -66,7 +66,7 @@ nothing and drop nothing; you only translate.
 Pick the fitting type per action. Each type needs exactly the fields listed and
 nothing more:
 
-- assign_ship    : ship code, station code, role (mine or trade). No ware, no
+- assign_ship    : ship code, station code, role (mine, trade or defend). No ware, no
                    amount, no destination. The station manager works those out.
 - set_behaviour  : ship code, behaviour (autotrade / automine / repeat_orders /
                    explore)

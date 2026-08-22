@@ -249,6 +249,11 @@ collect trade information and blueprints by scanning stations.
 
 ---
 
+* **Fighters belong to a station, not to a to-do list.** A fighter assigned to
+  one of ours with the `defend` role patrols it and engages what comes; a
+  fighter left on its own waits to be told. When the danger is in the sector we
+  live in, avoiding hostile space achieves nothing and defence is the only
+  answer that works.
 * **A ship that was attacked and survived is a warning, not an incident.** The
   report says when one of ours was shot at and how long ago. The route it was
   flying is unsafe and the next ship down it will meet the same thing. Answer it

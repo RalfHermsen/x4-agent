@@ -57,9 +57,9 @@
     </conditions>
     <actions>
       <write_to_logbook category="general"
-        text="'[x4-agent] bridge reloaded, build 2026-08-22.2 (autotrade resets the default behaviour)'"/>
+        text="'[x4-agent] bridge reloaded, build 2026-08-22.3 (assign ... defend)'"/>
       <show_notification
-        text="'[x4-agent] bridge build 2026-08-22.2'"/>
+        text="'[x4-agent] bridge build 2026-08-22.3'"/>
     </actions>
   </cue>
 
@@ -523,6 +523,23 @@
                 text="'[x4-agent] ORDER: %s now trades for %s'.[$agent_ship.idcode, $agent_station.idcode]"/>
               <!-- The ticker does not pause the game; opening the logbook does. -->
               <show_notification text="'[x4-agent] %s now trades for %s'.[$agent_ship.idcode, $agent_station.idcode]"/>
+            </do_if>
+          </do_if>
+
+          <!-- Defence. Measured in Hewa's Twin I at 61 hours: five Scale Plate
+               pirates and two Xenon sitting in the sector the station is in,
+               and three freighters gone in eight hours. Avoiding hostile space
+               does nothing about that, because the hostile space is home. A
+               defence subordinate patrols the station instead of waiting to be
+               sent somewhere. -->
+          <do_if value="event.param == 'assign %s %s defend'.[$agent_ship.idcode, $agent_station.idcode]">
+            <set_value name="$agent_handled" exact="1"/>
+            <do_if value="@$agent_ship.commander != $agent_station">
+              <set_object_commander object="$agent_ship" commander="$agent_station"
+                                    assignment="assignment.defence"/>
+              <write_to_logbook category="general"
+                text="'[x4-agent] ORDER: %s now defends %s'.[$agent_ship.idcode, $agent_station.idcode]"/>
+              <show_notification text="'[x4-agent] %s now defends %s'.[$agent_ship.idcode, $agent_station.idcode]"/>
             </do_if>
           </do_if>
 
