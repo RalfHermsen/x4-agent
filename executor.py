@@ -142,6 +142,11 @@ MIN_BUYERS_TO_CUT = 2
 # repriced five times in an hour, 204 to 203 to 202, on a pipe that takes one
 # command every two seconds. Chasing the last credit costs more than it earns.
 PRICE_DEADBAND = 0.02
+# A ware is only worth aiming the fleet at if there is at least this much of it
+# in cubic metres, roughly one full load for a medium freighter. Below that the
+# fleet arrives, empties it in one trip and the other eighteen ships have come
+# for nothing.
+WORTH_A_TRIP = 8000
 
 
 def repricing(state: dict) -> list[str]:
@@ -200,16 +205,23 @@ def _volumes() -> dict:
 
 
 def focus_fleet(state: dict) -> list[str]:
-    """Aim every assigned trader at whatever is backing up.
+    """Aim every assigned trader at one ware, and say which.
 
-    Storage fills in cubic metres, not in units, so the ware to shift is the one
-    taking the most room, not the one there is most of. Six freighters each
-    picking whichever trade suited them is how a station ends up with 16,809
-    silicon wafers, a full warehouse and a production line stopped dead.
+    Two things can be wrong with a warehouse, and they want opposite answers.
 
-    Only fires when one ware really is crowding the rest out. Below that the
-    manager's own judgement is better than a blanket order, because it can see
-    what each ship is near.
+    **It is blocked.** One ware has taken so much room that the lines behind it
+    stall. Then the only thing that matters is shifting that ware, whatever it
+    is worth: a stopped production line earns nothing at all.
+
+    **It is merely full.** Nothing is stuck, there is just more stock than the
+    fleet can move. Then the question is not what takes the most space but what
+    pays best for the space it takes, because every trip is a choice about what
+    to leave behind.
+
+    Measured at 53 hours: water at 9 Cr per cubic metre against microchips at
+    54. A fleet hauling water earns a sixth of what the same ships earn hauling
+    chips. The first version of this only ever looked at volume, so it would
+    have sent nineteen freighters after the cheapest cargo on the station.
     """
     volumes = _volumes()
     if not volumes:
@@ -219,26 +231,35 @@ def focus_fleet(state: dict) -> list[str]:
         if station.get("cls") != "station":
             continue
         stock = station.get("cargo") or {}
-        selling = {o["ware"] for o in station.get("offers", []) if o.get("side") == "sell"}
+        offers = {o["ware"]: o for o in station.get("offers", [])
+                  if o.get("side") == "sell"}
         room = {w: n * volumes.get(w, 0) for w, n in stock.items()
-                if w in selling and w in SELLABLE}
+                if w in offers and w in SELLABLE and volumes.get(w)}
         total = sum(room.values())
         if not total:
             continue
-        ware, taken = max(room.items(), key=lambda kv: kv[1])
+
         group = _trade_group(state)
         traders = [a for a in state.get("assets", [])
                    if (a.get("assignment") or {}).get("group") == group]
+        if not traders:
+            continue
 
-        if taken / total < CROWDING:
-            # Nothing is crowding any more. Hand the ships back, or they keep
-            # hauling one ware for ever and the rest of the warehouse fills up
-            # behind them. A focus that cannot be released is not a focus, it is
-            # a new problem shaped like the old one.
+        blocking, taken = max(room.items(), key=lambda kv: kv[1])
+        if taken / total >= CROWDING:
+            return [f"sellware {a['code']} {blocking}" for a in traders]
+
+        # Nothing is blocked. Go for the best paying cargo instead, but only
+        # among wares there is enough of to be worth a trip: pointing the fleet
+        # at 40 units of something valuable wastes eighteen of nineteen ships.
+        worth = {w: (offers[w].get("price") or 0) / volumes[w]
+                 for w, m3 in room.items() if m3 >= WORTH_A_TRIP}
+        if not worth:
             return [f"autotrade {a['code']}" for a in traders
                     if _default_order(a) == "TradeRoutine_Basic"]
 
-        return [f"sellware {a['code']} {ware}" for a in traders]
+        best = max(worth, key=worth.get)
+        return [f"sellware {a['code']} {best}" for a in traders]
     return []
 
 

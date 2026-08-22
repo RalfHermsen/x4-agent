@@ -149,6 +149,11 @@ Overview):
 
 ---
 
+* **The trade fleet is aimed automatically too.** Python points every assigned
+  trader at one ware each cycle: whatever is blocking the warehouse if something
+  is, and otherwise whatever pays best per cubic metre of hold. A trip carries
+  space, not units, so a cargo worth 54 Cr per cubic metre beats one worth 9
+  every time, with the same ships and the same fuel.
 * **Prices are corrected automatically every cycle, so do not spend a cycle on
   them.** Python moves each sell price to just under the best bid we know, and
   refuses to cut a price when only one buyer is known. Propose a price yourself
