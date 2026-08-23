@@ -134,6 +134,16 @@ good actions with reasons it invented ("it is not specified which ware"). Listin
 the required fields per type, plus "never drop an action because some detail is
 missing that its type does not ask for", fixed it.
 
+**L18. Automate arithmetic, never risk.** Which ware fills a hold, what a rival
+charges, whether a price is above the market: sums, and the model forgot to do
+them, so Python does them every cycle and the empire runs better for it. Sending
+a ship into space nobody has surveyed is not a sum. It was automated on the same
+reasoning ("re-issuing an order to a ship that is demonstrably idle is not a
+judgement") and it killed five scouts in an afternoon: every explorer that
+actually went somewhere new was destroyed, and the only survivor was the one
+that never left its own sector. The report now states the situation and leaves
+the decision where it belongs.
+
 ## About working on this
 
 **L15. A log line must say whether it worked, not what happened.** "sending:

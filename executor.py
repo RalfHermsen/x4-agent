@@ -278,7 +278,7 @@ def _rival_prices(known: list[dict], ware: str) -> list[float]:
             and (o.get("amount") or 0) > 0 and o.get("price")]
 
 
-def restart_explorers(state: dict, tried: dict) -> tuple[list[str], list[str]]:
+def restart_explorers(state: dict, tried: dict, send: bool = True) -> tuple[list[str], list[str]]:
     """Send explorers that are exploring nothing somewhere real.
 
     The report says plainly that a scout is sweeping ground we have seen, and
@@ -292,20 +292,25 @@ def restart_explorers(state: dict, tried: dict) -> tuple[list[str], list[str]]:
     problem and needs a different answer.
     """
     stuck = [a for a in state.get("assets", []) if _exploring_nothing(a)]
-    send, exhausted = [], []
+    out, exhausted = [], []
     for ship in stuck:
         code = ship["code"]
         if tried.get(code):
             exhausted.append(f"{code} found nothing unknown within reach even after "
                              f"being sent out again. The map around it is explored.")
-        else:
+        elif send:
             tried[code] = True
-            send.append(f"explore {code}")
+            out.append(f"explore {code}")
+        else:
+            exhausted.append(f"{code} is exploring the sector it is already in. "
+                             f"Somewhere unsurveyed is worth a look, and it is "
+                             f"also where scouts get killed: five were lost that "
+                             f"way. Your call.")
     # Ships that got moving are no longer stuck, so let them be tried again later.
     for code in list(tried):
         if code not in {a["code"] for a in stuck}:
             del tried[code]
-    return send, exhausted
+    return out, exhausted
 
 
 def focus_fleet(state: dict) -> list[str]:
