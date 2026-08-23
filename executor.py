@@ -278,6 +278,36 @@ def _rival_prices(known: list[dict], ware: str) -> list[float]:
             and (o.get("amount") or 0) > 0 and o.get("price")]
 
 
+def restart_explorers(state: dict, tried: dict) -> tuple[list[str], list[str]]:
+    """Send explorers that are exploring nothing somewhere real.
+
+    The report says plainly that a scout is sweeping ground we have seen, and
+    the model still spent cycle after cycle on other things. Re-issuing an order
+    to a ship that is demonstrably idle-in-disguise is not a judgement call, so
+    it does not need one.
+
+    Tried once each. If a ship comes back still exploring its own sector, the
+    bridge could find nothing unknown within fifteen jumps and asking again will
+    not change that; it is reported as a fact instead, which is a different
+    problem and needs a different answer.
+    """
+    stuck = [a for a in state.get("assets", []) if _exploring_nothing(a)]
+    send, exhausted = [], []
+    for ship in stuck:
+        code = ship["code"]
+        if tried.get(code):
+            exhausted.append(f"{code} found nothing unknown within reach even after "
+                             f"being sent out again. The map around it is explored.")
+        else:
+            tried[code] = True
+            send.append(f"explore {code}")
+    # Ships that got moving are no longer stuck, so let them be tried again later.
+    for code in list(tried):
+        if code not in {a["code"] for a in stuck}:
+            del tried[code]
+    return send, exhausted
+
+
 def focus_fleet(state: dict) -> list[str]:
     """Aim every assigned trader at one ware, and say which.
 

@@ -59,6 +59,12 @@ def cycle(model: str | None = None, save: Path | None = None) -> dict:
     # which ware takes the most room is a sum, not a judgement.
     commands += executor.focus_fleet(state)
 
+    # Explorers that are exploring the sector they are already in.
+    restarts, exhausted = executor.restart_explorers(
+        state, remembered.setdefault("explore_retried", {}))
+    commands += restarts
+    failures += exhausted
+
     priced = {c.rsplit(" ", 1)[0] for c in commands if c.startswith("price ")}
     commands += [c for c in executor.repricing(state)
                  if c.rsplit(" ", 1)[0] not in priced]

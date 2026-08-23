@@ -44,7 +44,8 @@ EXPECTED = {
 # pipe that accepts one command every two seconds.
 CONFIGURATION = ("traderule", "price", "tradeware")
 
-_EMPTY = {"goals": [], "pending": [], "applied": {}, "fleet": {}}
+_EMPTY = {"goals": [], "pending": [], "applied": {}, "fleet": {},
+          "explore_retried": {}}
 
 
 def load(path: Path = STORE) -> dict:
