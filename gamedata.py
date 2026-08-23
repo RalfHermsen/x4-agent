@@ -165,12 +165,28 @@ def load(rebuild: bool = False) -> dict[str, str]:
     return names
 
 
+# Sectors belonging to a scenario rather than the living universe. The Timelines
+# missions reuse real sector names, so 92 display names in this table belong to
+# more than one macro and "Ianamus Zura IV" can mean either the sector the
+# player flies through or a mission copy of it. Reading the wrong one produced a
+# confident and entirely wrong answer about where to build a station.
+SCENARIO_PREFIXES = ("timelines_", "scenario_", "test_", "basegame_map_tutorial")
+
+
 def pretty(macro: str | None, names: dict[str, str] | None = None) -> str:
-    """Readable name if known, otherwise the macro itself."""
+    """Readable name if known, otherwise the macro itself.
+
+    Macro to name is unambiguous; the reverse is not, and nothing here should do
+    the reverse. A scenario sector is marked, so a name that appears twice can
+    still be told apart at a glance.
+    """
     if not macro:
         return "?"
     names = names if names is not None else load()
-    return names.get(macro.lower(), macro)
+    label = names.get(macro.lower(), macro)
+    if macro.lower().startswith(SCENARIO_PREFIXES):
+        return f"{label} (scenario)"
+    return label
 
 
 def main() -> int:

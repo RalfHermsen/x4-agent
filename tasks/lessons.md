@@ -56,6 +56,16 @@ macro names a ship class, as in `buildmodule_gen_ships_m_dockarea_01_macro`.
 Searching the obvious way returns nothing and reads as "we know no shipyards",
 which is a wrong answer rather than an empty one.
 
+**L6d. Sector names are not unique.** 92 display names in the lookup table
+belong to more than one macro. Most are harmless, a cluster and its sector
+sharing a name, but the Timelines missions reuse real sector names for their own
+copies, so "Ianamus Zura IV" is both a place the player flies through and a
+mission set piece. Macro to name is fine; name to macro is not, and a reverse
+lookup silently picks whichever came last. It produced a confident
+recommendation to build a station in a sector that turned out to be a scenario
+map with no ore in it. `pretty()` now marks scenario macros, and nothing should
+ever map a name back to a macro.
+
 **L7. MD file names must be lowercase.** X4 ignores the file otherwise, without
 a word.
 
