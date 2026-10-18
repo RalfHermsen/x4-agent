@@ -21,6 +21,8 @@ from pathlib import Path
 
 from lxml import etree
 
+import gamedata
+
 SHIP_CLASSES = {"ship_xs", "ship_s", "ship_m", "ship_l", "ship_xl"}
 # A build storage is its own component, not part of the station it serves, and
 # it keeps its own account. Leaving it out meant the agent could plan a build
@@ -69,6 +71,9 @@ class Asset:
     production_queue: list[str] = field(default_factory=list)
     production: list[dict] = field(default_factory=list)
     manager: dict | None = None     # stations: the manager and their skill
+    modules: list[str] = field(default_factory=list)   # stations: built module macros
+    capacity: dict[str, int] = field(default_factory=dict)  # stations: cargo type -> max
+    plot: dict[str, int] = field(default_factory=dict)  # stations: buildplot half-extents, m
 
 
 # --------------------------------------------------------------------------- #
@@ -428,6 +433,7 @@ def _asset(elem, ancestors: list[dict]) -> Asset:
     if asset.cls == "buildstorage":
         asset.offers = _offers(elem)
         asset.build = _build_tasks(elem)
+        asset.build["builders"] = _builders(elem)
     if asset.cls == "station":
         asset.reservations = _reservations(elem)
         asset.assignment = {"groups": _groups(elem)}
@@ -436,7 +442,31 @@ def _asset(elem, ancestors: list[dict]) -> Asset:
         asset.offers = _offers(elem)
         asset.production = _production(elem)
         asset.production_queue = [line["ware"] for line in asset.production]
+        # A module that exists carries construction="[0x..]", pointing at its
+        # entry in the station's construction sequence. Planned modules have an
+        # entry and no component, so this is what is actually built.
+        asset.modules = [c.get("macro") for c in
+                         elem.iterfind("connections/connection/component[@construction]")]
+        asset.capacity = gamedata.capacity(asset.modules)
+        plot = elem.find("buildplot/max")
+        if plot is not None:
+            asset.plot = {k: int(float(v)) for k, v in plot.items()}
     return asset
+
+
+def _builders(elem) -> list[str]:
+    """Construction vessels working for this build storage, by component id.
+
+    Every queued or running build names its vessel as builder="[0x..]". Seen on
+    an NPC build in a 9.00 save; a player build is assumed to look the same,
+    since it is the same element.
+    """
+    out = []
+    for build in elem.iterfind("buildtasks/*/build"):
+        builder = build.get("builder")
+        if builder and builder != "[0x0]" and builder not in out:
+            out.append(builder)
+    return out
 
 
 # Reading a station's trade offers out of the savegame gives the true, current
@@ -510,6 +540,11 @@ def parse_save(path: str | os.PathLike) -> dict:
             if elem.tag == "component":
                 current = comps.pop()
                 cls = current["cls"]
+                if cls == "player":
+                    # Blueprints the player holds, as ware ids (module_*, ship_*).
+                    player["blueprints"] = sorted(
+                        b.get("ware") for b in elem.iterfind("blueprints/blueprint")
+                        if b.get("ware"))
                 if cls == "sector" and elem.get("id"):
                     sectors[elem.get("id")] = current["macro"]
                 if cls in ASSET_CLASSES:

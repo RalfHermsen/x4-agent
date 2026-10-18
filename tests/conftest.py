@@ -10,6 +10,7 @@ mutates the state it is handed.
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -24,6 +25,10 @@ from save_parser import documents_dir, parse_save  # noqa: E402
 from schemas import PlannerResponse  # noqa: E402
 
 SMALL_SAVE = "save_007.xml.gz"
+# The newest save of the reference game: two stations, dozens of ships, a long
+# exploration history. What the small save cannot show, this one does.
+LARGE_SAVE = "autosave_02.xml.gz"
+REPO = Path(__file__).resolve().parent.parent
 
 
 def _find_save(name: str) -> Path | None:
@@ -39,15 +44,34 @@ def small_save() -> Path:
     return path
 
 
-@pytest.fixture(scope="session")
-def _small_state_cached(request, small_save) -> dict:
-    stat = small_save.stat()
-    key = f"x4-agent/state/{small_save.name}/{stat.st_size}-{int(stat.st_mtime)}"
+def _parsed(request, save: Path) -> dict:
+    """parse_save(), cached on the save file and on the parser's own source.
+
+    Keyed on the file alone, a change to the parser would keep serving the old
+    result and every test would pass against a state the code no longer makes.
+    """
+    stat = save.stat()
+    code = hashlib.sha1(b"".join((REPO / name).read_bytes()
+                                 for name in ("save_parser.py", "gamedata.py"))).hexdigest()[:12]
+    key = f"x4-agent/state/{save.name}/{stat.st_size}-{int(stat.st_mtime)}-{code}"
     cached = request.config.cache.get(key, None)
     if cached is None:
-        cached = parse_save(small_save)
+        cached = parse_save(save)
         request.config.cache.set(key, cached)
     return cached
+
+
+@pytest.fixture(scope="session")
+def _small_state_cached(request, small_save) -> dict:
+    return _parsed(request, small_save)
+
+
+@pytest.fixture(scope="session")
+def large_state(request) -> dict:
+    path = _find_save(LARGE_SAVE)
+    if path is None:
+        pytest.skip(f"{LARGE_SAVE} not found in the X4 profile folder")
+    return _parsed(request, path)
 
 
 @pytest.fixture

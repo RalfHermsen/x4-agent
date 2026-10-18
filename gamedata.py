@@ -12,6 +12,7 @@ contain spaces, so lines are parsed from the right.
 Usage:
     python gamedata.py --build          # builds data/names.json
     python gamedata.py --lookup cluster_19_sector001_macro
+    python gamedata.py --modules        # builds data/modules.json
 
 Set X4_DIR if your installation is not in the default Steam location.
 """
@@ -165,6 +166,73 @@ def load(rebuild: bool = False) -> dict[str, str]:
     return names
 
 
+MODULES = Path(__file__).parent / "data" / "modules.json"
+_MODULE_FILE = re.compile(r"assets/structures/[^/]+/macros/([^/]+_macro)\.xml$")
+_CARGO = re.compile(rb'<cargo max="(\d+)" tags="([^"]+)"')
+_CLASS = re.compile(rb'<macro name="[^"]+" class="([^"]+)"')
+# A module ware names its macro in a <component ref=...> child. The negative
+# lookahead stops at the next ware *definition*; production recipes inside a
+# ware are also <ware ...> elements, so "<ware " alone would stop too early.
+_MODULE_WARE = re.compile(r'<ware id="([^"]+)"(?:(?!<ware id=).)*?<component ref="([^"]+_macro)"',
+                          re.S)
+
+
+def build_modules(x4_dir: Path = X4_DIR) -> dict[str, dict]:
+    """Every station module macro: its class, its blueprint ware, its storage.
+
+    Storage capacity is not in the savegame; a station only says which modules
+    it is built from. The macro file holds `<cargo max=... tags=...>`, and the
+    ware that is bought as a blueprint is a different name again
+    (`module_tel_stor_container_s_01` for `storage_tel_s_container_01_macro`),
+    linked only through libraries/wares.xml.
+    """
+    modules: dict[str, dict] = {}
+    for cat in archives(x4_dir):
+        index = read_index(cat)
+        with open(cat.with_suffix(".dat"), "rb") as blob:
+            for name, (offset, size) in index.items():
+                match = _MODULE_FILE.search(name)
+                if not match:
+                    continue
+                blob.seek(offset)
+                data = blob.read(size)
+                cls = _CLASS.search(data)
+                cargo = {}
+                for amount, tags in _CARGO.findall(data):
+                    for tag in tags.decode().split():
+                        cargo[tag] = cargo.get(tag, 0) + int(amount)
+                modules[match.group(1)] = {"class": cls.group(1).decode() if cls else None,
+                                           "ware": None, "cargo": cargo}
+    wares = b"".join(extract_all(x4_dir, "libraries/wares.xml")).decode("utf-8", "replace")
+    for ware, macro in _MODULE_WARE.findall(wares):
+        if macro in modules and ware.startswith("module_"):
+            modules[macro]["ware"] = ware
+    return modules
+
+
+def modules(rebuild: bool = False) -> dict[str, dict]:
+    """The module table from cache, built on first use; empty without the game."""
+    if MODULES.exists() and not rebuild:
+        return json.loads(MODULES.read_text(encoding="utf-8"))
+    try:
+        table = build_modules()
+    except OSError:
+        return {}
+    MODULES.parent.mkdir(parents=True, exist_ok=True)
+    MODULES.write_text(json.dumps(table, indent=1, sort_keys=True), encoding="utf-8")
+    return table
+
+
+def capacity(module_macros: list[str]) -> dict[str, int]:
+    """Storage per cargo type (container, solid, liquid) for a list of modules."""
+    table = modules()
+    total: dict[str, int] = {}
+    for macro in module_macros:
+        for tag, amount in (table.get(macro) or {}).get("cargo", {}).items():
+            total[tag] = total.get(tag, 0) + amount
+    return total
+
+
 # Sectors belonging to a scenario rather than the living universe. The Timelines
 # missions reuse real sector names, so 92 display names in this table belong to
 # more than one macro and "Ianamus Zura IV" can mean either the sector the
@@ -195,7 +263,15 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--build", action="store_true", help="(re)build the cache")
     parser.add_argument("--lookup", help="look up a single macro")
+    parser.add_argument("--modules", action="store_true",
+                        help="(re)build the station module table")
     args = parser.parse_args()
+
+    if args.modules:
+        table = modules(rebuild=True)
+        print(f"{len(table)} module macros in {MODULES}, "
+              f"{sum(1 for m in table.values() if m['ware'])} with a blueprint ware")
+        return 0
 
     names = load(rebuild=args.build)
     if args.lookup:

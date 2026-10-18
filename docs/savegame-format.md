@@ -191,3 +191,20 @@ definitions in `maps/xu_ep2_universe/sectors.xml` where you would expect them.
 4. Read `savegame/info` early and separately: that yields capital and patch
    version before the expensive universe pass begins.
 5. Convert prices at the edge, once, and never mix the two scales.
+
+## What expansion and purchase decisions read
+
+Located 2026-10-18 in 9.00 saves (build 611726).
+
+| What | Where | Notes |
+|------|-------|-------|
+| Player blueprints | `component[@class="player"]/blueprints/blueprint/@ware` | Ware ids, not macros: `module_tel_prod_sunriseflowers_01`, `ship_gen_xs_cargodrone_empty_01_a`. Sits right after the player's `<known>` encyclopedia. |
+| Construction sequence | station `construction/sequence/entry` | `index`, `macro`, `connection="connectionsnapNNN"`, `<offset><position/><rotation/></offset>`: the same shape as a saved construction plan. Planned and built modules alike. |
+| Built modules | station `connections/connection/component[@construction]` | `construction="[0x5]"` points at the sequence entry. A module that is only planned has an entry and no component. |
+| Build plot | station `buildplot/max/@x,@y,@z` | Half-extents in metres; 5000 each way on both reference stations. `paidplotbox` next to it has the same shape. |
+| Construction vessel | build storage `buildtasks/(queue\|inprogress)/build/@builder` | A component id. Seen on an NPC build; no player build was running in the saves at hand, so the player side is the same element by assumption. |
+| Storage capacity | not in the save | The module macro file holds `<cargo max="..." tags="container\|solid\|liquid"/>`. `gamedata.py --modules` builds `data/modules.json` (macro to class, blueprint ware and cargo) from the game archives; the module ware links to its macro through `<component ref=...>` in `libraries/wares.xml`. |
+
+Module macro and blueprint ware are different names for the same thing
+(`storage_tel_s_container_01_macro` is bought as `module_tel_stor_container_s_01`).
+Anything that checks whether a module can be built goes through the table.
