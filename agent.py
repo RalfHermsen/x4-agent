@@ -156,6 +156,8 @@ def cycle(model: str | None = None, save: Path | None = None, force: bool = Fals
     for action in jobs:
         if action.type == "sell_ship":
             first, reason = executor.plan_sale(action, state)
+        elif action.type == "purchase":
+            first, reason = executor.plan_ship_purchase(action, state)
         elif action.type == "haul":
             # Haul and loop are one command each; the ship stays its own,
             # nothing to track over cycles beyond the cargo in the next save.

@@ -983,7 +983,34 @@ def to_commands(actions: list, state: dict | None = None) -> tuple[list[str], li
 # Actions that become a job over several cycles rather than one command. The
 # agent hands them to their module; they are executable all the same, so the
 # planner is told it can do them.
-JOB_ACTIONS = ("buy_blueprint", "haul", "sell_ship")
+JOB_ACTIONS = ("buy_blueprint", "haul", "sell_ship", "purchase")
+
+
+def plan_ship_purchase(action, state: dict) -> tuple[str | None, str | None]:
+    """purchase of a ship: a known wharf that builds that size, nearest to our
+    first station; the cap is the planner's max_spend, never more than 80
+    percent of the money we have. Anything but a ship stays advice."""
+    import gamedata
+    from purchases import RESERVE, _graph, jumps
+    if action.item != "ship":
+        return None, f"buying a {action.item} is not executable yet, advice only"
+    macro = action.spec.strip()
+    if macro not in gamedata.ships():
+        return None, f"{macro} is not a ship macro the game knows; name one exactly"
+    size = macro.split("_")[2] if macro.count("_") >= 3 else ""
+    yards = [k for k in state.get("known_stations", []) if size in (k.get("builds") or [])]
+    if not yards:
+        return None, f"no known wharf builds {size.upper()} ships"
+    money = state.get("player", {}).get("money") or 0
+    cap = int(min(action.max_spend, money * (1 - RESERVE)))
+    if cap <= 0:
+        return None, "no money to spend on a ship"
+    home = next((a for a in state.get("assets", []) if a.get("cls") == "station"), {})
+    sector = (home.get("place") or {}).get("sector")
+    graph = _graph()
+    yard = min(yards, key=lambda k: jumps(graph, sector, (k.get("place") or {}).get("sector")))
+    name = f"x4-agent-{size}"
+    return f"buyship {yard['code']} {yard.get('owner')} {macro} {name} {cap}", None
 
 
 def plan_sale(action, state: dict) -> tuple[str | None, str | None]:

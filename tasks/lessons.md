@@ -182,6 +182,15 @@ autosave checksums before and after.
 `["ship_m"]` passed while the code would never have matched a real yard.
 Take test data from a parsed save, or check its shape against one once.
 
+**L8h. Declare only what the game declares, character for character.** Our
+Lua file and the game's menus share one LuaJIT state, and an ffi type defined
+twice must be defined the same way both times. Load ours first with one field
+different, and the menu's own `ffi.cdef` fails: the player's menu breaks, far
+from anything of ours. Copy struct definitions verbatim from the game's Lua
+(and compare them, as was done for UIPosRot and TransactionLogEntry), and for
+the ship menu's loadout and crew types declare none at all: use them only once
+that menu has.
+
 ## About the model
 
 **L12. Put `type` first in a discriminated union, and give it no default.** With

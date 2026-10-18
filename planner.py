@@ -101,7 +101,8 @@ nothing more:
 - buy_blueprint  : ware, the module blueprint id exactly as the report names it
                    (module_...). Where and with which ship is worked out for you.
 - claim_ship     : target code
-- purchase       : item, spec, max spend
+- purchase       : item (ship), spec (the exact ship macro, e.g.
+                   ship_arg_s_scout_01_a_macro), max spend. Only ships are bought.
 - build_station  : station type, sector, max spend
 - fleet_order    : fleet code, order
 - hold           : nothing

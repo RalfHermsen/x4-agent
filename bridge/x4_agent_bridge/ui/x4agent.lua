@@ -91,6 +91,12 @@ declare [[ uint32_t CreateDeployToStationOrder(UniverseID controllableid); ]]
 declare [[ bool RemoveAllOrders(UniverseID controllableid); ]]
 declare [[ bool CanContainerBuildShip(UniverseID containerid, UniverseID shipid); ]]
 declare [[ void SellPlayerShip(UniverseID shipid, UniverseID shipyardid); ]]
+-- 3.6: only functions are declared here. The loadout and crew structures
+-- (UILoadout2, CrewTransferInfo2, AddBuildTask6Container) belong to the ship
+-- menu and stay its own: a second definition that differs by one field would
+-- make the menu's own declaration fail, and that would break the player's
+-- ship menu. Their functions are found once that menu has declared them.
+declare [[ int64_t GetBuildWarePrice(UniverseID containerid, const char* warename); ]]
 -- 4.3, 4.7, 4.10, 4.12: signatures copied from helper.lua, menu_playerinfo.lua,
 -- menu_station_overview.lua, menu_docked.lua and menu_map.lua.
 declare [[ void SetContainerBuyLimitOverride(UniverseID containerid, const char* wareid, int32_t amount); ]]
@@ -1087,6 +1093,109 @@ local function sell_ship(args)
     return true
 end
 
+--- What a generated loadout costs at this wharf: every part at the wharf's
+--- own build price, no discount, so the agent never pays less than the
+--- ship menu would ask. Field names as UILoadout2 declares them.
+local function loadout_price(wharf, loadout)
+    local total = 0
+    local function add(macro, n)
+        if macro and macro ~= "" then
+            local ware = GetMacroData(macro, "ware")
+            if ware and ware ~= "" then
+                total = total + tonumber(C.GetBuildWarePrice(wharf, ware)) * (n or 1)
+            end
+        end
+    end
+    for _, field in ipairs({ "weapons", "turrets", "shields", "engines" }) do
+        for i = 0, (loadout["num" .. field] or 0) - 1 do
+            add(ffi.string(loadout[field][i].macro), 1)
+        end
+    end
+    for _, field in ipairs({ "turretgroups", "shieldgroups" }) do
+        for i = 0, (loadout["num" .. field] or 0) - 1 do
+            add(ffi.string(loadout[field][i].macro), loadout[field][i].count)
+        end
+    end
+    for _, field in ipairs({ "ammo", "units" }) do
+        for i = 0, (loadout["num" .. field] or 0) - 1 do
+            add(ffi.string(loadout[field][i].macro), loadout[field][i].amount)
+        end
+    end
+    for i = 0, (loadout.numsoftware or 0) - 1 do
+        local ware = ffi.string(loadout.software[i].ware)
+        if ware ~= "" then
+            total = total + tonumber(C.GetBuildWarePrice(wharf, ware))
+        end
+    end
+    if loadout.thruster.macro ~= nil then
+        add(ffi.string(loadout.thruster.macro), 1)
+    end
+    return total
+end
+
+--- "buyship WRF-001 argon ship_arg_s_scout_01_a_macro x4-agent-scout 300000"
+--- -> build that ship at that wharf, with the game's generated loadout at a
+--- medium level, for at most 300,000 Cr. The engine does not take the money
+--- for a build task (docs/roadmap.md); the ship menu pays with
+--- TransferPlayerMoneyTo and records it with SetBuildTaskTransferredMoney, and
+--- so does this, before the task exists. A task the engine refuses is refunded.
+local function buy_ship(args)
+    local wharfcode, faction, macro, name, cap = args[1], args[2], args[3], args[4], tonumber(args[5])
+    if not (wharfcode and faction and macro and name and cap) then
+        return refuse("buyship needs: buyship <WHARF> <faction> <macro> <name> <max spend>")
+    end
+    local wharf = faction_station(faction, wharfcode)
+    if not wharf then
+        return refuse("buyship: " .. faction .. " has no station " .. wharfcode)
+    end
+    local shipware = GetMacroData(macro, "ware")
+    if not shipware or shipware == "" then
+        return refuse("buyship: " .. macro .. " is not a ship that is sold")
+    end
+    if not (Helper and Helper.getLoadoutHelper2) then
+        return refuse("buyship: the menu helpers are not loaded")
+    end
+    local ok, loadout = pcall(Helper.getLoadoutHelper2, C.GenerateShipLoadout2,
+                              C.GenerateShipLoadoutCounts2, "UILoadout2", wharf, 0, macro, 0.5)
+    if not ok then
+        return refuse("buyship: no loadout for " .. macro .. ": " .. tostring(loadout))
+    end
+    -- Everything that can fail happens before any money moves.
+    local okprice, partprice = pcall(loadout_price, wharf, loadout)
+    if not okprice then
+        return refuse("buyship: could not price the loadout: " .. tostring(partprice))
+    end
+    local okstructs, crew, info = pcall(function()
+        return ffi.new("CrewTransferInfo2"), ffi.new("AddBuildTask6Container")
+    end)
+    if not okstructs then
+        return refuse("buyship: the ship menu's types are not available: " .. tostring(crew))
+    end
+    local price = tonumber(C.GetBuildWarePrice(wharf, shipware)) + partprice
+    local before = GetPlayerMoney()
+    if price > cap then
+        return refuse(string.format("buyship: %s costs %d Cr at %s, above the cap of %d", macro, price, wharfcode, cap))
+    end
+    if before < price then
+        return refuse(string.format("buyship: %s costs %d Cr, we have %d", macro, price, before))
+    end
+    local w64 = ConvertStringTo64Bit(tostring(wharf))
+    TransferPlayerMoneyTo(price, w64)
+    local oktask, task = pcall(C.AddBuildTask6, wharf, 0, macro, loadout, price, crew, false, name, info)
+    if not oktask then
+        TransferMoneyToPlayer(price, w64, "refund")
+        return refuse("buyship: AddBuildTask6 failed, " .. price .. " Cr refunded: " .. tostring(task))
+    end
+    if task == 0 then
+        TransferMoneyToPlayer(price, w64, "refund")
+        return refuse(string.format("buyship: %s would not build %s; %d Cr refunded", wharfcode, macro, price))
+    end
+    C.SetBuildTaskTransferredMoney(task, price)
+    log(string.format("ORDER: bought %s at %s as %s for %d Cr, money %d -> %d, task %s",
+                      macro, wharfcode, name, price, before, GetPlayerMoney(), tostring(task)))
+    return true
+end
+
 --- "panel clear" / "panel <text>" -> one line of the in-game panel (3.9).
 --- MD keeps the list and renders it; this only takes the string apart.
 local function panel(args)
@@ -1208,6 +1317,7 @@ local BARE_HANDLERS = {
     hire = hire_builder,
     panel = panel,
     sellship = sell_ship,
+    buyship = buy_ship,
     savegame = save_agent_slot,
     signals = list_signals,
     respond = set_response,
@@ -1295,7 +1405,7 @@ local function init()
     end
     _G.__X4AGENT_COMMAND_HANDLER = X4Agent.onCommand
     RegisterEvent("X4Agent.Command", X4Agent.onCommand)
-    log("ready (chunk " .. CHUNK .. "), handling: price, tradeware, traderule, avoid hostile, signals, respond, savegame, blueprint, docked, dockat, release, licence, command, haul, loop, limit, turrets, revisit, satellite, resupply, ledger, repair, patrol, findbuilds, hire, panel, sellship")
+    log("ready (chunk " .. CHUNK .. "), handling: price, tradeware, traderule, avoid hostile, signals, respond, savegame, blueprint, docked, dockat, release, licence, command, haul, loop, limit, turrets, revisit, satellite, resupply, ledger, repair, patrol, findbuilds, hire, panel, sellship, buyship")
 end
 
 -- Initialise straight away, and do NOT hand this to Register_OnLoad_Init.

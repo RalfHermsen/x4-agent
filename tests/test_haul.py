@@ -77,3 +77,21 @@ def test_sale_at_the_nearest_yard_for_that_size(small_state):
     occupied = PlannerResponse.model_validate({"assessment": "", "updated_goals": [], "actions": [
         {"type": "sell_ship", "ship_ref": "TJL-171", "rationale": "t"}]}).actions[0]
     assert "the player sits in" in executor.plan_sale(occupied, state)[1]
+
+
+def test_ship_purchase_at_a_wharf_for_that_size(small_state):
+    from schemas import PlannerResponse
+    state = copy.deepcopy(small_state)
+    sector = next(a for a in state["assets"] if a["code"] == "KYV-745")["place"]["sector"]
+    state["known_stations"] = [{"code": "WRF-001", "owner": "argon", "builds": ["s", "m"],
+                                "place": {"sector": sector}, "offers": []}]
+    buy = PlannerResponse.model_validate({"assessment": "", "updated_goals": [], "actions": [
+        {"type": "purchase", "item": "ship", "spec": "ship_arg_s_scout_01_a_macro",
+         "max_spend": 500000, "rationale": "t"}]}).actions[0]
+    command, reason = executor.plan_ship_purchase(buy, state)
+    # 200,000 Cr in the small save: the cap is 80 percent of it, not the 500,000 asked.
+    assert reason is None
+    assert command == "buyship WRF-001 argon ship_arg_s_scout_01_a_macro x4-agent-s 160000"
+    seminar = PlannerResponse.model_validate({"assessment": "", "updated_goals": [], "actions": [
+        {"type": "purchase", "item": "seminar", "spec": "x", "max_spend": 1, "rationale": "t"}]}).actions[0]
+    assert "advice only" in executor.plan_ship_purchase(seminar, state)[1]
