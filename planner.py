@@ -40,6 +40,19 @@ OLLAMA_URL = os.environ.get("X4_OLLAMA_URL", "http://localhost:11434")
 DEFAULT_MODEL = os.environ.get("X4_PLANNER_MODEL", "gemma4:26b-a4b-it-qat")
 GUIDELINES = Path(__file__).parent / "guidelines.md"
 
+# A model named "openai:<name>" goes to an OpenAI-compatible endpoint instead
+# (LiteLLM, Groq, OpenAI itself), so a hosted model can be measured against the
+# local one on the same saves. Reasoning models there take an effort hint.
+OPENAI_URL = os.environ.get("X4_OPENAI_URL", "http://localhost:4000/v1")
+OPENAI_KEY = os.environ.get("X4_OPENAI_KEY", "")
+REASONING_EFFORT = os.environ.get("X4_REASONING_EFFORT", "medium")
+
+# The translation step may run on a different model from the reasoning step.
+# It only copies a list into a schema, and the local setup for that is measured
+# (docs/contracts.md); the reasoning step is where a bigger model might earn
+# its keep. Unset, both calls use the same model, as before.
+EXTRACT_MODEL = os.environ.get("X4_EXTRACT_MODEL")
+
 REASON_SYSTEM = """You are the strategic adviser to a player in X4: Foundations.
 
 You are given guidelines and a situation report. Think out loud and arrive at at
@@ -116,7 +129,10 @@ cycles, so an empty list throws that memory away."""
 
 def _chat(model: str, messages: list[dict], schema: dict | None,
           temperature: float = 0.2, timeout: float = 600.0) -> tuple[str, float]:
-    """One Ollama call. With a schema the output is grammar-constrained."""
+    """One model call. With a schema the output is grammar-constrained."""
+    if model.startswith("openai:"):
+        return _chat_openai(model[len("openai:"):], messages, schema,
+                            temperature, timeout)
     payload = {
         "model": model,
         "messages": messages,
@@ -139,6 +155,38 @@ def _chat(model: str, messages: list[dict], schema: dict | None,
     response.raise_for_status()
 
     content = response.json()["message"]["content"]
+    if not content.strip():
+        raise RuntimeError(f"{model} returned empty content")
+    return content, time.perf_counter() - start
+
+
+def _chat_openai(model: str, messages: list[dict], schema: dict | None,
+                 temperature: float, timeout: float) -> tuple[str, float]:
+    """The same call against an OpenAI-compatible endpoint.
+
+    The schema goes through `response_format`. Whether the server enforces it
+    as strictly as Ollama's grammar does depends on the server, which is why
+    the translation step is best kept local (X4_EXTRACT_MODEL).
+    """
+    payload = {
+        "model": model,
+        "messages": messages,
+        "temperature": temperature,
+        "reasoning_effort": REASONING_EFFORT,
+    }
+    if schema:
+        payload["response_format"] = {
+            "type": "json_schema",
+            "json_schema": {"name": "PlannerResponse", "schema": schema},
+        }
+    headers = {"Authorization": f"Bearer {OPENAI_KEY}"} if OPENAI_KEY else {}
+
+    start = time.perf_counter()
+    response = httpx.post(f"{OPENAI_URL}/chat/completions", json=payload,
+                          headers=headers, timeout=timeout)
+    response.raise_for_status()
+
+    content = response.json()["choices"][0]["message"]["content"] or ""
     if not content.strip():
         raise RuntimeError(f"{model} returned empty content")
     return content, time.perf_counter() - start
@@ -192,6 +240,7 @@ def extract(analysis: str, report: str, model: str) -> tuple[PlannerResponse, fl
     made the agent inconsistent: the same analysis landed on `assign_ship` one
     run and `set_behaviour(repeat_orders)` the next, so it acted only sometimes.
     """
+    model = EXTRACT_MODEL or model
     content, elapsed = _chat(model, [
         {"role": "system", "content": EXTRACT_SYSTEM % executor.describe()},
         {"role": "user", "content": _decisions(analysis)},
