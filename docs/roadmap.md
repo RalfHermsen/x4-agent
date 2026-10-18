@@ -213,7 +213,9 @@ way to make the agent smarter.
 
 ## The list, as items
 
-Roughly in order. Each one is a change to this repo unless it says otherwise.
+Superseded on 2026-10-18 by `tasks/plan-2026-10.md`, Phase 3, which carries
+each of these with requirements and an eval. Kept as written, for the
+history of what was known when.
 
 - [ ] Expose `tradeware` as an action, so the agent can stop a station buying an
       input it now produces itself.
