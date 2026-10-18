@@ -55,7 +55,19 @@ def _automine(action) -> str:
 # Shorter than it was: graphene and hullparts were listed while the bridge only
 # had a ware for them and no module, which was harmless only because the whole
 # expansion path was silently doing nothing.
-EXPANDABLE_WARES = ("energycells", "water", "refinedmetals", "siliconwafers")
+# Ware -> (production module macro, does it eat a mined solid). Keep this in
+# step with the do_if list of the expand cue in bridge/.../x4_agent_bridge.xml:
+# the MD side builds exactly these macros, and adds SOLID_STORAGE when the
+# station has no solid storage yet. A ware here that MD does not know is
+# refused there; a ware MD knows that is missing here is never sent.
+EXPANSION_MODULES = {
+    "energycells": ("prod_gen_energycells_macro", False),
+    "water": ("prod_gen_water_macro", True),
+    "refinedmetals": ("prod_gen_refinedmetals_macro", True),
+    "siliconwafers": ("prod_gen_siliconwafers_macro", True),
+}
+SOLID_STORAGE = "storage_tel_m_solid_01_macro"
+EXPANDABLE_WARES = tuple(EXPANSION_MODULES)
 
 
 def _expand(action) -> str:
@@ -440,6 +452,80 @@ def _mining_pointless(action, state: dict) -> str | None:
             f"would sit idle")
 
 
+def _missing_blueprints(action, state: dict) -> str | None:
+    """An expansion the player holds no blueprint for cannot be built.
+
+    The construction plan would be accepted and the build would never start;
+    from outside that looks like a construction vessel that never came. The
+    blueprint is a ware id (`module_gen_prod_water_01`), the plan is in macros,
+    and only the module table links the two.
+    """
+    import gamedata
+    table = gamedata.modules()
+    if not table:
+        return "cannot check blueprints: no module table (run gamedata.py --modules)"
+    macro, solid_input = EXPANSION_MODULES[action.ware]
+    station = next((a for a in state.get("assets", [])
+                    if a.get("code") == action.station_id), {})
+    needed = [macro]
+    if solid_input and not (station.get("capacity") or {}).get("solid"):
+        needed.append(SOLID_STORAGE)
+    held = set(state.get("player", {}).get("blueprints") or [])
+    missing = [(table.get(m) or {}).get("ware") or m for m in needed
+               if (table.get(m) or {}).get("ware") not in held]
+    if missing:
+        return f"no blueprint for {', '.join(missing)}"
+    return None
+
+
+# Funding levels as the bridge implements them: a share of player money moved
+# to the build storage. Python picks the smallest share that covers what the
+# build still has to buy.
+FUND_SHARE = {"low": 0.10, "mid": 0.25, "high": 0.50}
+# Never leave less than this share of player money behind.
+FUND_RESERVE = 0.20
+
+
+def funding(state: dict, funded: dict) -> list[str]:
+    """Top up build storages that cannot pay for what they still need.
+
+    A build storage has its own account, and a build with no money buys
+    nothing and does not progress, while the station beside it can be rich.
+    That is a sum, so it is Python's: cost of every open buy offer against the
+    balance, and the smallest bridge level that covers the gap.
+
+    `funded` maps station code to the save's playtime at which it was funded.
+    Saves arrive minutes apart; without this the same save read twice would
+    fund the same build twice before the first transfer showed.
+    """
+    money = state.get("player", {}).get("money") or 0
+    now = state.get("meta", {}).get("playtime_s") or 0
+    commands = []
+    for bs in state.get("assets", []):
+        if bs.get("cls") != "buildstorage" or not bs.get("station"):
+            continue
+        build = bs.get("build") or {}
+        if not (build.get("queued") or build.get("in_progress")):
+            continue
+        if funded.get(bs["station"], -1) >= now:
+            continue
+        cost = sum((o.get("amount") or 0) * (o.get("price") or 0)
+                   for o in bs.get("offers", []) if o.get("side") == "buy")
+        balance = float((bs.get("account") or {}).get("amount") or 0)
+        shortfall = cost - balance
+        if shortfall <= 0 or money <= 0:
+            continue
+        levels = [lvl for lvl, share in FUND_SHARE.items()
+                  if share <= 1 - FUND_RESERVE]
+        # Smallest level that covers it; the largest allowed if none does, as
+        # a partial payment still lets the build buy something.
+        level = next((lvl for lvl in levels if money * FUND_SHARE[lvl] >= shortfall),
+                     levels[-1])
+        commands.append(f"fund {bs['station']} {level}")
+        funded[bs["station"]] = now
+    return commands
+
+
 def _blocked_reason(action, key) -> str | None:
     """Why this otherwise-executable action still must not be sent."""
     if key == ("expand_station", None):
@@ -614,6 +700,8 @@ def to_commands(actions: list, state: dict | None = None) -> tuple[list[str], li
             blocked = _mining_pointless(action, state)
         if not blocked and key == ("set_trade_rule", None) and state:
             blocked = _trade_rule_pointless(action, state)
+        if not blocked and key == ("expand_station", None) and state:
+            blocked = _missing_blueprints(action, state)
         if blocked:
             skipped.append((action, blocked))
             continue

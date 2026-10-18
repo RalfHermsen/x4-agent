@@ -134,6 +134,8 @@ def cycle(model: str | None = None, save: Path | None = None) -> dict:
     # ships back when nothing is. Deterministic for the same reason pricing is:
     # which ware takes the most room is a sum, not a judgement.
     commands += executor.focus_fleet(state)
+    # A build that cannot pay stops buying. Topping it up is a sum.
+    commands += executor.funding(state, remembered.setdefault("funded", {}))
 
     # Explorers that are exploring the sector they are already in are reported,
     # not re-tasked. Sending them out automatically killed five scouts in an

@@ -74,6 +74,12 @@ class Asset:
     modules: list[str] = field(default_factory=list)   # stations: built module macros
     capacity: dict[str, int] = field(default_factory=dict)  # stations: cargo type -> max
     plot: dict[str, int] = field(default_factory=dict)  # stations: buildplot half-extents, m
+    # A station and its build storage are linked by a connection pair: the
+    # station's "buildingmodule" connection id appears as <connected> inside the
+    # build storage. Resolved to codes after the pass, both ways.
+    links: list[str] = field(default_factory=list)
+    buildstorage: str | None = None   # stations: code of their build storage
+    station: str | None = None        # build storages: code of their station
 
 
 # --------------------------------------------------------------------------- #
@@ -430,10 +436,19 @@ def _asset(elem, ancestors: list[dict]) -> Asset:
         software=[s.get("wares") for s in elem.iter("software") if s.get("wares")],
         account=dict(elem.find("account").items()) if elem.find("account") is not None else {},
     )
+    if asset.cls == "station":
+        asset.links = [c.get("id") for c in elem.iterfind("connections/connection")
+                       if c.get("connection") == "buildingmodule" and c.get("id")]
     if asset.cls == "buildstorage":
+        # The pair sits deep: build storage > buildmodule > buildprocessor >
+        # connection "buildanchor" > <connected>.
+        asset.links = [c.get("connection") for c in
+                       elem.iterfind(".//connection[@connection='buildanchor']/connected")
+                       if c.get("connection")]
         asset.offers = _offers(elem)
         asset.build = _build_tasks(elem)
         asset.build["builders"] = _builders(elem)
+        asset.build["processor"] = _processor(elem)
     if asset.cls == "station":
         asset.reservations = _reservations(elem)
         asset.assignment = {"groups": _groups(elem)}
@@ -452,6 +467,21 @@ def _asset(elem, ancestors: list[dict]) -> Asset:
         if plot is not None:
             asset.plot = {k: int(float(v)) for k, v in plot.items()}
     return asset
+
+
+def _processor(elem) -> dict:
+    """The build that is actually being worked on, and what it is waiting for.
+
+    The buildprocessor holds `<build state="waitingforresources"
+    constructionvesselrequired="1" step="6" steps="6" ...>`: the game's own
+    word for why a build is not moving. Seen on an NPC build in 9.00.
+    """
+    node = elem.find(".//component[@class='buildprocessor']/build")
+    if node is None:
+        return {}
+    return {"state": node.get("state"),
+            "vessel_required": node.get("constructionvesselrequired") == "1",
+            "step": _int(node.get("step")), "steps": _int(node.get("steps"))}
 
 
 def _builders(elem) -> list[str]:
@@ -570,6 +600,12 @@ def parse_save(path: str | os.PathLike) -> dict:
             target = (order.get("params") or {}).get("targetspace")
             if target and target in sectors:
                 order["target_sector"] = sectors[target]
+
+    by_link = {link: a for a in assets if a.cls == "station" for link in a.links}
+    for storage in (a for a in assets if a.cls == "buildstorage"):
+        station = next((by_link[l] for l in storage.links if l in by_link), None)
+        if station is not None:
+            storage.station, station.buildstorage = station.code, storage.code
 
     presence = {a.place.get("sector") for a in assets if a.place.get("sector")} | eyes
     visible = _visible(market, presence)

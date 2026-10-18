@@ -45,7 +45,7 @@ EXPECTED = {
 CONFIGURATION = ("traderule", "price", "tradeware")
 
 _EMPTY = {"goals": [], "pending": [], "applied": {}, "fleet": {},
-          "explore_retried": {}, "refused": []}
+          "explore_retried": {}, "refused": [], "funded": {}}
 
 
 # The path is looked up at call time rather than bound as a default, so a test

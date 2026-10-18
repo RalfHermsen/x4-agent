@@ -58,3 +58,14 @@ def test_builders_read_from_build_tasks():
         '</inprogress><queue><build id="[0x3]" type="expand" builder="[0x0]"/>'
         '</queue></buildtasks></component>')
     assert _builders(elem) == ["[0x2e1acd44]"]
+
+
+def test_build_storage_linked_to_its_station(small_state, large_state):
+    for state in (small_state, large_state):
+        stations = {a["code"]: a for a in _stations(state)}
+        storages = [a for a in state["assets"] if a["cls"] == "buildstorage"]
+        assert storages
+        for bs in storages:
+            assert bs["station"] in stations, bs["code"]
+            assert stations[bs["station"]]["buildstorage"] == bs["code"]
+    assert {a["code"]: a["buildstorage"] for a in _stations(small_state)} == {"KYV-745": "XQL-000"}
