@@ -208,14 +208,21 @@ def cycle(model: str | None = None, save: Path | None = None, force: bool = Fals
 
     # A ship on an errand belongs to its job until released: nothing else may
     # give it an order meanwhile, Python's own arithmetic included. A ship the
-    # player reserved (3.8) gets nothing at all, and the refusal says why.
+    # player reserved (3.8) gets nothing at all, and the refusal says why. Nor
+    # does the ship the player sits in: an order flies it, and the player with
+    # it, wherever the order goes. Hauls, sales and the standing rules already
+    # skipped it; the model's own proposals did not.
     errand = purchases.ships_in_use(remembered)
     reserved = set(remembered.get("reserved", []))
+    occupied = state.get("player", {}).get("occupied_ship")
     kept = []
     for c in commands:
         words = c.split()
         if len(words) > 1 and words[1] in reserved:
             failures.append(f"not sent, {words[1]} is reserved by the player: {c}")
+            continue
+        if len(words) > 1 and occupied and words[1] == occupied:
+            failures.append(f"not sent, {words[1]} is the ship the player sits in: {c}")
             continue
         if not (len(words) > 1 and words[1] in errand):
             kept.append(c)

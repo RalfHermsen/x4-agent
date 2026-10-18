@@ -439,6 +439,8 @@ def build(state: dict, goals: list[str] | None = None,
         for sh in ships:
             order = _first_order(sh)
             status = "IDLE" if order in IDLE_ORDERS else order
+            if sh["code"] == player.get("occupied_ship"):
+                status = "the player's own ship, not ours to order"
             where = (f"docked at {sh['docked_at']}" if sh["connection"] == "dock"
                      else f"in {gamedata.pretty(sh['place'].get('sector'), names)}")
             extra = f", {', '.join(sh['software'])}" if sh["software"] else ""
@@ -500,7 +502,10 @@ def build(state: dict, goals: list[str] | None = None,
     # are counted rather than dropped.
     pods = [s for s in ships if ship_type(s.get("macro")) == "escape pod"]
     ships = [s for s in ships if ship_type(s.get("macro")) != "escape pod"]
-    idle = [s["code"] for s in ships if _first_order(s) in IDLE_ORDERS]
+    # The ship the player sits in has no orders because the player flies it.
+    # Calling it idle got it proposed for exploring, with the player aboard.
+    idle = [s["code"] for s in ships if _first_order(s) in IDLE_ORDERS
+            and s["code"] != state["player"].get("occupied_ship")]
     failing = failing_ships(ships, state.get("meta", {}).get("playtime_s", 0.0))
     # A station always wants its storage full, so `desired` is a target and not a
     # need. Reporting the gap as a shortage turned a station running comfortably

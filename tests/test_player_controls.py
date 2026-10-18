@@ -34,3 +34,14 @@ def test_panel_lines_match_the_cycle(run_cycle):
     assert all(len(line) <= 120 for line in panel)
     sent = [line for line in panel if line.startswith("sent: ")]
     assert [line[6:] for line in sent] == [c[:114] for c in result["commands"][:12]]
+
+
+def test_occupied_ship_never_in_commands(run_cycle, small_state, monkeypatch):
+    """The player sits in TJL-171 in this save; an order would fly them off."""
+    assert small_state["player"]["occupied_ship"] == "TJL-171"
+    monkeypatch.setattr(agent.executor, "repricing", lambda state: [])
+    monkeypatch.setattr(agent.executor, "focus_fleet", lambda state: ["explore TJL-171"])
+    result = run_cycle()
+    assert not any(c.split()[1:2] == ["TJL-171"] for c in result["commands"])
+    assert any("the player sits in: explore TJL-171" in f for f in result["failures"])
+    assert "TJL-171 is a" not in result["sitrep"]
