@@ -17,7 +17,12 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import hashlib
+import json
+import math
+import os
 import sys
+import time
 from pathlib import Path
 
 import executor
@@ -25,6 +30,58 @@ import memory
 import planner
 import sitrep as sitrep_mod
 from save_parser import latest_save, parse_save
+from schemas import PlannerResponse
+
+# Longest the model may stay silent while nothing changes. Goals are written for
+# "the next hours", so a quiet half hour costs nothing, and a forced run now and
+# then catches whatever the fingerprint does not look at.
+MAX_QUIET = float(os.environ.get("X4_AGENT_MAX_QUIET", "1800"))
+
+
+def _fingerprint(state: dict, failures: list[str], goals: list[str],
+                 refused: list[dict]) -> str:
+    """What the planner would see, reduced to what would change its mind.
+
+    397 of 1,511 live cycles sent nothing at all, and most of them were the
+    model re-reading an unchanged empire. Rounding is deliberate: stock moves
+    every second, and a model call for every unit sold is the same waste.
+
+    Stock is rounded to a tenth of what the station's trade offer asks for,
+    because that is the number the offers are sized against; storage capacity
+    is not parsed yet. Money to five percent, on a log scale, so a rich empire
+    is not re-planned for pocket change.
+
+    A refusal is news to the model, so the refused proposals count, but not
+    how often: with the count in, a model that keeps re-proposing would never
+    go quiet, and going quiet is the point.
+    """
+    ships, stations = [], []
+    for a in state.get("assets", []):
+        if (a.get("cls") or "").startswith("ship"):
+            first = (a.get("orders") or [{}])[0]
+            ships.append((a.get("code"), first.get("order"), first.get("state"),
+                          (a.get("place") or {}).get("sector"), a.get("docked_at"),
+                          json.dumps(a.get("attack") or {}, sort_keys=True)))
+        elif a.get("cls") in ("station", "buildstorage"):
+            for o in a.get("offers", []):
+                want = o.get("desired") or 0
+                level = round(10 * (o.get("amount") or 0) / want) if want else o.get("amount")
+                stations.append((a.get("code"), o.get("ware"), o.get("side"), level))
+            build = a.get("build") or {}
+            stations.append((a.get("code"), "build", build.get("queued"),
+                             build.get("in_progress")))
+    money = state.get("player", {}).get("money") or 0
+    snapshot = {
+        "ships": sorted(map(list, ships)),
+        "stations": sorted(map(list, stations), key=str),
+        "money": int(math.log(money) / math.log(1.05)) if money > 0 else 0,
+        "known_stations": len(state.get("known_stations", [])),
+        "failures": sorted(failures),
+        "goals": goals or [],
+        "refused": sorted(r["proposal"] for r in refused or []),
+    }
+    return hashlib.sha1(json.dumps(snapshot, sort_keys=True, default=str)
+                        .encode()).hexdigest()
 
 
 def cycle(model: str | None = None, save: Path | None = None) -> dict:
@@ -44,9 +101,27 @@ def cycle(model: str | None = None, save: Path | None = None) -> dict:
                               failures=failures,
                               refused=remembered.get("refused"))
 
-    analysis, reason_s = planner.reason(
-        report, planner.GUIDELINES.read_text(encoding="utf-8"), model)
-    plan, extract_s = planner.extract(analysis, report, model)
+    # Skip the model when nothing it would look at has changed. The arithmetic
+    # below (repricing, fleet focus) still runs: it is cheap, and prices move.
+    fingerprint = _fingerprint(state, failures, remembered.get("goals"),
+                               remembered.get("refused"))
+    quiet_for = time.time() - remembered.get("last_model_run", 0)
+    model_ran, quiet_reason = True, None
+    if fingerprint == remembered.get("fingerprint") and quiet_for < MAX_QUIET:
+        model_ran = False
+        quiet_reason = (f"nothing the planner looks at changed; last model run "
+                        f"{quiet_for:.0f}s ago, forced after {MAX_QUIET:.0f}s")
+
+    if model_ran:
+        analysis, reason_s = planner.reason(
+            report, planner.GUIDELINES.read_text(encoding="utf-8"), model)
+        plan, extract_s = planner.extract(analysis, report, model)
+        remembered["fingerprint"] = fingerprint
+        remembered["last_model_run"] = time.time()
+    else:
+        analysis, reason_s, extract_s = "", 0.0, 0.0
+        plan = PlannerResponse(assessment=f"Model not run: {quiet_reason}.",
+                               updated_goals=remembered.get("goals", []))
     ok, rejected = planner.check_actions(plan, state)
     commands, skipped = executor.to_commands(ok, state)
 
@@ -80,7 +155,10 @@ def cycle(model: str | None = None, save: Path | None = None) -> dict:
 
     remembered["goals"] = plan.updated_goals or remembered.get("goals", [])
     memory.record(remembered, commands)
-    memory.record_refusals(remembered, rejected + skipped)
+    if model_ran:
+        # A silent cycle proposed nothing, so it refused nothing; recording
+        # that would wipe what the model was last told.
+        memory.record_refusals(remembered, rejected + skipped)
     memory.save(remembered)
 
     return {
@@ -96,6 +174,8 @@ def cycle(model: str | None = None, save: Path | None = None) -> dict:
         "failures": failures,
         "goals": remembered["goals"],
         "seconds": reason_s + extract_s,
+        "model_ran": model_ran,
+        "quiet_reason": quiet_reason,
     }
 
 

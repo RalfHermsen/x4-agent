@@ -2,7 +2,16 @@
 
 import json
 
-from schemas import PlannerResponse
+import pytest
+
+import agent
+
+
+@pytest.fixture(autouse=True)
+def model_every_cycle(monkeypatch):
+    # These tests are about what the model is told, so it must run every cycle;
+    # the quiet-cycle logic has its own tests.
+    monkeypatch.setattr(agent, "MAX_QUIET", 0.0)
 
 # ASO-629 is the small save's freighter. Assigning it to mine is refused by the
 # executor gates (it is not a mining ship), which is exactly the kind of
