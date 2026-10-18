@@ -17,6 +17,13 @@ Usage:
     python experiment.py --load save_007 --mode execute --minutes 120
     python experiment.py --load quicksave --mode execute --script s.json \\
         --until-blueprint module_tel_conn_cross_01 --minutes 30
+    python experiment.py --baseline-file saves/reference/baseline_seta.xml.gz \\
+        --seta --mode execute --minutes 120
+
+--baseline-file copies a save into the agent's slot before the game starts
+(the game reads the save folder only at startup) and loads it from there.
+--seta asks for six-times time warp after loading and every five minutes,
+which needs the SETA item in that save (edit_save.py --inventory).
 
 The Ollama URL comes from X4_OLLAMA_URL; a scripted run needs no model.
 """
@@ -118,7 +125,8 @@ def wait_connected(run_dir: Path, timeout: float = 90) -> bool:
     return False
 
 
-def request_save(slot: Path, timeout: float = 150) -> bool:
+def request_save(slot: Path, timeout: float = 300) -> bool:
+    # 150 s was not enough: a run under SETA wrote its final save 4 s after.
     before = slot.stat().st_mtime if slot.exists() else 0
     OUTBOX.parent.mkdir(parents=True, exist_ok=True)
     with OUTBOX.open("a", encoding="utf-8") as handle:
@@ -154,15 +162,22 @@ def main() -> int:
     parser.add_argument("--script", type=Path, help="scripted planner responses (JSON list)")
     parser.add_argument("--until-blueprint", help="stop early once this ware is held")
     parser.add_argument("--name", default="", help="suffix for the run folder")
+    parser.add_argument("--baseline-file", type=Path,
+                        help="a save to copy into the agent's slot and load from there")
+    parser.add_argument("--seta", action="store_true", help="run at six-times time warp")
     args = parser.parse_args()
 
-    folder = save_dir(args.load)
+    if args.baseline_file:
+        args.load = AGENT_SLOT
+    folder = save_dir(args.load) if not args.baseline_file else save_dir("autosave_01")
     slot = folder / f"{AGENT_SLOT}.xml.gz"
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     run_dir = REPO / "out" / "experiments" / f"{stamp}-{args.mode}{'-' + args.name if args.name else ''}"
     run_dir.mkdir(parents=True, exist_ok=True)
     baseline = REPO / "saves" / "reference" / f"{args.load}.xml.gz"
-    if not baseline.exists():
+    if args.baseline_file:
+        baseline = args.baseline_file
+    elif not baseline.exists():
         baseline = folder / f"{args.load}.xml.gz"
     commit = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=REPO,
                             capture_output=True, text=True).stdout.strip()
@@ -171,6 +186,8 @@ def main() -> int:
         "minutes": args.minutes, "interval": args.interval,
         "script": str(args.script) if args.script else None,
         "until_blueprint": args.until_blueprint, "commit": commit,
+        "baseline_file": str(args.baseline_file) if args.baseline_file else None,
+        "seta": args.seta,
         "started": datetime.now().isoformat(timespec="seconds")}, indent=2), encoding="utf-8")
 
     if launch_game.running():
@@ -184,6 +201,9 @@ def main() -> int:
     proc = None
     code = 1
     try:
+        if args.baseline_file:
+            shutil.copy2(args.baseline_file, slot)
+            log(run_dir, f"{args.baseline_file.name} copied into {AGENT_SLOT} before launch")
         if launch_game.launch(180) != 0 or launch_game.load(args.load, 180) != 0:
             log(run_dir, "could not launch or load")
             return 1
@@ -193,10 +213,16 @@ def main() -> int:
             return 1
         log(run_dir, f"running {args.mode} for up to {args.minutes:.0f} min from {args.load}")
         end = time.monotonic() + args.minutes * 60
+        next_seta = time.monotonic()
         seen = slot.stat().st_mtime if slot.exists() else 0
         next_note = time.monotonic() + 600
         while time.monotonic() < end:
             time.sleep(20)
+            if args.seta and time.monotonic() >= next_seta:
+                OUTBOX.parent.mkdir(parents=True, exist_ok=True)
+                with OUTBOX.open("a", encoding="utf-8") as handle:
+                    handle.write("seta on\n")
+                next_seta = time.monotonic() + 300
             if time.monotonic() >= next_note:
                 log(run_dir, f"{(end - time.monotonic()) / 60:.0f} min left")
                 next_note += 600

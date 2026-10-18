@@ -4,11 +4,12 @@ Deliberately narrow and deliberately non-destructive: it never overwrites the
 source, it writes a new save next to it, so the original stays loadable. Use it
 to set up a situation you want to test rather than playing towards it.
 
-Three edits are supported:
+Four edits are supported:
 
 * a station manager's management skill
 * the player's credits
 * adding blueprints the player owns
+* adding an item to the player's inventory (the SETA item for measured runs)
 
 Skills in the save run 1 to 15 and the game shows them as 0 to 5 stars, so three
 points make one star (measured across 101,543 skill entries in a late-game save).
@@ -18,6 +19,8 @@ Usage:
     python edit_save.py --credits 10000000
     python edit_save.py --add-credits 10000000 --label "10M test"
     python edit_save.py --blueprint module_gen_prod_energycells_01
+    python edit_save.py saves/reference/save_007.xml.gz --inventory inv_timewarp \
+        --out baseline_seta --label "baseline with SETA"
 """
 
 from __future__ import annotations
@@ -149,6 +152,25 @@ def add_blueprints(xml: str, wares: list[str]) -> tuple[str, list[str]]:
     return xml[:end] + entries + xml[end:], added
 
 
+def add_inventory(xml: str, wares: list[str]) -> tuple[str, list[str]]:
+    """Add items to the player's own inventory: `<inventory>` right under the
+    player component, holding `<ware ware=...>` children (amount 1 when
+    omitted). Items already held are skipped."""
+    player = xml.find('<component class="player"')
+    if player < 0:
+        raise LookupError("no player component in this save")
+    start = xml.find("<inventory>", player)
+    end = xml.find("</inventory>", start) if start >= 0 else -1
+    if start < 0 or end < 0:
+        raise LookupError("the player has no inventory element")
+    held = set(re.findall(r'<ware ware="([^"]+)"', xml[start:end]))
+    added = [w for w in wares if w not in held]
+    if not added:
+        return xml, []
+    entries = "".join(f'<ware ware="{w}"/>' for w in added)
+    return xml[:end] + entries + xml[end:], added
+
+
 def set_manager_skill(xml: str, station_code: str, value: int) -> tuple[str, str]:
     """Set the management skill of the manager of one station.
 
@@ -193,14 +215,16 @@ def main() -> int:
     parser.add_argument("--blueprint", action="append", metavar="WARE",
                         help="add a blueprint, e.g. module_gen_prod_energycells_01; "
                              "repeat for more")
+    parser.add_argument("--inventory", action="append", metavar="WARE",
+                        help="add an inventory item, e.g. inv_timewarp; repeat for more")
     parser.add_argument("--out", help="name of the new save, without extension")
     parser.add_argument("--label", help="display name shown in the load menu")
     args = parser.parse_args()
 
     if (args.manager_skill is None and args.credits is None
-            and args.add_credits is None and not args.blueprint):
+            and args.add_credits is None and not args.blueprint and not args.inventory):
         parser.error("nothing to change; give --manager-skill, --credits, "
-                     "--add-credits or --blueprint")
+                     "--add-credits, --blueprint or --inventory")
     if args.manager_skill is not None:
         if not args.station:
             parser.error("--manager-skill needs --station")
@@ -230,6 +254,11 @@ def main() -> int:
         xml, added = add_blueprints(xml, args.blueprint)
         changes.append(f"blueprints added: {', '.join(added)}" if added
                        else "blueprints: all already owned")
+
+    if args.inventory:
+        xml, added = add_inventory(xml, args.inventory)
+        changes.append(f"inventory added: {', '.join(added)}" if added
+                       else "inventory: all already held")
 
     label = args.label or "; ".join(changes)[:60]
     xml = set_save_name(xml, label)

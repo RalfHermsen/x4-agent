@@ -150,6 +150,31 @@
         <set_value name="$agent_handled" exact="1"/>
       </do_if>
 
+      <!-- 'seta on' / 'seta off': time warp for measured runs, six times real
+           time. The game only allows it with the SETA item in the player's
+           inventory and its activation conditions met (player.timewarp.available,
+           libraries/scriptproperties.xml); this never adds the item. The
+           logbook line records what the game actually did. -->
+      <do_if value="event.param == 'seta on'">
+        <set_value name="$agent_handled" exact="1"/>
+        <do_if value="not player.timewarp.active and player.timewarp.available">
+          <toggle_timewarp/>
+        </do_if>
+        <do_if value="player.timewarp.active">
+          <set_timewarp_factor factor="6s"/>
+        </do_if>
+        <write_to_logbook category="general"
+          text="'[x4-agent] SETA: active %s, available %s, factor %s'.[player.timewarp.active, player.timewarp.available, player.timewarp.factor]"/>
+      </do_if>
+      <do_if value="event.param == 'seta off'">
+        <set_value name="$agent_handled" exact="1"/>
+        <do_if value="player.timewarp.active">
+          <toggle_timewarp/>
+        </do_if>
+        <write_to_logbook category="general"
+          text="'[x4-agent] SETA: active %s'.[player.timewarp.active]"/>
+      </do_if>
+
       <find_object name="$agent_ships"
                    class="[class.ship_xs, class.ship_s, class.ship_m, class.ship_l, class.ship_xl]"
                    owner="faction.player"
