@@ -79,3 +79,16 @@ Also assessed: X4Mcp/X4Native as the hand on the keyboard for unattended
 test runs (load a save, reload, chat commands, screenshot, shut down), and the
 community's construction plans as hand-designed layouts applied in stages.
 Both are Phase 2 of the plan.
+
+Later the same day, building the plan. Phase 1 done (1.1 to 1.8, one commit
+each, 36 tests): refusals back in the report, no model call on an unchanged
+state, the parser reading blueprints, built modules, capacity, plot and the
+station to build storage link, expansion gates and funding, expansion
+tracking through five stages, the scorecard, and the model comparison
+written up. Phase 2: X4Mcp installed (it needed OpenSSL 3 beside X4.exe),
+launch_game.py and harness.py prove verbs in the game with no one at the
+keyboard, save_008 is the agent's own save slot. Found on the way: every
+Lua command had always run twice (the file is loaded twice), and a
+no-plan host still asked for an autosave and overwrote the player's newest
+one, restored from saves/reference. Then dockat, docked and blueprint,
+proven by buying a Teladi module blueprint for exactly its maxprice.
