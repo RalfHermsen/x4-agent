@@ -45,7 +45,7 @@ EXPECTED = {
 CONFIGURATION = ("traderule", "price", "tradeware")
 
 _EMPTY = {"goals": [], "pending": [], "applied": {}, "fleet": {},
-          "explore_retried": {}, "refused": [], "funded": {}}
+          "explore_retried": {}, "refused": [], "funded": {}, "expansions": {}}
 
 
 # The path is looked up at call time rather than bound as a default, so a test
@@ -173,6 +173,99 @@ def record_refusals(data: dict, refusals: list[tuple]) -> dict:
         data["refused"].append({"proposal": proposal, "reason": reason,
                                 "count": before.get(proposal, 0) + 1})
     return data
+
+
+# An expansion moves through these, in order. Each has the longest it may sit
+# there, in game seconds, before the report calls it stalled, and the plain
+# observation that goes with it. Observations, not diagnoses: "no vessel
+# assigned" is what the save says; why is for the reader.
+EXPANSION_STAGES = [
+    ("planned", 1800, "no build started"),
+    ("building", 1800, "build queued but no construction vessel assigned"),
+    ("vessel", 7200, "vessel assigned, build still waiting for resources"),
+    ("resources", 7200, "resources in, module not built yet"),
+    ("done", None, None),
+]
+_STAGE = {name: i for i, (name, _, _) in enumerate(EXPANSION_STAGES)}
+
+
+def start_expansions(data: dict, commands: list[str], state: dict,
+                     module_for) -> None:
+    """Begin tracking every expansion just sent. `module_for(ware)` -> macro."""
+    now = state.get("meta", {}).get("playtime_s") or 0
+    tracked = data.setdefault("expansions", {})
+    for command in commands:
+        parts = command.split()
+        if len(parts) != 3 or parts[0] != "expand":
+            continue
+        _, station, ware = parts
+        key = f"{station} {ware}"
+        if key in tracked:
+            continue
+        asset = _ship_state(state, station) or {}
+        macro = module_for(ware)
+        tracked[key] = {"stage": "planned", "since": now, "module": macro,
+                        "modules_before": (asset.get("modules") or []).count(macro)}
+
+
+def _observed_stage(entry: dict, station: dict, storage: dict, ware: str) -> int:
+    """The furthest stage the save shows, judged from the far end backwards."""
+    if ((station.get("modules") or []).count(entry["module"]) > entry["modules_before"]
+            and ware in (station.get("production_queue") or [])):
+        return _STAGE["done"]
+    build = storage.get("build") or {}
+    if not (build.get("queued") or build.get("in_progress")):
+        return _STAGE["planned"]
+    if not build.get("builders"):
+        return _STAGE["building"]
+    still_buying = any(o.get("side") == "buy" and o.get("amount")
+                       for o in storage.get("offers", []))
+    if still_buying or (build.get("processor") or {}).get("state") == "waitingforresources":
+        return _STAGE["vessel"]
+    return _STAGE["resources"]
+
+
+def track_expansions(data: dict, state: dict) -> list[str]:
+    """Advance every tracked expansion and report the ones that stalled.
+
+    `memory.check` judges orders by what a ship is doing next cycle. An
+    expansion takes hours and passes through several hands (plan, build
+    storage, construction vessel, suppliers), and the one that drops it leaves
+    no trace: in August a whole expansion path did nothing for two days while
+    looking like it worked. Each stage is a fact in the save, so each can be
+    checked, and a stage held too long is reported.
+
+    Time is the save's playtime, not the wall clock, so a paused game is not
+    a stalled build.
+    """
+    now = state.get("meta", {}).get("playtime_s") or 0
+    assets = {a.get("code"): a for a in state.get("assets", [])}
+    lines = []
+    for key in list(data.get("expansions", {})):
+        entry = data["expansions"][key]
+        station_code, ware = key.split()
+        station = assets.get(station_code)
+        if station is None:
+            lines.append(f"expansion of {ware} at {station_code}: the station is gone")
+            del data["expansions"][key]
+            continue
+        storage = assets.get(station.get("buildstorage")) or {}
+        seen = _observed_stage(entry, station, storage, ware)
+        # Stages only move forward: a build that finished leaves no build
+        # task behind, which must not read as "back to planned".
+        if seen > _STAGE[entry["stage"]]:
+            entry["stage"], entry["since"] = EXPANSION_STAGES[seen][0], now
+        if entry["stage"] == "done":
+            lines.append(f"expansion of {ware} at {station_code} finished: "
+                         f"the station produces {ware}")
+            del data["expansions"][key]
+            continue
+        _, limit, observation = EXPANSION_STAGES[_STAGE[entry["stage"]]]
+        held = now - entry["since"]
+        if held > limit:
+            lines.append(f"expansion of {ware} at {station_code}: {entry['stage']} "
+                         f"for {held / 3600:.1f}h, {observation}")
+    return lines
 
 
 def _ship_state(state: dict, code: str) -> dict | None:

@@ -97,6 +97,7 @@ def cycle(model: str | None = None, save: Path | None = None) -> dict:
     remembered = memory.load()
     failures = memory.check(remembered, state)
     failures += memory.check_fleet(remembered, state, sitrep_mod.ship_type)
+    failures += memory.track_expansions(remembered, state)
     report = sitrep_mod.build(state, goals=remembered.get("goals"),
                               failures=failures,
                               refused=remembered.get("refused"))
@@ -157,6 +158,8 @@ def cycle(model: str | None = None, save: Path | None = None) -> dict:
 
     remembered["goals"] = plan.updated_goals or remembered.get("goals", [])
     memory.record(remembered, commands)
+    memory.start_expansions(remembered, commands, state,
+                            lambda ware: executor.EXPANSION_MODULES[ware][0])
     if model_ran:
         # A silent cycle proposed nothing, so it refused nothing; recording
         # that would wipe what the model was last told.
