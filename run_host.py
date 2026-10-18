@@ -10,6 +10,7 @@ Usage:
     python run_host.py                 # advise mode
     python run_host.py --execute       # orders actually reach the game
     python run_host.py --interval 300
+    python run_host.py --no-plan       # relay logs/outbox.txt only (harness)
 """
 
 from __future__ import annotations
@@ -60,6 +61,8 @@ def main() -> int:
                         help="seconds between planning cycles")
     parser.add_argument("--ollama", default=os.environ.get("X4_OLLAMA_URL"),
                         help="Ollama base URL")
+    parser.add_argument("--no-plan", action="store_true",
+                        help="relay the outbox only, never plan (for harness tests)")
     args = parser.parse_args()
 
     stale = running_hosts()
@@ -74,6 +77,8 @@ def main() -> int:
     env["X4_AGENT_INTERVAL"] = str(args.interval)
     if args.ollama:
         env["X4_OLLAMA_URL"] = args.ollama
+    if args.no_plan:
+        env["X4_AGENT_PLAN"] = "0"
 
     print(f"mode={env['X4_AGENT_MODE']} interval={args.interval}s "
           f"ollama={env.get('X4_OLLAMA_URL', 'localhost')}")

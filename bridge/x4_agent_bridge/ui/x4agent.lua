@@ -421,6 +421,25 @@ local function set_response(args)
     return true
 end
 
+-- The one save slot the agent may write. The bridge's 'save' is an autosave,
+-- and autosaves rotate over the player's newest saves (tasks/lessons.md L6e).
+-- The slot is fixed here and never taken from the command, so nothing that
+-- arrives over the pipe, model or outbox, can write any other slot. The owner
+-- gave this one up for the agent on 2026-10-18. SaveGame is the global the
+-- game's own save menu calls (gameoptions.lua).
+local AGENT_SLOT = "save_008"
+
+-- Which loaded copy of this file handled a command. Two different values in
+-- the logbook for one command means the file was loaded and registered twice;
+-- the same value twice means MD raised the event twice.
+local CHUNK = string.sub(tostring({}), -6)
+
+local function save_agent_slot(args)
+    SaveGame(AGENT_SLOT, "x4-agent")
+    log("savegame requested into " .. AGENT_SLOT .. " (chunk " .. CHUNK .. ")")
+    return true
+end
+
 local HANDLERS = {
     price = set_price,
     tradeware = set_tradeware,
@@ -436,6 +455,7 @@ local GLOBAL_HANDLERS = {
 
 -- Commands with no subject at all: the verb and its own arguments.
 local BARE_HANDLERS = {
+    savegame = save_agent_slot,
     signals = list_signals,
     respond = set_response,
 }
@@ -505,13 +525,24 @@ end
 
 local initialised = false
 
+-- One handler, whichever copy of this file registered last. The file is loaded
+-- twice, through ui.xml and through the MD fallback cue, and each copy has its
+-- own locals, so the `initialised` guard alone let both register. Every command
+-- then ran twice: harmless for a price, a double payment for anything that
+-- buys. Measured 2026-10-18 by tagging each copy (two chunk ids, one command).
+-- The handler is kept in a global both copies see, and the old one is taken
+-- off before the new one goes on.
 local function init()
     if initialised then
         return
     end
     initialised = true
+    if _G.__X4AGENT_COMMAND_HANDLER then
+        UnregisterEvent("X4Agent.Command", _G.__X4AGENT_COMMAND_HANDLER)
+    end
+    _G.__X4AGENT_COMMAND_HANDLER = X4Agent.onCommand
     RegisterEvent("X4Agent.Command", X4Agent.onCommand)
-    log("ready, handling: price, tradeware, traderule, avoid hostile, signals, respond")
+    log("ready (chunk " .. CHUNK .. "), handling: price, tradeware, traderule, avoid hostile, signals, respond, savegame")
 end
 
 -- Initialise straight away, and do NOT hand this to Register_OnLoad_Init.

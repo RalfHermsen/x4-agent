@@ -149,6 +149,21 @@ extension's folder is not. Read that log first whenever the port is silent.
 2,065 exported game functions do resolve. Typed game events from C++ are not
 available on this build, so nothing here may depend on them.
 
+**L8e. The Lua file is loaded twice, and every command ran twice.** Once
+through `ui.xml`, once through the MD fallback cue, each copy with its own
+locals, so a file-local "already initialised" guard let both register their
+handler. Every Lua verb executed twice: invisible for a price, a double payment
+for a purchase. Found by tagging each copy with an id in its log lines; one
+command, two ids. The handler now lives in a global both copies see, and the
+old one is unregistered before the new one goes on. Any verb that spends money
+must be proven to run once before it ships.
+
+**L8f. A host that does not plan must not ask for saves either.** `--no-plan`
+turned planning off but left the "refresh the save before planning" request
+in, and that request is an autosave: one harness run overwrote the player's
+newest autosave (restored from `saves/reference/`). Harness runs now compare
+autosave checksums before and after.
+
 ## About the model
 
 **L12. Put `type` first in a discriminated union, and give it no default.** With

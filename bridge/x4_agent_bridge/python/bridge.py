@@ -47,6 +47,10 @@ SAVE_MAX_AGE = float(os.environ.get("X4_AGENT_SAVE_MAX_AGE", "150"))
 # Pause between two commands. Without it the pipe drops after the first one.
 COMMAND_GAP = float(os.environ.get("X4_AGENT_COMMAND_GAP", "2"))
 LOG_PATH = os.environ.get("X4_AGENT_LOG")
+# "0" turns planning off: the host only relays the outbox. A harness proving a
+# verb must not have a model cycle run on every save and write the live
+# agent's memory meanwhile.
+PLAN = os.environ.get("X4_AGENT_PLAN", "1") != "0"
 
 _agent = None
 
@@ -156,6 +160,8 @@ def drain_outbox(pipe) -> None:
 
 def run_cycle(pipe) -> None:
     """Plan once, and send the commands if we are allowed to."""
+    if not PLAN:
+        return
     agent = load_agent()
     if not agent:
         return
@@ -237,6 +243,13 @@ def main(args):
         # Anything a human queued goes out first, regardless of the cycle
         # interval, so trying a command by hand does not mean waiting minutes.
         drain_outbox(pipe)
+
+        # Without planning there is nothing to refresh a save for, and the
+        # refresh is an autosave: on 2026-10-18 a --no-plan harness run asked
+        # for one and overwrote the player's newest autosave with the test
+        # game. The harness saves into the agent's own slot instead.
+        if not PLAN:
+            continue
 
         now = time.monotonic()
         if now - last_cycle < INTERVAL:
