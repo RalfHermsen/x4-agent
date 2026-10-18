@@ -41,7 +41,8 @@ def cycle(model: str | None = None, save: Path | None = None) -> dict:
     failures = memory.check(remembered, state)
     failures += memory.check_fleet(remembered, state, sitrep_mod.ship_type)
     report = sitrep_mod.build(state, goals=remembered.get("goals"),
-                              failures=failures)
+                              failures=failures,
+                              refused=remembered.get("refused"))
 
     analysis, reason_s = planner.reason(
         report, planner.GUIDELINES.read_text(encoding="utf-8"), model)
@@ -79,6 +80,7 @@ def cycle(model: str | None = None, save: Path | None = None) -> dict:
 
     remembered["goals"] = plan.updated_goals or remembered.get("goals", [])
     memory.record(remembered, commands)
+    memory.record_refusals(remembered, rejected + skipped)
     memory.save(remembered)
 
     return {

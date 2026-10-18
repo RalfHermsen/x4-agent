@@ -64,6 +64,8 @@ most four concrete actions.
 - For each action, state which ship or station it concerns and which guideline
   justifies it.
 - If there is nothing sensible to do, say so explicitly.
+- A proposal listed under NOT DONE LAST CYCLE was refused. Do not propose it
+  again unless what it was refused for has changed.
 - Be concise.
 
 Write the actions as a numbered list under the heading ACTIONS, one line each,

@@ -289,8 +289,14 @@ def attacks(ships: list[dict], now: float) -> list[str]:
     return out
 
 
+# How many refused proposals the report repeats. The newest matter; a long list
+# would push the guidelines towards the end of the context window.
+MAX_REFUSED = 10
+
+
 def build(state: dict, goals: list[str] | None = None,
-          failures: list[str] | None = None) -> str:
+          failures: list[str] | None = None,
+          refused: list[dict] | None = None) -> str:
     meta, player = state["meta"], state["player"]
     assets = state["assets"]
     ships = [a for a in assets if a["cls"] in SHIP_CLASSES]
@@ -478,6 +484,16 @@ def build(state: dict, goals: list[str] | None = None,
         add("# LAST CYCLE DID NOT TAKE EFFECT")
         for failure in failures:
             add(f"  {failure}")
+
+    if refused:
+        # Proposals the gates turned down. Without this the model re-proposed
+        # the same refused action every cycle, because nothing ever told it.
+        add("")
+        add("# NOT DONE LAST CYCLE (proposed by you, refused before reaching the game)")
+        for item in refused[:MAX_REFUSED]:
+            running = (f" (refused {item['count']} cycles running)"
+                       if item["count"] > 1 else "")
+            add(f"  {item['proposal']}: {item['reason']}{running}")
 
     # Where we could buy a ship. Nothing in the report said this before, so the
     # model could reason its way to "we need more miners" and no further.

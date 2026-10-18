@@ -45,7 +45,7 @@ EXPECTED = {
 CONFIGURATION = ("traderule", "price", "tradeware")
 
 _EMPTY = {"goals": [], "pending": [], "applied": {}, "fleet": {},
-          "explore_retried": {}}
+          "explore_retried": {}, "refused": []}
 
 
 # The path is looked up at call time rather than bound as a default, so a test
@@ -140,6 +140,38 @@ def record(data: dict, commands: list[str]) -> dict:
         setting = _setting(command)
         if setting:
             applied[setting[0]] = setting[1]
+    return data
+
+
+def _proposal(action) -> str:
+    """An action as one line: its type and every field it was given.
+
+    This is also the identity of a proposal across cycles. Two proposals with
+    the same type and the same references are the same idea proposed again,
+    whatever their rationale says.
+    """
+    fields = action.model_dump(exclude={"type", "priority", "rationale"})
+    values = [str(v) if not isinstance(v, list) else ",".join(map(str, v))
+              for v in fields.values() if v not in (None, [], "")]
+    return " ".join([action.type, *values])
+
+
+def record_refusals(data: dict, refusals: list[tuple]) -> dict:
+    """Remember what was refused this cycle, and for how many cycles running.
+
+    The model never heard that a proposal was refused, so it proposed the same
+    thing again three minutes later: 220 times "already busy" in six days of
+    log. The count is what turns a repeat into something the model can see.
+    A proposal not refused this cycle drops out, so the count is consecutive.
+    """
+    before = {r["proposal"]: r["count"] for r in data.get("refused", [])}
+    data["refused"] = []
+    for action, reason in refusals:
+        proposal = _proposal(action)
+        if any(r["proposal"] == proposal for r in data["refused"]):
+            continue
+        data["refused"].append({"proposal": proposal, "reason": reason,
+                                "count": before.get(proposal, 0) + 1})
     return data
 
 
