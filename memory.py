@@ -48,7 +48,11 @@ _EMPTY = {"goals": [], "pending": [], "applied": {}, "fleet": {},
           "explore_retried": {}}
 
 
-def load(path: Path = STORE) -> dict:
+# The path is looked up at call time rather than bound as a default, so a test
+# can point STORE at a temp file. Bound at import, every test that ran a cycle
+# would have written into the live agent's memory.
+def load(path: Path | None = None) -> dict:
+    path = path or STORE
     if not path.exists():
         return dict(_EMPTY)
     try:
@@ -60,7 +64,8 @@ def load(path: Path = STORE) -> dict:
     return data
 
 
-def save(data: dict, path: Path = STORE) -> None:
+def save(data: dict, path: Path | None = None) -> None:
+    path = path or STORE
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(data, indent=2), encoding="utf-8")
 
