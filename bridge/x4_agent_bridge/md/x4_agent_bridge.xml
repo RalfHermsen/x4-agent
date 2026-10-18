@@ -212,6 +212,52 @@
           </do_else>
         </do_if>
 
+        <!-- 4.2: a management seminar for the station's manager, applied the way
+             md/conversations.xml does when the player hands one over: the tier
+             is the manager's stars (skill / 3), three points capped at 15, and
+             the seminar is used up. The player must hold it: MD checks the
+             inventory itself, so nothing is ever gained for free. -->
+        <do_if value="event.param == 'seminar %s'.[$agent_station.idcode]">
+          <set_value name="$agent_handled" exact="1"/>
+          <set_value name="$agent_manager" exact="@$agent_station.tradenpc"/>
+          <do_if value="@$agent_manager.exists and $agent_manager.skill.management lt 15">
+            <set_value name="$agent_mgmt" exact="$agent_manager.skill.management"/>
+            <do_if value="$agent_mgmt ge 0">
+              <set_value name="$agent_sem" exact="ware.inv_seminar_management_0"/>
+            </do_if>
+            <do_if value="$agent_mgmt ge 3">
+              <set_value name="$agent_sem" exact="ware.inv_seminar_management_1"/>
+            </do_if>
+            <do_if value="$agent_mgmt ge 6">
+              <set_value name="$agent_sem" exact="ware.inv_seminar_management_2"/>
+            </do_if>
+            <do_if value="$agent_mgmt ge 9">
+              <set_value name="$agent_sem" exact="ware.inv_seminar_management_3"/>
+            </do_if>
+            <do_if value="$agent_mgmt ge 12">
+              <set_value name="$agent_sem" exact="ware.inv_seminar_management_4"/>
+            </do_if>
+            <do_if value="player.entity.inventory.{$agent_sem}.count gt 0">
+              <set_value name="$agent_inc" exact="3"/>
+              <do_if value="$agent_mgmt gt 12">
+                <set_value name="$agent_inc" exact="15 - $agent_mgmt"/>
+              </do_if>
+              <add_skill entity="$agent_manager" type="skilltype.management" exact="$agent_inc"/>
+              <remove_inventory ware="$agent_sem"/>
+              <write_to_logbook category="general"
+                text="'[x4-agent] ORDER: manager of %s from %s to %s management with %s'.[$agent_station.idcode, $agent_mgmt, $agent_manager.skill.management, $agent_sem.name]"/>
+            </do_if>
+            <do_else>
+              <write_to_logbook category="general"
+                text="'[x4-agent] REFUSED: seminar: %s is not in the inventory for the manager of %s'.[$agent_sem.name, $agent_station.idcode]"/>
+            </do_else>
+          </do_if>
+          <do_else>
+            <write_to_logbook category="general"
+              text="'[x4-agent] REFUSED: seminar: %s has no manager below the top skill'.[$agent_station.idcode]"/>
+          </do_else>
+        </do_if>
+
         <do_if value="event.param == 'budget %s low'.[$agent_station.idcode]">
           <set_value name="$agent_budget" exact="player.money / 10"/>
           <set_value name="$agent_handled" exact="1"/>
@@ -265,6 +311,30 @@
           <set_value name="$agent_ware" exact="ware.siliconwafers"/>
           <set_value name="$agent_module" exact="macro.prod_gen_siliconwafers_macro"/>
           <set_value name="$agent_solidinput" exact="true"/>
+        </do_if>
+
+        <!-- 3.7: a small habitat, of the race Python chose from the station's
+             own modules. $agent_ware is the module's own ware, so the logbook
+             line names it. -->
+        <do_if value="event.param == 'expand %s habitation_arg'.[$agent_station.idcode]">
+          <set_value name="$agent_ware" exact="ware.module_arg_hab_s_01"/>
+          <set_value name="$agent_module" exact="macro.hab_arg_s_01_macro"/>
+        </do_if>
+        <do_if value="event.param == 'expand %s habitation_tel'.[$agent_station.idcode]">
+          <set_value name="$agent_ware" exact="ware.module_tel_hab_s_01"/>
+          <set_value name="$agent_module" exact="macro.hab_tel_s_01_macro"/>
+        </do_if>
+        <do_if value="event.param == 'expand %s habitation_par'.[$agent_station.idcode]">
+          <set_value name="$agent_ware" exact="ware.module_par_hab_s_01"/>
+          <set_value name="$agent_module" exact="macro.hab_par_s_01_macro"/>
+        </do_if>
+        <do_if value="event.param == 'expand %s habitation_spl'.[$agent_station.idcode]">
+          <set_value name="$agent_ware" exact="ware.module_spl_hab_s_01"/>
+          <set_value name="$agent_module" exact="macro.hab_spl_s_01_macro"/>
+        </do_if>
+        <do_if value="event.param == 'expand %s habitation_ter'.[$agent_station.idcode]">
+          <set_value name="$agent_ware" exact="ware.module_ter_hab_s_01"/>
+          <set_value name="$agent_module" exact="macro.hab_ter_s_01_macro"/>
         </do_if>
 
         <do_if value="@$agent_ware">
@@ -543,6 +613,19 @@
             </do_if>
           </do_if>
 
+          <!-- Supplying the station's own build storage, so an expansion gets
+               its wares from our ships instead of waiting for NPC traders.
+               assignment.tradeforbuildstorage: "Trades for a station's
+               buildstorage. Only available to station subordinates."
+               (libraries/common.xsd). -->
+          <do_if value="event.param == 'assign %s %s buildstorage'.[$agent_ship.idcode, $agent_station.idcode]">
+            <set_value name="$agent_handled" exact="1"/>
+            <set_object_commander object="$agent_ship" commander="$agent_station"
+                                  assignment="assignment.tradeforbuildstorage"/>
+            <write_to_logbook category="general"
+              text="'[x4-agent] ORDER: %s now supplies the build storage of %s'.[$agent_ship.idcode, $agent_station.idcode]"/>
+          </do_if>
+
           <do_if value="event.param == 'assign %s %s mine'.[$agent_ship.idcode, $agent_station.idcode]">
             <set_value name="$agent_handled" exact="1"/>
             <do_if value="@$agent_ship.commander != $agent_station">
@@ -589,6 +672,145 @@
   <!-- Tell the agent a savegame has been written, so it can read fresh state.
        This fires for player saves too, which is useful: saving the game is a
        natural moment to replan. -->
+  <!-- 4.8 early warning. A destroyed ship vanishes from the save together with
+       its killer, and an attack shows only as a timestamp. These are MD events
+       and they resolve on this build (X4Native's typed hooks do not, see
+       tasks/lessons.md L8d). Event parameters as md/notifications.xml uses
+       them. Each writes one logbook line, which the agent reads back, and
+       tells the host, which then plans at once instead of waiting. Attacks
+       are throttled per object to one line every five minutes. -->
+  <cue name="Owned_Attacked" instantiate="true">
+    <conditions>
+      <event_player_owned_attacked_object comment="param == attacker, param2 == target"/>
+      <check_value value="event.param2.isclass.ship or event.param2.isclass.station"/>
+      <check_value value="event.param.trueowner != event.param2.trueowner"/>
+    </conditions>
+    <actions>
+      <do_if value="not @event.param2.$x4agent_attacked or player.age gt event.param2.$x4agent_attacked + 300s">
+        <set_value name="event.param2.$x4agent_attacked" exact="player.age"/>
+        <write_to_logbook category="general"
+          text="'[x4-agent] ATTACKED: %s by %s (%s)'.[event.param2.idcode, @event.param.idcode, @event.param.owner.knownname]"/>
+        <signal_cue_instantly cue="md.Named_Pipes.Write"
+          param="table[$pipe = 'x4_agent', $msg = 'event attacked %s'.[event.param2.idcode]]"/>
+      </do_if>
+    </actions>
+  </cue>
+
+  <cue name="Owned_Destroyed" instantiate="true">
+    <conditions>
+      <event_player_owned_destroyed/>
+      <check_value value="event.param.isclass.ship or event.param.isclass.station"/>
+      <check_value value="event.param3 != killmethod.collected and event.param3 != killmethod.removed"/>
+    </conditions>
+    <actions>
+      <write_to_logbook category="general"
+        text="'[x4-agent] DESTROYED: %s by %s (%s)'.[event.param.idcode, @event.param2.idcode, @event.param2.owner.knownname]"/>
+      <signal_cue_instantly cue="md.Named_Pipes.Write"
+        param="table[$pipe = 'x4_agent', $msg = 'event destroyed %s'.[event.param.idcode]]"/>
+    </actions>
+  </cue>
+
+  <!-- 3.8 the player outranks the agent, as a button. The Interact Menu API
+       (sn_mod_support_apis, md/interact_menu_api.xml) signals Get_Actions when
+       a context menu opens; we add one action to ships of ours. The choice is
+       kept on the ship ($x4agent_reserved), written to the logbook, which the
+       agent reads, and told to the host. -->
+  <cue name="Agent_Interact_Actions" instantiate="true">
+    <conditions>
+      <event_cue_signalled cue="md.Interact_Menu_API.Get_Actions"/>
+    </conditions>
+    <actions>
+      <set_value name="$target" exact="event.param.$object"/>
+      <do_if value="@$target.isclass.{class.ship} and @$target.isplayerowned">
+        <do_if value="@$target.$x4agent_reserved">
+          <signal_cue_instantly cue="md.Interact_Menu_API.Add_Action"
+            param="table[$id = 'x4agent_release', $text = 'x4-agent: hand this ship back',
+                         $section = 'main', $callback = Agent_Interact_Callback, $echo = 'off']"/>
+        </do_if>
+        <do_else>
+          <signal_cue_instantly cue="md.Interact_Menu_API.Add_Action"
+            param="table[$id = 'x4agent_reserve', $text = 'x4-agent: keep this ship for me',
+                         $section = 'main', $callback = Agent_Interact_Callback, $echo = 'on']"/>
+        </do_else>
+      </do_if>
+    </actions>
+  </cue>
+
+  <cue name="Agent_Interact_Callback" instantiate="true">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>
+    <actions>
+      <set_value name="$ship" exact="event.param.$object"/>
+      <do_if value="event.param.$echo == 'on'">
+        <set_value name="$ship.$x4agent_reserved" exact="true"/>
+      </do_if>
+      <do_else>
+        <remove_value name="$ship.$x4agent_reserved"/>
+      </do_else>
+      <write_to_logbook category="general"
+        text="'[x4-agent] RESERVED: %s %s'.[$ship.idcode, event.param.$echo]"/>
+      <signal_cue_instantly cue="md.Named_Pipes.Write"
+        param="table[$pipe = 'x4_agent', $msg = 'reserved %s %s'.[$ship.idcode, event.param.$echo]]"/>
+    </actions>
+  </cue>
+
+  <!-- 3.9 a panel in the game: the last cycle's goals, commands and refusals.
+       The host sends one line at a time; MD cannot take a string apart, so the
+       Lua side forwards each line as a UI event and MD only keeps the list.
+       The Simple Menu API (md/simple_menu_api.xml) renders it as an options
+       menu; opening it writes a logbook line, so a run can see it was shown. -->
+  <cue name="Agent_Panel_Store">
+    <actions>
+      <set_value name="$lines" exact="[]"/>
+    </actions>
+  </cue>
+
+  <cue name="Agent_Panel_Line" instantiate="true">
+    <conditions>
+      <event_ui_triggered screen="'X4Agent'" control="'panel'"/>
+    </conditions>
+    <actions>
+      <do_if value="Agent_Panel_Store.$lines.count lt 30">
+        <append_to_list name="Agent_Panel_Store.$lines" exact="event.param3"/>
+      </do_if>
+    </actions>
+  </cue>
+
+  <cue name="Agent_Panel_Clear" instantiate="true">
+    <conditions>
+      <event_ui_triggered screen="'X4Agent'" control="'panelclear'"/>
+    </conditions>
+    <actions>
+      <set_value name="Agent_Panel_Store.$lines" exact="[]"/>
+    </actions>
+  </cue>
+
+  <cue name="Agent_Panel_Register" instantiate="true" namespace="this">
+    <conditions>
+      <event_cue_signalled cue="md.Simple_Menu_API.Reloaded"/>
+    </conditions>
+    <actions>
+      <signal_cue_instantly cue="md.Simple_Menu_API.Register_Options_Menu"
+        param="table[$id = 'x4agent_panel', $title = 'x4-agent', $onOpen = Agent_Panel_Open, $columns = 1]"/>
+    </actions>
+  </cue>
+
+  <cue name="Agent_Panel_Open" instantiate="true" namespace="this">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>
+    <actions>
+      <do_for_each name="$line" in="Agent_Panel_Store.$lines">
+        <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row" param="table[$selectable = false]"/>
+        <signal_cue_instantly cue="md.Simple_Menu_API.Make_Text"
+          param="table[$col = 1, $text = $line, $wordwrap = true]"/>
+      </do_for_each>
+      <write_to_logbook category="general"
+        text="'[x4-agent] PANEL opened with %s lines'.[Agent_Panel_Store.$lines.count]"/>
+    </actions>
+  </cue>
+
   <cue name="On_Game_Saved" instantiate="true">
     <conditions>
       <event_game_saved/>

@@ -208,3 +208,20 @@ Located 2026-10-18 in 9.00 saves (build 611726).
 Module macro and blueprint ware are different names for the same thing
 (`storage_tel_s_container_01_macro` is bought as `module_tel_stor_container_s_01`).
 Anything that checks whether a module can be built goes through the table.
+
+## Read since (2026-10-18, later)
+
+| What | Where | Notes |
+|------|-------|-------|
+| Reputation | `faction[@id="player"]/relations/relation/@relation` plus `booster` | -1 to 1. The effective standing is base plus boosters. Licence thresholds (`libraries/factions.xml`, `minrelation`) are on the same scale: ceremonyfriend 0.01, ceremonyally 0.1. |
+| Licences | `faction[@id="player"]/licences/licence/@type,@factions` | `factions` is a space-separated list. Most licences carry no price and come with a promotion ceremony the player attends; only a few (`tradesubscription`) are for sale. |
+| Occupied ship | `component[@class="player"]/@lastcontrolled` | A component id; resolved to a code after the pass. |
+| Player inventory | `component[@class="player"]/inventory/ware` | A missing `amount` is one. Seminars in other places (data vaults, traders' stock) are not the player's. |
+| Logbook | `log/entry/@time,@text` | The bridge's lines start `[x4-agent`; Lua refusals carry `REFUSED:`, MD's early warning `ATTACKED:`/`DESTROYED:`, the ledger `LEDGER`. |
+| Hostiles seen | components with `knownto="player"` owned by Xenon, Kha'ak or a faction at or below -0.32 | Counted per sector and class. |
+| NPC construction vessels | `ship_l`/`ship_xl` with `builder` in the macro, `knownto="player"` | Hire candidates; whether one is busy only the game knows. |
+| Workforce | station `workforces/workforce/@race,@amount` | Capacity is the sum of `<workforce capacity>` in the station's habitation module macros. |
+| Hull | ship `hull/@value` | Only written when damaged; the maximum is `<hull max>` in the ship macro (`data/ships.json`). |
+| Commander groups | commander `subordinates/group/@index,@assignmment` | Ships carry only `subordinate/@group`; the save has no pointer from a ship to its commander. |
+| Station and build storage link | station `connections/connection[@connection="buildingmodule"]/@id` = build storage `.//connection[@connection="buildanchor"]/connected/@connection` | |
+| Build processor | build storage `.//component[@class="buildprocessor"]/build/@state,@constructionvesselrequired` | `waitingforresources` and the like: the game's own reason a build is not moving. |

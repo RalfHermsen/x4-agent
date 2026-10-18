@@ -22,10 +22,14 @@ something looks wrong.
 from __future__ import annotations
 
 import json
+import os
 import time
 from pathlib import Path
 
-STORE = Path(__file__).parent / "logs" / "memory.json"
+# X4_AGENT_MEMORY points an experiment at its own store, so a test run never
+# writes into the live agent's memory.
+STORE = Path(os.environ.get("X4_AGENT_MEMORY")
+             or Path(__file__).parent / "logs" / "memory.json")
 
 # How a sent command shows up in the world if it worked. The value is the order
 # name the ship should be carrying, or "commander" for an assignment.
@@ -34,6 +38,7 @@ EXPECTED = {
     "autotrade": "TradeRoutine",
     "automine": "MiningRoutine",
     "assign": "commander",
+    "command": "commander",
 }
 
 
@@ -42,10 +47,12 @@ EXPECTED = {
 # visible in the savegame, so the "is this already true" gate cannot see them.
 # Without this the agent re-sends the same setting every cycle for ever, on a
 # pipe that accepts one command every two seconds.
-CONFIGURATION = ("traderule", "price", "tradeware")
+CONFIGURATION = ("traderule", "price", "tradeware", "limit")
 
 _EMPTY = {"goals": [], "pending": [], "applied": {}, "fleet": {},
-          "explore_retried": {}, "refused": [], "funded": {}, "expansions": {}}
+          "explore_retried": {}, "refused": [], "funded": {}, "expansions": {},
+          "purchases": {}, "blueprint_factions": [], "logbook_seen": -1.0,
+          "feeders": {}, "standing": {}, "ledger": {}, "reserved": []}
 
 
 # The path is looked up at call time rather than bound as a default, so a test
@@ -97,7 +104,13 @@ def check_fleet(data: dict, state: dict, ship_type) -> list[str]:
         return []
     gone = [(code, kind) for code, kind in before.items()
             if code not in now and kind not in BORROWED]
-    return [f"{code} ({kind}) was in the fleet last cycle and is not there now."
+    killed = {}
+    for _, text in state.get("logbook", []):
+        if "DESTROYED:" in text:
+            what = text.split("DESTROYED:", 1)[1].strip()
+            killed[what.split(" ", 1)[0]] = what
+    return [f"{code} ({kind}) was in the fleet last cycle and is not there now"
+            + (f": destroyed, {killed[code].split(' ', 1)[1]}." if code in killed else ".")
             for code, kind in sorted(gone)]
 
 
@@ -210,8 +223,9 @@ def start_expansions(data: dict, commands: list[str], state: dict,
 
 def _observed_stage(entry: dict, station: dict, storage: dict, ware: str) -> int:
     """The furthest stage the save shows, judged from the far end backwards."""
-    if ((station.get("modules") or []).count(entry["module"]) > entry["modules_before"]
-            and ware in (station.get("production_queue") or [])):
+    built = (station.get("modules") or []).count(entry["module"]) > entry["modules_before"]
+    # A habitat produces nothing; it is done when it stands.
+    if built and (ware.startswith("habitation") or ware in (station.get("production_queue") or [])):
         return _STAGE["done"]
     build = storage.get("build") or {}
     if not (build.get("queued") or build.get("in_progress")):
@@ -268,6 +282,54 @@ def track_expansions(data: dict, state: dict) -> list[str]:
     return lines
 
 
+def game_refusals(data: dict, state: dict) -> list[str]:
+    """What the Lua side refused since the last cycle, from the logbook.
+
+    A verb that MD forwards to Lua can be refused there (no licence, ship not
+    docked, too little money), and the refusal was written into the game's
+    logbook and read by nobody. Every refusal on the Lua side starts with
+    REFUSED:, so it can be told from confirmations.
+    """
+    seen = data.get("logbook_seen", -1.0)
+    lines = []
+    for when, text in state.get("logbook", []):
+        if when <= seen:
+            continue
+        seen = max(seen, when)
+        if "REFUSED:" in text:
+            lines.append("the game refused: " + text.split("REFUSED:", 1)[1].strip())
+        elif "ATTACKED:" in text or "DESTROYED:" in text:
+            # MD's early warning (4.8): what hit or killed one of ours, by whom.
+            lines.append("the game reports: " + text.split("] ", 1)[-1].strip())
+        elif "RESERVED:" in text:
+            # 3.8: the player took a ship back, or handed it to the agent again.
+            parts = text.split("RESERVED:", 1)[1].split()
+            if len(parts) == 2:
+                reserved = set(data.get("reserved", []))
+                (reserved.add if parts[1] == "on" else reserved.discard)(parts[0])
+                data["reserved"] = sorted(reserved)
+                lines.append(f"the player {'took' if parts[1] == 'on' else 'handed back'} "
+                             f"{parts[0]}" + (" and keeps it" if parts[1] == "on" else ""))
+        elif "LEDGER " in text:
+            # The ledger verb (4.7): what each station paid NPC sellers.
+            parts = text.split("LEDGER ", 1)[1].split()
+            if len(parts) >= 3 and parts[2].startswith("paid_to_npcs="):
+                data.setdefault("ledger", {})[parts[0]] = {
+                    "hours": parts[1], "paid": int(parts[2].split("=", 1)[1] or 0),
+                    "wares": dict(p.split("=", 1) for p in parts[3:] if "=" in p),
+                    "time": when}
+    data["logbook_seen"] = seen
+    return lines
+
+
+_ROLE_NAMES = {"mine": "mining", "trade": "trade", "defend": "defence",
+               "buildstorage": "tradeforbuildstorage", "intercept": "interception"}
+
+
+def _same_role(game_role: str, command_role: str) -> bool:
+    return game_role == _ROLE_NAMES.get(command_role, command_role)
+
+
 def _ship_state(state: dict, code: str) -> dict | None:
     return next((a for a in state.get("assets", []) if a.get("code") == code), None)
 
@@ -295,12 +357,21 @@ def check(data: dict, state: dict) -> list[str]:
             continue
 
         if expected == "commander":
-            # An assignment shows up as the ship having a commander. The parser
-            # does not read that yet, so judge it by the ship no longer idling.
-            order = (asset.get("orders") or [{}])[0].get("order")
-            if order in (None, "Wait"):
+            # An assignment shows up as the ship carrying a subordinate group
+            # (<subordinate group="N"/>); the commander holds what group N does.
+            # Idleness used to stand in for this and was wrong both ways: an
+            # assigned trader can sit waiting, a freelancer can look busy.
+            group = (asset.get("assignment") or {}).get("group")
+            if group is None:
                 failures.append(
-                    f"{entry['command']!r}: {ship} is still idle afterwards")
+                    f"{entry['command']!r}: {ship} is not a subordinate afterwards")
+            else:
+                commander = _ship_state(state, parts[2]) if len(parts) > 2 else None
+                role = ((commander or {}).get("assignment") or {}).get("groups", {}).get(str(group))                     or ((commander or {}).get("assignment") or {}).get("groups", {}).get(group)
+                wanted = parts[3] if len(parts) > 3 else None
+                if commander and wanted and role and not _same_role(role, wanted):
+                    failures.append(f"{entry['command']!r}: {ship} is in group {group}, "
+                                    f"which {parts[2]} uses for {role}")
             continue
 
         order = (asset.get("orders") or [{}])[0].get("order")

@@ -32,6 +32,13 @@ ASSET_CLASSES = SHIP_CLASSES | {"station", "buildstorage"}
 PLACE_CLASSES = ("galaxy", "cluster", "sector", "zone")
 # Depth at which finished subtrees are released.
 CLEAR_DEPTH = 4
+# How far back, in game seconds, the bridge's logbook lines are kept.
+LOGBOOK_WINDOW = 7200
+# A faction at or below this standing with the player shoots on sight. The save
+# keeps Yaki and outlaws at -0.32 and Xenon and Kha'ak at -1, and the game's
+# own UI calls both hostile.
+HOSTILE_AT = -0.32
+ALWAYS_HOSTILE = {"xenon", "khaak"}
 
 
 # --------------------------------------------------------------------------- #
@@ -74,6 +81,8 @@ class Asset:
     modules: list[str] = field(default_factory=list)   # stations: built module macros
     capacity: dict[str, int] = field(default_factory=dict)  # stations: cargo type -> max
     plot: dict[str, int] = field(default_factory=dict)  # stations: buildplot half-extents, m
+    workforce: dict = field(default_factory=dict)  # stations: {"amount": {race: n}, "capacity": n}
+    hull: float | None = None   # ships: current hull, only written when damaged
     # A station and its build storage are linked by a connection pair: the
     # station's "buildingmodule" connection id appears as <connected> inside the
     # build storage. Resolved to codes after the pass, both ways.
@@ -449,6 +458,15 @@ def _asset(elem, ancestors: list[dict]) -> Asset:
         asset.build = _build_tasks(elem)
         asset.build["builders"] = _builders(elem)
         asset.build["processor"] = _processor(elem)
+    if asset.cls in SHIP_CLASSES:
+        hull = elem.find("hull")
+        if hull is not None and hull.get("value"):
+            asset.hull = float(hull.get("value"))
+        # A ship that commands others carries their roles the same way a
+        # station does: <subordinates><group index=".." assignmment=".."/>.
+        groups = _groups(elem)
+        if groups:
+            asset.assignment = dict(asset.assignment, groups=groups)
     if asset.cls == "station":
         asset.reservations = _reservations(elem)
         asset.assignment = {"groups": _groups(elem)}
@@ -463,6 +481,15 @@ def _asset(elem, ancestors: list[dict]) -> Asset:
         asset.modules = [c.get("macro") for c in
                          elem.iterfind("connections/connection/component[@construction]")]
         asset.capacity = gamedata.capacity(asset.modules)
+        # Workforce: <workforces><workforce race=".." amount=".."/></workforces>
+        # on the station; capacity is the sum over its habitation modules.
+        table = gamedata.modules()
+        asset.workforce = {
+            "amount": {w.get("race"): _int(w.get("amount")) or 0
+                       for w in elem.iterfind("workforces/workforce") if w.get("race")},
+            "capacity": sum(((table.get(m) or {}).get("workforce") or {}).get("capacity", 0)
+                            for m in asset.modules),
+        }
         plot = elem.find("buildplot/max")
         if plot is not None:
             asset.plot = {k: int(float(v)) for k, v in plot.items()}
@@ -530,6 +557,13 @@ def parse_save(path: str | os.PathLike) -> dict:
     assets: list[Asset] = []
     market: list[Asset] = []
     eyes: set[str] = set()   # sectors holding a satellite or beacon of ours
+    logbook: list[list] = []
+    # Hostile ships and stations the player has seen, per sector: what a
+    # threat assessment can honestly know (knownto="player", as for markets).
+    hostiles: dict[str, dict[str, dict[str, int]]] = {}
+    # Construction vessels of other factions the player has seen: who could be
+    # hired for a build of ours. Whether one is busy only the game knows.
+    builders: list[dict] = []
     # Component id -> sector macro. Orders point at sectors by id, so without
     # this an Explore order is an opaque "[0x2a340]" and there is no way to see
     # that a scout has been sent to explore the sector it is already sitting in.
@@ -559,6 +593,11 @@ def parse_save(path: str | os.PathLike) -> dict:
                 # prices and unlike player.money on the Mission Director side.
                 player.update({"name": elem.get("name"),
                                "money": _int(elem.get("money"))})
+            elif (elem.tag == "entry" and len(stack) > 1 and stack[-2] == "log"
+                  and (elem.get("text") or "").startswith("[x4-agent")):
+                # What the bridge wrote into the player's logbook: its orders, and
+                # the Lua side's refusals, which nothing else reports.
+                logbook.append([float(elem.get("time") or 0), elem.get("text")])
             elif elem.tag == "component":
                 comps.append({"cls": elem.get("class"), "macro": elem.get("macro"),
                               "code": elem.get("code"), "owner": elem.get("owner"),
@@ -575,8 +614,32 @@ def parse_save(path: str | os.PathLike) -> dict:
                     player["blueprints"] = sorted(
                         b.get("ware") for b in elem.iterfind("blueprints/blueprint")
                         if b.get("ware"))
+                    # The ship the player sits in, by component id; resolved to a
+                    # code after the pass. Never one to send on an errand.
+                    player["_lastcontrolled"] = elem.get("lastcontrolled")
+                    # What the player carries: seminars among it. A missing
+                    # amount is one (lesson L1: omitted values have a meaning).
+                    player["inventory"] = {
+                        w.get("ware"): _int(w.get("amount")) or 1
+                        for w in elem.iterfind("inventory/ware") if w.get("ware")}
                 if cls == "sector" and elem.get("id"):
                     sectors[elem.get("id")] = current["macro"]
+                owner = current["owner"]
+                if (cls in ("ship_l", "ship_xl") and owner and owner != "player"
+                        and current["knownto"] == "player"
+                        and "builder" in (current["macro"] or "")):
+                    builders.append({"code": current["code"], "owner": owner,
+                                     "sector": next((a.get("macro") for a in reversed(comps)
+                                                     if a["cls"] == "sector"), None)})
+                if ((cls in SHIP_CLASSES or cls == "station") and owner and owner != "player"
+                        and current["knownto"] == "player"
+                        and (owner in ALWAYS_HOSTILE
+                             or (player.get("relations") or {}).get(owner, 0) <= HOSTILE_AT)):
+                    sector = next((a.get("macro") for a in reversed(comps)
+                                   if a["cls"] == "sector"), None)
+                    if sector:
+                        counts = hostiles.setdefault(sector, {}).setdefault(owner, {})
+                        counts[cls] = counts.get(cls, 0) + 1
                 if cls in ASSET_CLASSES:
                     if current["owner"] == "player":
                         assets.append(_asset(elem, comps))
@@ -586,6 +649,21 @@ def parse_save(path: str | os.PathLike) -> dict:
                     for anc in comps:
                         if anc["cls"] == "sector":
                             eyes.add(anc.get("macro"))
+
+            if elem.tag == "faction" and elem.get("id") == "player":
+                # Reputation and licences. The effective standing is the base
+                # relation plus any boosters, the temporary gains from recent
+                # deeds; licence thresholds are on the same -1..1 scale.
+                relations: dict[str, float] = {}
+                for node in elem.iterfind("relations/*"):
+                    faction, value = node.get("faction"), node.get("relation")
+                    if faction and value:
+                        relations[faction] = relations.get(faction, 0.0) + float(value)
+                player["relations"] = {k: round(v, 4) for k, v in relations.items()}
+                player["licences"] = [
+                    {"type": node.get("type"), "faction": faction}
+                    for node in elem.iterfind("licences/licence")
+                    for faction in (node.get("factions") or "").split()]
 
             if depth == CLEAR_DEPTH:
                 elem.clear()
@@ -600,6 +678,9 @@ def parse_save(path: str | os.PathLike) -> dict:
             target = (order.get("params") or {}).get("targetspace")
             if target and target in sectors:
                 order["target_sector"] = sectors[target]
+
+    by_id = {a.id: a.code for a in assets if a.id}
+    player["occupied_ship"] = by_id.get(player.pop("_lastcontrolled", None))
 
     by_link = {link: a for a in assets if a.cls == "station" for link in a.links}
     for storage in (a for a in assets if a.cls == "buildstorage"):
@@ -618,6 +699,13 @@ def parse_save(path: str | os.PathLike) -> dict:
         # What was withheld, so the report can say so instead of quietly
         # showing a smaller market than the player has explored.
         "unseen_stations": len(market) - len(visible),
+        "hostiles": hostiles,
+        "builders": builders,
+        # Sectors where we have eyes: a satellite, beacon or probe of ours.
+        "eyes": sorted(e for e in eyes if e),
+        # The last two game hours of the bridge's logbook lines, oldest first.
+        "logbook": [e for e in logbook
+                    if e[0] >= (meta.get("playtime_s") or 0) - LOGBOOK_WINDOW],
     }
 
 

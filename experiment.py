@@ -1,0 +1,238 @@
+"""One unattended run of the agent in the real game, measured.
+
+Launch the game, load a baseline save, start the host in advise or execute
+mode, let the game run, save into the agent's own slot, stop, and compare the
+result with the baseline on the scorecard. Everything the run produces goes
+into one folder under out/experiments/, and the player's own saves are put
+back exactly as they were.
+
+The player's saves: the game autosaves on its own interval during a long run,
+and those slots hold the newest state of whatever the player played last. So
+before launching, autosave_01 to 03 and the quicksave are copied into the run
+folder, and after the game has exited, any of them that changed is copied
+back. The run writes only save_008, the agent's slot (tasks/lessons.md L6e).
+
+Usage:
+    python experiment.py --load save_007 --mode advise --minutes 120
+    python experiment.py --load save_007 --mode execute --minutes 120
+    python experiment.py --load quicksave --mode execute --script s.json \\
+        --until-blueprint module_tel_conn_cross_01 --minutes 30
+
+The Ollama URL comes from X4_OLLAMA_URL; a scripted run needs no model.
+"""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import os
+import shutil
+import subprocess
+import sys
+import time
+from datetime import datetime
+from pathlib import Path
+
+import launch_game
+import score
+from save_parser import documents_dir, parse_save
+
+REPO = Path(__file__).parent
+OUTBOX = REPO / "logs" / "outbox.txt"
+AGENT_SLOT = "save_008"
+PROTECTED = ("autosave_01", "autosave_02", "autosave_03", "quicksave")
+
+
+def save_dir(load: str) -> Path:
+    """The profile's save folder that holds the save to load.
+
+    Not simply the first one: a profile can have more than one numbered folder
+    (an empty numbered folder sorted before the real one here), and the first version
+    of this picked the empty one, snapshotted nothing and watched a slot that
+    never changed.
+    """
+    root = documents_dir() / "Egosoft" / "X4"
+    holding = sorted(p.parent for p in root.glob(f"*/save/{load}.xml.gz"))
+    if not holding:
+        raise SystemExit(f"no {load}.xml.gz in any save folder under {root}")
+    return holding[0]
+
+
+def _md5(path: Path) -> str:
+    return hashlib.md5(path.read_bytes()).hexdigest()
+
+
+def snapshot(folder: Path, into: Path) -> dict[str, str]:
+    into.mkdir(parents=True, exist_ok=True)
+    sums = {}
+    for name in PROTECTED:
+        src = folder / f"{name}.xml.gz"
+        if src.exists():
+            shutil.copy2(src, into / src.name)
+            sums[src.name] = _md5(src)
+    return sums
+
+
+def restore(folder: Path, frm: Path, sums: dict[str, str]) -> list[str]:
+    """Put back every protected save that changed. Only after the game exited."""
+    restored = []
+    for name, digest in sums.items():
+        live = folder / name
+        if not live.exists() or _md5(live) != digest:
+            shutil.copy2(frm / name, live)
+            restored.append(name)
+    return restored
+
+
+def log(run_dir: Path, message: str) -> None:
+    line = f"[{datetime.now():%H:%M:%S}] {message}"
+    print(line, flush=True)
+    with (run_dir / "run.log").open("a", encoding="utf-8") as handle:
+        handle.write(line + "\n")
+
+
+def start_host(run_dir: Path, mode: str, interval: int, script: Path | None) -> subprocess.Popen:
+    env = dict(os.environ)
+    env["X4_AGENT_MEMORY"] = str(run_dir / "memory.json")
+    env["X4_AGENT_LOG"] = str(run_dir / "agent.log")
+    env["X4_AGENT_SAVE_VERB"] = "savegame"
+    if script:
+        env["X4_AGENT_SCRIPT"] = str(script)
+    args = [sys.executable, str(REPO / "run_host.py"), "--interval", str(interval)]
+    if mode == "execute":
+        args.append("--execute")
+    out = (run_dir / "host.log").open("w", encoding="utf-8")
+    return subprocess.Popen(args, env=env, stdout=out, stderr=subprocess.STDOUT, cwd=REPO)
+
+
+def wait_connected(run_dir: Path, timeout: float = 90) -> bool:
+    start = time.monotonic()
+    while time.monotonic() - start < timeout:
+        try:
+            if "X4 connected" in (run_dir / "host.log").read_text(encoding="utf-8", errors="replace"):
+                return True
+        except OSError:
+            pass
+        time.sleep(2)
+    return False
+
+
+def request_save(slot: Path, timeout: float = 150) -> bool:
+    before = slot.stat().st_mtime if slot.exists() else 0
+    OUTBOX.parent.mkdir(parents=True, exist_ok=True)
+    with OUTBOX.open("a", encoding="utf-8") as handle:
+        handle.write("savegame\n")
+    start = time.monotonic()
+    while time.monotonic() - start < timeout:
+        if slot.exists() and slot.stat().st_mtime > before:
+            return True
+        time.sleep(2)
+    return False
+
+
+def stop_host(proc: subprocess.Popen) -> None:
+    import run_host
+    proc.terminate()
+    try:
+        proc.wait(timeout=10)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+    stale = run_host.running_hosts()
+    if stale:
+        run_host.stop(stale)
+
+
+def main() -> int:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    parser = argparse.ArgumentParser(description=__doc__,
+                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--load", default="save_007")
+    parser.add_argument("--mode", choices=("advise", "execute"), default="advise")
+    parser.add_argument("--minutes", type=float, default=120)
+    parser.add_argument("--interval", type=int, default=180, help="host planning interval, s")
+    parser.add_argument("--script", type=Path, help="scripted planner responses (JSON list)")
+    parser.add_argument("--until-blueprint", help="stop early once this ware is held")
+    parser.add_argument("--name", default="", help="suffix for the run folder")
+    args = parser.parse_args()
+
+    folder = save_dir(args.load)
+    slot = folder / f"{AGENT_SLOT}.xml.gz"
+    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    run_dir = REPO / "out" / "experiments" / f"{stamp}-{args.mode}{'-' + args.name if args.name else ''}"
+    run_dir.mkdir(parents=True, exist_ok=True)
+    baseline = REPO / "saves" / "reference" / f"{args.load}.xml.gz"
+    if not baseline.exists():
+        baseline = folder / f"{args.load}.xml.gz"
+    commit = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=REPO,
+                            capture_output=True, text=True).stdout.strip()
+    (run_dir / "run.json").write_text(json.dumps({
+        "load": args.load, "baseline": str(baseline), "mode": args.mode,
+        "minutes": args.minutes, "interval": args.interval,
+        "script": str(args.script) if args.script else None,
+        "until_blueprint": args.until_blueprint, "commit": commit,
+        "started": datetime.now().isoformat(timespec="seconds")}, indent=2), encoding="utf-8")
+
+    if launch_game.running():
+        log(run_dir, "X4 is already running; not starting an experiment on top of it")
+        return 2
+    sums = snapshot(folder, run_dir / "player-saves")
+    if not sums:
+        log(run_dir, f"no protected saves found in {folder}; refusing to run without a copy")
+        return 2
+    log(run_dir, f"protected saves copied: {', '.join(sums)}")
+    proc = None
+    code = 1
+    try:
+        if launch_game.launch(180) != 0 or launch_game.load(args.load, 180) != 0:
+            log(run_dir, "could not launch or load")
+            return 1
+        proc = start_host(run_dir, args.mode, args.interval, args.script)
+        if not wait_connected(run_dir):
+            log(run_dir, "host did not connect")
+            return 1
+        log(run_dir, f"running {args.mode} for up to {args.minutes:.0f} min from {args.load}")
+        end = time.monotonic() + args.minutes * 60
+        seen = slot.stat().st_mtime if slot.exists() else 0
+        next_note = time.monotonic() + 600
+        while time.monotonic() < end:
+            time.sleep(20)
+            if time.monotonic() >= next_note:
+                log(run_dir, f"{(end - time.monotonic()) / 60:.0f} min left")
+                next_note += 600
+            if args.until_blueprint and slot.exists() and slot.stat().st_mtime > seen:
+                seen = slot.stat().st_mtime
+                held = args.until_blueprint in (parse_save(slot)["player"].get("blueprints") or [])
+                try:
+                    jobs = json.loads((run_dir / "memory.json").read_text(encoding="utf-8")).get("purchases", {})
+                except (OSError, json.JSONDecodeError):
+                    jobs = {"?": 1}
+                # Done means bought and the job closed, which is when the ship
+                # is released: both halves are part of the proof.
+                if held and not jobs:
+                    log(run_dir, f"{args.until_blueprint} is held and the job is closed; stopping early")
+                    break
+        if request_save(slot):
+            log(run_dir, f"final state saved into {AGENT_SLOT}")
+            shutil.copy2(slot, run_dir / f"result-{AGENT_SLOT}.xml.gz")
+            card = score.compare(score.score(parse_save(baseline)), score.score(parse_save(slot)))
+            (run_dir / "score.txt").write_text(card, encoding="utf-8")
+            log(run_dir, "scorecard:\n" + card)
+            code = 0
+        else:
+            log(run_dir, "the final save did not arrive")
+    finally:
+        if proc is not None:
+            stop_host(proc)
+        if launch_game.running():
+            launch_game.stop(120)
+        if not launch_game.running():
+            restored = restore(folder, run_dir / "player-saves", sums)
+            log(run_dir, f"player saves restored: {', '.join(restored) or 'none had changed'}")
+        else:
+            log(run_dir, "X4 still running: player saves NOT restored; copies are in player-saves/")
+    return code
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

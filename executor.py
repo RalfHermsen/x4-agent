@@ -65,7 +65,30 @@ EXPANSION_MODULES = {
     "water": ("prod_gen_water_macro", True),
     "refinedmetals": ("prod_gen_refinedmetals_macro", True),
     "siliconwafers": ("prod_gen_siliconwafers_macro", True),
+    # 3.7: a small habitat of the race the station is built from. The model
+    # asks for "habitation"; Python picks the race (habitation_race below).
+    "habitation_arg": ("hab_arg_s_01_macro", False),
+    "habitation_tel": ("hab_tel_s_01_macro", False),
+    "habitation_par": ("hab_par_s_01_macro", False),
+    "habitation_spl": ("hab_spl_s_01_macro", False),
+    "habitation_ter": ("hab_ter_s_01_macro", False),
 }
+HABITAT_RACES = ("arg", "tel", "par", "spl", "ter")
+
+
+def habitation_race(station: dict) -> str:
+    """The race most of the station's race-specific modules are built from.
+
+    Habitats house that race's workforce, and a station's modules already say
+    who built it: pier_tel, struct_arg, prod_tel_... Generic modules (gen) say
+    nothing. Argon when nothing does.
+    """
+    counts: dict[str, int] = {}
+    for macro in station.get("modules") or []:
+        parts = macro.split("_")
+        if len(parts) > 1 and parts[1] in HABITAT_RACES:
+            counts[parts[1]] = counts.get(parts[1], 0) + 1
+    return max(counts, key=counts.get) if counts else "arg"
 SOLID_STORAGE = "storage_tel_m_solid_01_macro"
 EXPANDABLE_WARES = tuple(EXPANSION_MODULES)
 
@@ -400,6 +423,38 @@ def _trade_group(state: dict) -> int | None:
     return None
 
 
+# Roles under a commander ship, and the game's assignment for each.
+SHIP_ROLES = {"attack": "attack", "intercept": "interception", "defend": "defence",
+              "assist": "assist"}
+STATION_ROLES = ("mine", "trade", "defend", "buildstorage")
+# Hulls that may fight in attack and intercept roles. A freighter or a miner
+# under a fighter commander dies in the first engagement it was told to seek.
+COMBAT_HINTS = ("fighter", "corvette", "frigate", "gunboat", "bomber", "heavyfighter",
+                "destroyer", "battleship", "carrier")
+
+
+def _commander_problem(action, state: dict) -> str | None:
+    """Whether this assignment makes sense for the ship and its commander."""
+    assets = {a.get("code"): a for a in state.get("assets", [])}
+    commander = assets.get(action.station_id) or {}
+    ship = assets.get(action.ship_ref) or {}
+    if commander.get("cls") == "station":
+        if action.role not in STATION_ROLES:
+            return f"{action.role} is a role under a ship, not under a station"
+        return None
+    if not (commander.get("cls") or "").startswith("ship"):
+        return f"{action.station_id} is neither a station nor a ship of ours"
+    if action.role not in SHIP_ROLES:
+        return f"{action.role} is a role under a station, not under a ship"
+    if action.ship_ref == action.station_id:
+        return "a ship cannot command itself"
+    if action.role in ("attack", "intercept"):
+        macro = (ship.get("macro") or "").lower()
+        if not any(h in macro for h in COMBAT_HINTS):
+            return f"{action.ship_ref} is not built to fight ({ship.get('macro')})"
+    return None
+
+
 def _assign(action) -> str:
     """assign_ship -> attach a ship to one of our stations as trader or miner."""
     return f"assign {action.ship_ref} {action.station_id} {action.role}"
@@ -464,9 +519,11 @@ def _missing_blueprints(action, state: dict) -> str | None:
     table = gamedata.modules()
     if not table:
         return "cannot check blueprints: no module table (run gamedata.py --modules)"
-    macro, solid_input = EXPANSION_MODULES[action.ware]
     station = next((a for a in state.get("assets", [])
                     if a.get("code") == action.station_id), {})
+    ware = (f"habitation_{habitation_race(station)}" if action.ware == "habitation"
+            else action.ware)
+    macro, solid_input = EXPANSION_MODULES[ware]
     needed = [macro]
     if solid_input and not (station.get("capacity") or {}).get("solid"):
         needed.append(SOLID_STORAGE)
@@ -526,11 +583,193 @@ def funding(state: dict, funded: dict) -> list[str]:
     return commands
 
 
+def own_production_buys(state: dict) -> list[str]:
+    """Stop a station buying a ware it now makes itself.
+
+    A station that gains water production keeps its old buy offer for water,
+    and pays NPC traders for what its own modules deliver. Switching the buy
+    side off is arithmetic. Only for wares nothing at the station eats, read
+    as widely as the recipes allow (every method, plus the workforce), because
+    turning off an input the station needs would stall it: that is the worse
+    failure of the two.
+    """
+    import gamedata
+    table = gamedata.wares()
+    if not table:
+        return []
+    commands = []
+    for station in state.get("assets", []):
+        if station.get("cls") != "station" or not station.get("code"):
+            continue
+        made = set(station.get("production_queue") or [])
+        eaten = gamedata.consumed_by(sorted(made), table)
+        buying = {o["ware"] for o in station.get("offers", [])
+                  if o.get("side") == "buy" and o.get("ware")}
+        for ware in sorted((made & buying) - eaten):
+            commands.append(f"tradeware {station['code']} {ware} buy off")
+    return commands
+
+
+FREIGHTERS = ("container freighter", "freighter")
+# Hull type that carries each transport class. A container freighter cannot
+# load ore, a solid freighter cannot load chips.
+CARRIES = {"container": ("container freighter", "freighter"),
+           "solid": ("solid freighter", "freighter"),
+           "liquid": ("liquid freighter", "freighter")}
+
+
+def plan_haul(action, state: dict, busy: set[str] | None = None) -> tuple[str | None, str | None]:
+    """A one-off haul, checked and sized: (command, None) or (None, reason).
+
+    The model names the ware, the seller, our station and the amount; Python
+    checks the seller really sells it, that our station really buys it, that
+    the price does not exceed what our station pays (a haul must not lose
+    money), and picks a free ship that can carry the ware.
+    """
+    import gamedata
+    import sitrep
+    busy = busy or set()
+    known = {s.get("code"): s for s in state.get("known_stations", [])}
+    assets = {a.get("code"): a for a in state.get("assets", [])}
+    seller, home = known.get(action.from_station), assets.get(action.to_station)
+    if not seller:
+        return None, f"{action.from_station} is not a station we know"
+    if not home or home.get("cls") != "station":
+        return None, f"{action.to_station} is not a station of ours"
+    offer = next((o for o in seller.get("offers", []) if o.get("ware") == action.ware
+                  and o.get("side") == "sell" and (o.get("amount") or 0) > 0), None)
+    if not offer:
+        return None, f"{action.from_station} has no {action.ware} for sale"
+    want = next((o for o in home.get("offers", []) if o.get("ware") == action.ware
+                 and o.get("side") == "buy"), None)
+    if not want:
+        return None, f"{action.to_station} does not buy {action.ware}"
+    price = offer.get("price") or 0
+    if want.get("price") is not None and price > want["price"]:
+        return None, (f"{action.ware} costs {price:.0f} Cr at {action.from_station}, more than "
+                      f"{action.to_station} pays ({want['price']:.0f} Cr)")
+    transport = (gamedata.wares().get(action.ware) or {}).get("transport")
+    hulls = CARRIES.get(transport, ())
+    occupied = state.get("player", {}).get("occupied_ship")
+    ships = [a for a in state.get("assets", [])
+             if sitrep.ship_type(a.get("macro")) in hulls and a.get("code") not in busy
+             and a.get("code") != occupied and (a.get("assignment") or {}).get("group") is None]
+    if not ships:
+        return None, f"no free ship of ours can carry {transport or 'this'} cargo"
+    ship = (sorted(ships, key=lambda a: sitrep.role_of(a) != "IDLE"))[0]
+    amount = max(1, min(action.amount, offer.get("amount") or action.amount))
+    return (f"haul {ship['code']} {action.ware} {action.from_station} {seller.get('owner')} "
+            f"{amount} {int(price) + 1} {action.to_station}"), None
+
+
+def feed_build_storages(state: dict, feeders: dict) -> list[str]:
+    """Give a building station one of our freighters to supply its build.
+
+    A build storage buys what the build needs and waits for whoever brings it,
+    which is NPC traders unless one of ours is assigned. Python, every cycle:
+    a build running with open buy offers gets one freighter, preferably a
+    trader of that station, else an idle freighter; when the build is over the
+    ship goes back to what it did before.
+
+    `feeders` maps station code to {ship, before}. Which station a trader works
+    for is not in the save, only its group number (save_parser._assignment),
+    so "a trader of this station" means: in the station's trade group, and in
+    the station's sector.
+    """
+    import sitrep
+    assets = {a.get("code"): a for a in state.get("assets", [])}
+    occupied = state.get("player", {}).get("occupied_ship")
+    taken = {f["ship"] for f in feeders.values()}
+    commands = []
+    for bs in state.get("assets", []):
+        if bs.get("cls") != "buildstorage" or not bs.get("station"):
+            continue
+        code = bs["station"]
+        build = bs.get("build") or {}
+        building = bool(build.get("queued") or build.get("in_progress"))
+        if code in feeders:
+            if not building:
+                feeder = feeders.pop(code)
+                commands.append(f"assign {feeder['ship']} {code} trade"
+                                if feeder["before"] == "trade" else f"autotrade {feeder['ship']}")
+            continue
+        buying = any(o.get("side") == "buy" and (o.get("amount") or 0) > 0
+                     for o in bs.get("offers", []))
+        if not (building and buying):
+            continue
+        station = assets.get(code) or {}
+        groups = (station.get("assignment") or {}).get("groups") or {}
+        trade_group = next((int(g) for g, role in groups.items() if role == "trade"), None)
+        sector = (station.get("place") or {}).get("sector")
+        freighters = [a for a in state.get("assets", [])
+                      if sitrep.ship_type(a.get("macro")) in FREIGHTERS
+                      and a.get("code") not in taken and a.get("code") != occupied]
+        own = [a for a in freighters
+               if trade_group is not None
+               and (a.get("assignment") or {}).get("group") == trade_group
+               and (a.get("place") or {}).get("sector") == sector]
+        idle = [a for a in freighters if (a.get("assignment") or {}).get("group") is None
+                and sitrep.role_of(a) == "IDLE"]
+        if own:
+            pick, before = own[0], "trade"
+        elif idle:
+            pick, before = idle[0], "free"
+        else:
+            continue
+        feeders[code] = {"ship": pick["code"], "before": before}
+        taken.add(pick["code"])
+        commands.append(f"assign {pick['code']} {code} buildstorage")
+    return commands
+
+
+# Above this share of a storage type a station is full, whatever is in it.
+FULL = 0.90
+
+
+def storage_fill(station: dict, table: dict | None = None) -> dict[str, float]:
+    """Share of each storage type in use: stock volume over capacity."""
+    import gamedata
+    table = table if table is not None else gamedata.wares()
+    used: dict[str, float] = {}
+    for ware, amount in (station.get("cargo") or {}).items():
+        info = table.get(ware) or {}
+        kind, volume = info.get("transport"), info.get("volume")
+        if kind and volume:
+            used[kind] = used.get(kind, 0) + amount * volume
+    return {kind: round(used.get(kind, 0) / cap, 3)
+            for kind, cap in (station.get("capacity") or {}).items() if cap}
+
+
+def transport_shortage(state: dict) -> list[str]:
+    """A station full across the board is short of transport, not of focus.
+
+    `focus_fleet` correctly hands the fleet back when no ware is the culprit,
+    and nothing then said that the station is simply full. Measured at 49
+    hours: four wares between 18 and 28 percent of the stock each, every store
+    near its limit, and a report that looked healthy.
+    """
+    lines = []
+    group = _trade_group(state)
+    traders = [a for a in state.get("assets", [])
+               if group is not None and (a.get("assignment") or {}).get("group") == group]
+    for station in state.get("assets", []):
+        if station.get("cls") != "station":
+            continue
+        fill = storage_fill(station)
+        if fill and all(share >= FULL for share in fill.values()):
+            backing = sum(1 for o in station.get("offers", [])
+                          if o.get("side") == "sell" and (o.get("amount") or 0) > 0)
+            worst = max(fill.values())
+            lines.append(f"transport shortage at {station['code']}: {len(traders)} traders, "
+                         f"{backing} wares backing up, storage {worst:.0%} full")
+    return lines
+
+
 def _blocked_reason(action, key) -> str | None:
     """Why this otherwise-executable action still must not be sent."""
     if key == ("expand_station", None):
         ware = getattr(action, "ware", "")
-        if ware not in EXPANDABLE_WARES:
+        if ware not in EXPANDABLE_WARES and ware != "habitation":
             return (f"the bridge cannot build production for {ware!r}; "
                     f"it knows {', '.join(EXPANDABLE_WARES)}")
     if key == ("set_behaviour", "autotrade") and getattr(action, "whitelist", None):
@@ -697,7 +936,7 @@ def to_commands(actions: list, state: dict | None = None) -> tuple[list[str], li
 
         blocked = _blocked_reason(action, key)
         if not blocked and key == ("assign_ship", None) and state:
-            blocked = _mining_pointless(action, state)
+            blocked = _commander_problem(action, state) or _mining_pointless(action, state)
         if not blocked and key == ("set_trade_rule", None) and state:
             blocked = _trade_rule_pointless(action, state)
         if not blocked and key == ("expand_station", None) and state:
@@ -710,6 +949,18 @@ def to_commands(actions: list, state: dict | None = None) -> tuple[list[str], li
             continue
 
         command = builder(action)
+        if key == ("expand_station", None) and action.ware == "habitation" and state:
+            station = next((a for a in state.get("assets", [])
+                            if a.get("code") == action.station_id), {})
+            command = f"expand {action.station_id} habitation_{habitation_race(station)}"
+        if key == ("assign_ship", None) and state:
+            # Under a ship the role is set by an AssignCommander order on the
+            # Lua side; under a station MD sets it directly.
+            commander = next((a for a in state.get("assets", [])
+                              if a.get("code") == action.station_id), {})
+            if (commander.get("cls") or "").startswith("ship"):
+                command = (f"command {action.ship_ref} {action.station_id} "
+                           f"{SHIP_ROLES[action.role]}")
 
         # One ship, one order. The model has emitted "put ASO-629 on autotrade"
         # and "assign ASO-629 to KYV-745" in the same plan; sending both would
@@ -729,7 +980,33 @@ def to_commands(actions: list, state: dict | None = None) -> tuple[list[str], li
     return commands, skipped
 
 
+# Actions that become a job over several cycles rather than one command. The
+# agent hands them to their module; they are executable all the same, so the
+# planner is told it can do them.
+JOB_ACTIONS = ("buy_blueprint", "haul", "sell_ship")
+
+
+def plan_sale(action, state: dict) -> tuple[str | None, str | None]:
+    """sell_ship: the nearest known shipyard that builds ships of that size."""
+    from purchases import _graph, jumps
+    ship = next((a for a in state.get("assets", []) if a.get("code") == action.ship_ref), None)
+    if not ship or not (ship.get("cls") or "").startswith("ship"):
+        return None, f"{action.ship_ref} is not a ship of ours"
+    if ship.get("code") == state.get("player", {}).get("occupied_ship"):
+        return None, f"{action.ship_ref} is the ship the player sits in"
+    # The parser lists a yard's sizes as "s", "m", "l"; a ship's class is "ship_m".
+    size = ship["cls"].replace("ship_", "")
+    yards = [k for k in state.get("known_stations", []) if size in (k.get("builds") or [])]
+    if not yards:
+        return None, f"no known shipyard builds {ship['cls'].replace('ship_', '').upper()} ships"
+    graph = _graph()
+    sector = (ship.get("place") or {}).get("sector")
+    yard = min(yards, key=lambda k: jumps(graph, sector, (k.get("place") or {}).get("sector")))
+    return f"sellship {ship['code']} {yard['code']} {yard.get('owner')}", None
+
+
 def describe() -> str:
     """What the executor can currently do, for logging and for the README."""
-    names = sorted(k[0] if k[1] is None else f"{k[0]}({k[1]})" for k in EXECUTABLE)
+    names = sorted([k[0] if k[1] is None else f"{k[0]}({k[1]})" for k in EXECUTABLE]
+                   + list(JOB_ACTIONS))
     return ", ".join(names)

@@ -205,7 +205,7 @@ class AssignShip(BaseModel):
     type: Literal["assign_ship"]
     ship_ref: str = Field(description="ship id or fleet id")
     station_id: str
-    role: Literal["mine", "trade", "defend"]
+    role: Literal["mine", "trade", "defend", "buildstorage", "attack", "intercept", "assist"]
     priority: Priority = _PRIORITY
     rationale: str = _RATIONALE
 
@@ -269,6 +269,32 @@ class Purchase(BaseModel):
     spec: str = Field(description="What exactly, e.g. 'M miner' or 'management_seminar_3'")
     qty: int = 1
     max_spend: float = Field(description="Hard ceiling for this purchase")
+    priority: Priority = _PRIORITY
+    rationale: str = _RATIONALE
+
+
+class Haul(BaseModel):
+    type: Literal["haul"]
+    ware: str
+    from_station: str = Field(description="Code of the station that sells it (not ours)")
+    to_station: str = Field(description="Code of our station that needs it")
+    amount: int = Field(description="How many units are needed")
+    repeat: bool = Field(description="True to keep the ship running this route in a loop")
+    priority: Priority = _PRIORITY
+    rationale: str = _RATIONALE
+
+
+class SellShip(BaseModel):
+    type: Literal["sell_ship"]
+    ship_ref: str = Field(description="Code of our ship to sell, e.g. a claimed derelict")
+    priority: Priority = _PRIORITY
+    rationale: str = _RATIONALE
+
+
+class BuyBlueprint(BaseModel):
+    type: Literal["buy_blueprint"]
+    ware: str = Field(description="Module blueprint ware id, as the report names it, "
+                                  "e.g. module_gen_prod_water_01")
     priority: Priority = _PRIORITY
     rationale: str = _RATIONALE
 
@@ -344,6 +370,9 @@ Action = Annotated[
         FleetOrder,
         ExpandStation,
         SetBudget,
+        BuyBlueprint,
+        Haul,
+        SellShip,
         Hold,
     ],
     Field(discriminator="type"),

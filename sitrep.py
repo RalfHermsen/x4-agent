@@ -203,6 +203,68 @@ def build_lines(state: dict) -> list[str]:
     return lines
 
 
+# An attack on one of ours counts as current for this long, in game seconds.
+RECENT_ATTACK = 1800
+
+
+def threats(state: dict) -> list[dict]:
+    """Hostile presence in every sector where we own something.
+
+    Strength is a stated rule, not a judgement: any L or XL hostile is major,
+    more than five M or S is moderate, anything else is minor. Recent attacks
+    on our own objects in that sector come with it, because a ship that was
+    shot at is the clearest threat report there is.
+    """
+    now = state.get("meta", {}).get("playtime_s") or 0
+    ours: dict[str, list[dict]] = {}
+    for asset in state.get("assets", []):
+        sector = (asset.get("place") or {}).get("sector")
+        if sector:
+            ours.setdefault(sector, []).append(asset)
+    out = []
+    for sector, factions in sorted((state.get("hostiles") or {}).items()):
+        if sector not in ours:
+            continue
+        big = sum(n for f in factions.values() for c, n in f.items()
+                  if c in ("ship_l", "ship_xl", "station"))
+        small = sum(n for f in factions.values() for c, n in f.items()
+                    if c in ("ship_m", "ship_s", "ship_xs"))
+        strength = "major" if big else "moderate" if small > 5 else "minor"
+        hit = [a["code"] for a in ours[sector]
+               if (a.get("attack") or {}).get("time") is not None
+               and now - a["attack"]["time"] <= RECENT_ATTACK]
+        out.append({"sector": sector, "factions": factions, "strength": strength,
+                    "attacked": sorted(hit)})
+    return out
+
+
+def blueprint_lines(state: dict) -> list[str]:
+    import gamedata
+    table = gamedata.modules()
+    if not table:
+        return []
+    held = set(state.get("player", {}).get("blueprints") or [])
+    have, missing = [], []
+    for ware, (macro, _) in executor.EXPANSION_MODULES.items():
+        if ware.startswith("habitation"):
+            continue
+        entry = table.get(macro) or {}
+        if entry.get("ware") in held:
+            have.append(ware)
+        elif entry.get("ware"):
+            price = entry.get("maxprice")
+            missing.append(f"{ware} needs {entry['ware']}"
+                           + (f", about {price:,} Cr" if price else "")
+                           + (f", sold by {', '.join(entry.get('owners') or [])}"
+                              if entry.get("owners") else ""))
+    out = []
+    if have:
+        out.append("  can build production for: " + ", ".join(have))
+    for line in missing:
+        out.append("  missing: " + line)
+    return out
+
+
 # How far our asking price may sit above the best bid we know before it is worth
 # reporting. A little above is normal and healthy; a third above means the goods
 # do not move at all, which is what 6,160 refined metals priced at 194 Cr looked
@@ -485,6 +547,38 @@ def build(state: dict, goals: list[str] | None = None,
         for failure in failures:
             add(f"  {failure}")
 
+    # Which of the expansions the bridge can build are open to us, and what the
+    # missing blueprints cost. Without this the model could see "no blueprint
+    # for module_gen_prod_water_01" as a refusal and have no way to act on it.
+    # How full each store is. Shares of the stock say what is crowding; this
+    # says whether there is room at all.
+    fills = [(st["code"], executor.storage_fill(st)) for st in state.get("assets", [])
+             if st.get("cls") == "station" and st.get("capacity")]
+    crews = [(st["code"], st.get("workforce") or {}) for st in state.get("assets", [])
+             if st.get("cls") == "station"]
+    if any(w.get("capacity") or w.get("amount") for _, w in crews):
+        add("")
+        add("# WORKFORCE (more workers, more output from the same modules)")
+        for code, w in crews:
+            people = sum((w.get("amount") or {}).values())
+            add(f"  {code}: {people} of {w.get('capacity', 0)} housed"
+                + ("" if w.get("capacity") else "; no habitation, expand_station habitation adds it"))
+
+    if any(fill for _, fill in fills):
+        add("")
+        add("# STORAGE (share of each store in use)")
+        for code, fill in fills:
+            if fill:
+                add(f"  {code}: " + ", ".join(f"{k} {v:.0%}" for k, v in sorted(fill.items()))
+                    + ("  FULL" if any(v >= executor.FULL for v in fill.values()) else ""))
+
+    blueprints = blueprint_lines(state)
+    if blueprints:
+        add("")
+        add("# BLUEPRINTS (for the expansions the bridge can build)")
+        for line in blueprints:
+            add(line)
+
     if refused:
         # Proposals the gates turned down. Without this the model re-proposed
         # the same refused action every cycle, because nothing ever told it.
@@ -546,6 +640,18 @@ def build(state: dict, goals: list[str] | None = None,
             add(line)
 
     add("")
+    found = threats(state)
+    if found:
+        add("# THREATS (hostiles we have seen, in sectors where we own something)")
+        for t in found:
+            seen = "; ".join(
+                f"{faction} " + ", ".join(f"{n} {cls.replace('ship_', '').upper()}"
+                                          for cls, n in sorted(classes.items()))
+                for faction, classes in sorted(t["factions"].items()))
+            hit = (f"; attacked in the last {RECENT_ATTACK // 60} min: " + ", ".join(t["attacked"])
+                   if t["attacked"] else "")
+            add(f"  {gamedata.pretty(t['sector'], names)}: {t['strength']}, {seen}{hit}")
+        add("")
     add("# ATTENTION")
     if pods:
         add(f"{len(pods)} escape pod(s) of ours are adrift. Each one is what is "

@@ -44,6 +44,10 @@ INTERVAL = float(os.environ.get("X4_AGENT_INTERVAL", "300"))
 # the game (and on a synced folder) that saves started failing outright. A save
 # a couple of minutes old is fine to plan on.
 SAVE_MAX_AGE = float(os.environ.get("X4_AGENT_SAVE_MAX_AGE", "150"))
+# How to ask for a fresh save: "save" is the bridge's autosave, which rotates
+# over the player's newest saves (tasks/lessons.md L6e); "savegame" writes the
+# agent's own slot. Experiments use the second.
+SAVE_VERB = os.environ.get("X4_AGENT_SAVE_VERB", "save")
 # Pause between two commands. Without it the pipe drops after the first one.
 COMMAND_GAP = float(os.environ.get("X4_AGENT_COMMAND_GAP", "2"))
 LOG_PATH = os.environ.get("X4_AGENT_LOG")
@@ -158,7 +162,7 @@ def drain_outbox(pipe) -> None:
         time.sleep(COMMAND_GAP)
 
 
-def run_cycle(pipe) -> None:
+def run_cycle(pipe, force: bool = False) -> None:
     """Plan once, and send the commands if we are allowed to."""
     if not PLAN:
         return
@@ -167,12 +171,21 @@ def run_cycle(pipe) -> None:
         return
 
     try:
-        result = agent.cycle()
+        result = agent.cycle(force=force)
     except Exception as exc:  # noqa: BLE001 - a failed cycle must not kill the loop
         print(f"[x4-agent] cycle failed: {type(exc).__name__}: {exc}")
         return
 
     log_cycle(agent, result)
+
+    # The panel is shown in both modes: it changes nothing in the game.
+    for line in ["panel clear"] + [f"panel {text}" for text in result.get("panel", [])]:
+        try:
+            pipe.Write(line)
+        except Exception as exc:  # noqa: BLE001 - a panel must never break a cycle
+            print(f"[x4-agent] panel line lost: {exc}")
+            break
+        time.sleep(COMMAND_GAP / 4)
 
     commands = result["commands"]
     print(f"[x4-agent] cycle done in {result['seconds']:.1f}s: "
@@ -218,6 +231,7 @@ def main(args):
     print("[x4-agent] X4 connected")
 
     last_cycle = 0.0
+    urgent = False
     while 1:
         message = pipe.Read()
         # Log before filtering out pings. If you only ever see 'state' and never
@@ -234,7 +248,17 @@ def main(args):
         # replan anyway.
         if message == "saved":
             last_cycle = time.monotonic()
-            run_cycle(pipe)
+            run_cycle(pipe, force=urgent)
+            urgent = False
+            continue
+
+        # 4.8: something of ours was attacked or destroyed. Ask for a save now
+        # and plan on it the moment it arrives, past the quiet-cycle rule.
+        if message.startswith("event "):
+            print(f"[x4-agent] {message}: planning as soon as the save is in")
+            if not urgent:
+                urgent = True
+                pipe.Write(SAVE_VERB)
             continue
 
         if not parse_state(message):
@@ -266,4 +290,4 @@ def main(args):
             run_cycle(pipe)
             continue
         print("[x4-agent] requesting a savegame before planning")
-        pipe.Write("save")
+        pipe.Write(SAVE_VERB)

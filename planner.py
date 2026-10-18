@@ -81,15 +81,25 @@ nothing and drop nothing; you only translate.
 Pick the fitting type per action. Each type needs exactly the fields listed and
 nothing more:
 
-- assign_ship    : ship code, station code, role (mine, trade or defend). No ware, no
-                   amount, no destination. The station manager works those out.
+- assign_ship    : ship code, commander code, role. Under one of our stations: mine,
+                   trade, defend or buildstorage (supplies the station's build).
+                   Under one of our ships: attack, intercept, defend or assist
+                   (assist copies the leader's default order). No ware, no amount.
 - set_behaviour  : ship code, behaviour (autotrade / automine / repeat_orders /
                    explore)
-- expand_station : station code, ware the station should start producing
+- expand_station : station code, ware the station should start producing, or
+                   habitation to house a workforce
 - set_budget     : station code, level (low / mid / high)
 - set_trade_rule : station code, ware (or "all"), rule (own_faction_only /
                    open_market), side (buy / sell / both)
 - set_price      : station code, ware, side (buy/sell), price in credits
+- haul           : ware, from_station (a seller's code from the report), to_station
+                   (our station), amount, repeat (true for a standing loop). The
+                   ship and the price cap are worked out for you.
+- sell_ship      : ship code of ours to sell (a claimed ship we do not need). The
+                   shipyard is worked out for you.
+- buy_blueprint  : ware, the module blueprint id exactly as the report names it
+                   (module_...). Where and with which ship is worked out for you.
 - claim_ship     : target code
 - purchase       : item, spec, max spend
 - build_station  : station type, sector, max spend

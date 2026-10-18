@@ -83,6 +83,34 @@ declare [[ uint32_t GetAllFactionShips(UniverseID* result, uint32_t resultlen, c
 declare [[ UniverseID GetContextByClass(UniverseID componentid, const char* classname, bool includeself); ]]
 declare [[ bool IsOrderSelectableFor(const char* orderdefid, UniverseID controllableid); ]]
 declare [[ bool RemoveAllOrders2(UniverseID controllableid, bool onlytrade, bool onlypriority); ]]
+declare [[ uint32_t CreateOrder(UniverseID controllableid, const char* orderid, bool defaultorder); ]]
+declare [[ bool SetOrderLoop(UniverseID controllableid, size_t orderidx, bool checkonly); ]]
+declare [[ int64_t GetBuilderHiringFee(void); ]]
+declare [[ bool IsBuilderBusy(UniverseID shipid); ]]
+declare [[ uint32_t CreateDeployToStationOrder(UniverseID controllableid); ]]
+declare [[ bool RemoveAllOrders(UniverseID controllableid); ]]
+declare [[ bool CanContainerBuildShip(UniverseID containerid, UniverseID shipid); ]]
+declare [[ void SellPlayerShip(UniverseID shipid, UniverseID shipyardid); ]]
+-- 4.3, 4.7, 4.10, 4.12: signatures copied from helper.lua, menu_playerinfo.lua,
+-- menu_station_overview.lua, menu_docked.lua and menu_map.lua.
+declare [[ void SetContainerBuyLimitOverride(UniverseID containerid, const char* wareid, int32_t amount); ]]
+declare [[ void SetContainerSellLimitOverride(UniverseID containerid, const char* wareid, int32_t amount); ]]
+declare [[ void ClearContainerBuyLimitOverride(UniverseID containerid, const char* wareid); ]]
+declare [[ void ClearContainerSellLimitOverride(UniverseID containerid, const char* wareid); ]]
+declare [[ int32_t GetContainerBuyLimit(UniverseID containerid, const char* wareid); ]]
+declare [[ int32_t GetContainerSellLimit(UniverseID containerid, const char* wareid); ]]
+declare [[ typedef struct { double time; int64_t money; int64_t entryid; const char* eventtype; const char* eventtypename; UniverseID partnerid; const char* partnername; const char* partneridcode; int64_t tradeentryid; const char* tradeeventtype; const char* tradeeventtypename; UniverseID buyerid; UniverseID sellerid; const char* ware; uint32_t amount; int64_t price; bool complete; } TransactionLogEntry; ]]
+declare [[ uint32_t GetNumTransactionLog(UniverseID componentid, double starttime, double endtime); ]]
+declare [[ uint32_t GetTransactionLog(TransactionLogEntry* result, uint32_t resultlen, UniverseID componentid, double starttime, double endtime); ]]
+declare [[ void SetPlayerGlobalLoadoutLevel(float value); ]]
+declare [[ float GetPlayerGlobalLoadoutLevel(void); ]]
+declare [[ void SetAllTurretModes(UniverseID defensibleid, const char* mode); ]]
+declare [[ typedef struct { float x; float y; float z; float yaw; float pitch; float roll; } UIPosRot; ]]
+declare [[ UIPosRot GetObjectPositionInSector(UniverseID objectid); ]]
+declare [[ bool IsOrderLoopable(const char* orderdefid); ]]
+declare [[ uint32_t GetOrderLoopSkillLimit(); ]]
+declare [[ bool EnableOrder(UniverseID controllableid, size_t idx); ]]
+declare [[ bool AdjustOrder(UniverseID controllableid, size_t idx, size_t newidx, bool enabled, bool forcestates, bool checkonly); ]]
 
 local X4Agent = {}
 
@@ -455,6 +483,13 @@ local function save_agent_slot(args)
     return true
 end
 
+--- A refusal, in a form the agent reads back from the logbook (memory.py,
+--- game_refusals). Confirmations do not carry the marker.
+local function refuse(message)
+    log("REFUSED: " .. message)
+    return false
+end
+
 --- Every ship the player owns, as {idcode = UniverseID}.
 local function player_ships()
     local found = {}
@@ -517,44 +552,44 @@ end
 local function buy_blueprint(args)
     local ware, shipcode = args[1], args[2]
     if not ware or not shipcode then
-        log("blueprint needs: blueprint <module ware> <SHIP IDCODE>")
+        refuse("blueprint needs: blueprint <module ware> <SHIP IDCODE>")
         return false
     end
     local ship = player_ships()[shipcode]
     if not ship then
-        log("blueprint: no ship of ours with id code " .. shipcode)
+        refuse("blueprint: no ship of ours with id code " .. shipcode)
         return false
     end
     local container = C.GetContextByClass(ship, "container", false)
     if container == 0 then
-        log("blueprint: " .. shipcode .. " is not docked anywhere")
+        refuse("blueprint: " .. shipcode .. " is not docked anywhere")
         return false
     end
     local station = ConvertStringTo64Bit(tostring(container))
     local owner, stationcode = GetComponentData(station, "owner", "idcode")
     if owner == "player" then
-        log("blueprint: " .. shipcode .. " is docked at our own " .. tostring(stationcode)
+        refuse("blueprint: " .. shipcode .. " is docked at our own " .. tostring(stationcode)
             .. "; blueprints are bought from another faction")
         return false
     end
     if owned_blueprints()[ware] then
-        log("blueprint: " .. ware .. " is already ours, not buying it again")
+        refuse("blueprint: " .. ware .. " is already ours, not buying it again")
         return false
     end
     if not faction_sells_module(owner, ware) then
-        log("blueprint: " .. tostring(owner) .. " does not sell " .. ware)
+        refuse("blueprint: " .. tostring(owner) .. " does not sell " .. ware)
         return false
     end
     local tradelicence = GetWareData(ware, "tradelicence")
     if not HasLicence("player", tradelicence, owner) then
-        log("blueprint: " .. ware .. " needs licence " .. tostring(tradelicence)
+        refuse("blueprint: " .. ware .. " needs licence " .. tostring(tradelicence)
             .. " from " .. tostring(owner) .. ", which we do not hold")
         return false
     end
     local price = GetWareData(ware, "maxprice")
     local before = GetPlayerMoney()
     if before < price then
-        log(string.format("blueprint: %s costs %d Cr, we have %d", ware, price, before))
+        refuse(string.format("blueprint: %s costs %d Cr, we have %d", ware, price, before))
         return false
     end
     -- Pay first, then learn, as the menu does.
@@ -599,12 +634,12 @@ end
 local function dock_at(args)
     local shipcode, stationcode, faction = args[1], args[2], args[3]
     if not (shipcode and stationcode and faction) then
-        log("dockat needs: dockat <SHIP IDCODE> <STATION IDCODE> <faction>")
+        refuse("dockat needs: dockat <SHIP IDCODE> <STATION IDCODE> <faction>")
         return false
     end
     local ship = player_ships()[shipcode]
     if not ship then
-        log("dockat: no ship of ours with id code " .. shipcode)
+        refuse("dockat: no ship of ours with id code " .. shipcode)
         return false
     end
     local count = C.GetNumAllFactionStations(faction)
@@ -620,26 +655,525 @@ local function dock_at(args)
         end
     end
     if not target then
-        log("dockat: " .. faction .. " has no station " .. stationcode)
+        refuse("dockat: " .. faction .. " has no station " .. stationcode)
         return false
     end
     if not C.IsOrderSelectableFor("DockAndWait", ship) then
-        log("dockat: " .. shipcode .. " cannot take a DockAndWait order")
+        refuse("dockat: " .. shipcode .. " cannot take a DockAndWait order")
         return false
     end
     local luaship = ConvertStringToLuaID(tostring(ship))
     if not GetComponentData(luaship, "assignedpilot") then
-        log("dockat: " .. shipcode .. " has no pilot")
+        refuse("dockat: " .. shipcode .. " has no pilot")
         return false
     end
-    C.RemoveAllOrders2(ship, false, false)
+    -- A priority order, as the interact menu's priority mode makes it: it runs
+    -- now and the ship's own orders stay queued behind it, so `release` hands
+    -- the ship back to what it was doing. DockAndWait's timeout defaults to
+    -- 0s, which the order defines as infinite: the ship stays until released.
     CreateOrder(luaship, "DockAndWait", { destination = ConvertStringToLuaID(tostring(target)) },
-                false, false, false)
+                false, false, true)
     log(string.format("ORDER: %s docking at %s (%s)", shipcode, stationcode, faction))
     return true
 end
 
+-- A subordinate group carries one assignment for all its members
+-- (setgroupassignment), so each role gets its own group under a commander
+-- ship, always the same one.
+local ROLE_GROUP = { attack = 1, interception = 2, defence = 3, assist = 4 }
+
+--- "command NBO-436 JFZ-239 interception" -> put a ship of ours under another
+--- ship of ours, in a role. The interact menu's orderAssignCommander, step by
+--- step (menu_interactmenu.lua): an AssignCommander order with commander,
+--- assignment, group, setgroupassignment, cancelorders, response and
+--- informfleetmanager, enabled and moved to the front.
+local function command_ship(args)
+    local shipcode, commandercode, role = args[1], args[2], args[3]
+    if not (shipcode and commandercode and role) then
+        return refuse("command needs: command <SHIP> <COMMANDER SHIP> <attack|interception|defence|assist>")
+    end
+    local group = ROLE_GROUP[role]
+    if not group then
+        return refuse("command: role must be attack, interception, defence or assist, got " .. role)
+    end
+    local ships = player_ships()
+    local ship, commander = ships[shipcode], ships[commandercode]
+    if not ship or not commander then
+        return refuse("command: both must be ships of ours: " .. shipcode .. ", " .. commandercode)
+    end
+    if not C.IsOrderSelectableFor("AssignCommander", ship) then
+        return refuse("command: " .. shipcode .. " cannot take an AssignCommander order")
+    end
+    if not GetComponentData(ConvertStringToLuaID(tostring(ship)), "assignedpilot") then
+        return refuse("command: " .. shipcode .. " has no pilot")
+    end
+    local index = C.CreateOrder(ship, "AssignCommander", false)
+    if index == 0 then
+        return refuse("command: the game would not create the order for " .. shipcode)
+    end
+    SetOrderParam(ship, index, 1, nil, ConvertStringToLuaID(tostring(commander)))
+    SetOrderParam(ship, index, 2, nil, role)
+    SetOrderParam(ship, index, 3, nil, group)
+    SetOrderParam(ship, index, 4, nil, true)
+    SetOrderParam(ship, index, 5, nil, true)
+    SetOrderParam(ship, index, 6, nil, true)
+    SetOrderParam(ship, index, 8, nil, true)
+    C.EnableOrder(ship, index)
+    if index ~= 1 then
+        C.AdjustOrder(ship, index, 1, true, false, false)
+    end
+    log(string.format("ORDER: %s under %s as %s (group %d)", shipcode, commandercode, role, group))
+    return true
+end
+
+local function faction_station(faction, stationcode)
+    local count = C.GetNumAllFactionStations(faction)
+    if count == 0 then
+        return nil
+    end
+    local buffer = ffi.new("UniverseID[?]", count)
+    count = C.GetAllFactionStations(buffer, count, faction)
+    for i = 0, count - 1 do
+        if ffi.string(C.GetObjectIDCode(buffer[i])) == stationcode then
+            return buffer[i]
+        end
+    end
+    return nil
+end
+
+--- One trade order, as the map menu's buttonConfirmTradeLoop creates it:
+--- params 1 ware, 4 location, 5 amount, 7 price threshold in hundredths of a
+--- credit (the menu multiplies by 100; tasks/lessons.md L2).
+local function trade_order(ship, orderid, ware, location, amount, cents)
+    local index = C.CreateOrder(ship, orderid, false)
+    if index == 0 then
+        return 0
+    end
+    SetOrderParam(ship, index, 1, nil, ware)
+    SetOrderParam(ship, index, 4, nil, ConvertStringToLuaID(tostring(location)))
+    SetOrderParam(ship, index, 5, nil, amount)
+    SetOrderParam(ship, index, 7, nil, cents)
+    C.EnableOrder(ship, index)
+    return index
+end
+
+--- "haul ASO-629 smartchips JAR-836 argon 200 66 KYV-745" -> buy up to 200
+--- smartchips at JAR-836 (argon) for at most 66 Cr each, and bring them to our
+--- KYV-745. Two orders the game runs itself: SingleBuy, then SingleSell to our
+--- own station at any price, since that money stays with us. The game pays the
+--- seller at its own price, never above the cap.
+local function haul(args)
+    local shipcode, ware, sellercode, faction, amount, cap, homecode =
+        args[1], args[2], args[3], args[4], tonumber(args[5]), tonumber(args[6]), args[7]
+    if not (shipcode and ware and sellercode and faction and amount and cap and homecode) then
+        return refuse("haul needs: haul <SHIP> <ware> <SELLER> <faction> <amount> <max price> <OUR STATION>")
+    end
+    local ship = player_ships()[shipcode]
+    local home = player_stations()[homecode]
+    local seller = faction_station(faction, sellercode)
+    if not ship then return refuse("haul: no ship of ours with id code " .. shipcode) end
+    if not home then return refuse("haul: no station of ours with id code " .. homecode) end
+    if not seller then return refuse("haul: " .. faction .. " has no station " .. sellercode) end
+    if not GetComponentData(ConvertStringToLuaID(tostring(ship)), "assignedpilot") then
+        return refuse("haul: " .. shipcode .. " has no pilot")
+    end
+    local buy = trade_order(ship, "SingleBuy", ware, seller, amount, math.floor(cap * 100))
+    local sell = buy > 0 and trade_order(ship, "SingleSell", ware, home, amount, 0) or 0
+    if buy == 0 or sell == 0 then
+        return refuse("haul: the game would not create the trade orders for " .. shipcode)
+    end
+    log(string.format("ORDER: %s hauls up to %d %s from %s (max %d Cr) to %s (orders %d, %d)",
+                      shipcode, amount, ware, sellercode, cap, homecode, buy, sell))
+    return true
+end
+
+--- "loop ASO-629" -> make the ship's order queue repeat. An experiment as
+--- much as a verb: the UI's own route goes through a planned default order
+--- that could not be traced, so this asks the game what it allows first and
+--- logs the answers, then loops from the first order.
+local function loop_orders(args)
+    local shipcode = args[1]
+    local ship = shipcode and player_ships()[shipcode]
+    if not ship then
+        return refuse("loop needs a ship of ours: loop <SHIP>")
+    end
+    local can0, can1 = C.SetOrderLoop(ship, 0, true), C.SetOrderLoop(ship, 1, true)
+    log(string.format("loop %s: checkonly idx0=%s idx1=%s, loopable SingleBuy=%s, skill limit %d",
+                      shipcode, tostring(can0), tostring(can1),
+                      tostring(C.IsOrderLoopable("SingleBuy")), C.GetOrderLoopSkillLimit()))
+    if not (can1 or can0) then
+        return refuse("loop: the game will not loop the orders of " .. shipcode)
+    end
+    local done = C.SetOrderLoop(ship, can1 and 1 or 0, false)
+    log("ORDER: " .. shipcode .. " orders looped from index " .. (can1 and 1 or 0) .. ": " .. tostring(done))
+    return true
+end
+
+--- "limit KYV-745 energycells sell 5000" -> keep at least 5000 in stock before
+--- selling; "limit KYV-745 energycells buy clear" -> back to the manager's own.
+local function set_limit(station, args)
+    local ware, side, value = args[1], args[2], args[3]
+    if not (ware and (side == "buy" or side == "sell") and value) then
+        return refuse("limit needs: limit <STATION> <ware> <buy|sell> <amount|clear>")
+    end
+    local get = side == "buy" and C.GetContainerBuyLimit or C.GetContainerSellLimit
+    local before = get(station, ware)
+    if value == "clear" then
+        if side == "buy" then C.ClearContainerBuyLimitOverride(station, ware)
+        else C.ClearContainerSellLimitOverride(station, ware) end
+    else
+        local amount = tonumber(value)
+        if not amount then
+            return refuse("limit: amount must be a number or clear, got " .. value)
+        end
+        if side == "buy" then C.SetContainerBuyLimitOverride(station, ware, amount)
+        else C.SetContainerSellLimitOverride(station, ware, amount) end
+    end
+    log(string.format("ORDER: %s %s limit for %s was %d, asked %s, now %d",
+                      args.code, side, ware, before, value, get(station, ware)))
+    return true
+end
+
+local function station_sector(station)
+    return GetComponentData(ConvertStringTo64Bit(tostring(station)), "sectorid")
+end
+
+--- "revisit GWH-145 KYV-745" -> the ship revisits the stations it already knows
+--- in the sector of our station, refreshing their offers, as its default
+--- behaviour. ExploreUpdate stays in known space; Explore went into unknown
+--- space and cost five scouts (tasks/lessons.md L18). Parameters as the
+--- interact menu's orderExploreUpdate sets them.
+local function revisit(args)
+    local shipcode, stationcode = args[1], args[2]
+    local ship = shipcode and player_ships()[shipcode]
+    local station = stationcode and player_stations()[stationcode]
+    if not ship or not station then
+        return refuse("revisit needs a ship and a station of ours: revisit <SHIP> <STATION>")
+    end
+    if not C.IsOrderSelectableFor("ExploreUpdate", ship) then
+        return refuse("revisit: " .. shipcode .. " cannot take an ExploreUpdate order")
+    end
+    local sector = station_sector(station)
+    CreateOrder(ConvertStringToLuaID(tostring(ship)), "ExploreUpdate",
+                { targetspace = sector, destination = { sector, { 0, 0, 0 } } },
+                true, false, false, nil, nil, nil, true)
+    log(string.format("ORDER: %s revisits known stations around %s", shipcode, stationcode))
+    return true
+end
+
+--- "satellite TJL-171 JAR-836 argon" -> drop one satellite 3 km from that
+--- station (ours when no faction is given). DeployObjectAtPosition as the
+--- interact menu builds it. The satellite must be aboard; the game's own
+--- resupply buys them at market price.
+local function deploy_satellite(args)
+    local shipcode, stationcode, faction = args[1], args[2], args[3]
+    local ship = shipcode and player_ships()[shipcode]
+    local station = stationcode and (faction and faction_station(faction, stationcode)
+                                      or player_stations()[stationcode])
+    if not ship or not station then
+        return refuse("satellite needs: satellite <SHIP> <STATION> [faction]")
+    end
+    if not C.IsOrderSelectableFor("DeployObjectAtPosition", ship) then
+        return refuse("satellite: " .. shipcode .. " cannot take a DeployObjectAtPosition order")
+    end
+    local pos = C.GetObjectPositionInSector(station)
+    CreateOrder(ConvertStringToLuaID(tostring(ship)), "DeployObjectAtPosition", {
+        destination = { station_sector(station), { pos.x + 3000, pos.y, pos.z } },
+        objectstodeploy = "eq_arg_satellite_01_macro",
+        amountstodeploy = 1,
+    }, false, false, false, nil, nil, nil, true)
+    log(string.format("ORDER: %s deploys a satellite near %s", shipcode, stationcode))
+    return true
+end
+
+local LOADOUT = { off = 0, low = 0.1, medium = 0.5, high = 1.0 }
+
+--- "resupply medium" -> the player's default for automatic resupply of
+--- missiles, drones and deployables (menu_playerinfo.lua: 0, 0.1, 0.5, 1.0).
+local function set_resupply(args)
+    local level = LOADOUT[args[1] or ""]
+    if not level then
+        return refuse("resupply needs: resupply <off|low|medium|high>")
+    end
+    local before = C.GetPlayerGlobalLoadoutLevel()
+    C.SetPlayerGlobalLoadoutLevel(level)
+    log(string.format("ORDER: resupply level was %.2f, now %.2f", before, C.GetPlayerGlobalLoadoutLevel()))
+    return true
+end
+
+local TURRET_MODES = { defend = true, attackenemies = true, attackcapital = true,
+                       attackfighters = true, missiledefence = true }
+
+--- "turrets KYV-745 attackenemies" -> every turret on the station in one mode.
+local function set_turrets(station, args)
+    local mode = args[1]
+    if not TURRET_MODES[mode or ""] then
+        return refuse("turrets needs: turrets <STATION> <defend|attackenemies|attackcapital|attackfighters|missiledefence>")
+    end
+    C.SetAllTurretModes(station, mode)
+    log(string.format("ORDER: turrets on %s set to %s", args.code, mode))
+    return true
+end
+
+--- "ledger 2" -> per station of ours, what it paid other factions in the last
+--- 2 hours, per ware, from the game's transaction log. The save's own trade
+--- log has no counterparty, so this is the only way to see money leaking to
+--- NPC sellers for wares our own ships could have delivered.
+local function ledger(args)
+    local hours = tonumber(args[1] or "2") or 2
+    local now = GetCurrentGameTime()
+    for code, station in pairs(player_stations()) do
+        local count = C.GetNumTransactionLog(station, now - hours * 3600, now)
+        local paid, total = {}, 0
+        if count > 0 then
+            local buffer = ffi.new("TransactionLogEntry[?]", count)
+            count = C.GetTransactionLog(buffer, count, station, now - hours * 3600, now)
+            for i = 0, count - 1 do
+                local e = buffer[i]
+                if e.buyerid == station and e.sellerid ~= 0 then
+                    local owner = GetComponentData(ConvertStringTo64Bit(tostring(e.sellerid)), "owner")
+                    if owner and owner ~= "player" then
+                        local ware = ffi.string(e.ware)
+                        local cr = tonumber(e.price) * e.amount / 100
+                        paid[ware] = (paid[ware] or 0) + cr
+                        total = total + cr
+                    end
+                end
+            end
+        end
+        local parts = {}
+        for ware, cr in pairs(paid) do
+            parts[#parts + 1] = string.format("%s=%d", ware, cr)
+        end
+        table.sort(parts)
+        log(string.format("LEDGER %s %dh paid_to_npcs=%d %s", code, hours, total, table.concat(parts, " ")))
+    end
+    return true
+end
+
+--- "repair NBO-436 SHY-001 argon" -> fly to a shipyard and repair there. The
+--- Repair order pays the station itself and logs it (order.repair.xml).
+local function repair(args)
+    local shipcode, yardcode, faction = args[1], args[2], args[3]
+    local ship = shipcode and player_ships()[shipcode]
+    local yard = yardcode and faction and faction_station(faction, yardcode)
+    if not ship or not yard then
+        return refuse("repair needs: repair <SHIP> <SHIPYARD> <faction>")
+    end
+    if not C.IsOrderSelectableFor("Repair", ship) then
+        return refuse("repair: " .. shipcode .. " cannot take a Repair order")
+    end
+    CreateOrder(ConvertStringToLuaID(tostring(ship)), "Repair",
+                { destination = ConvertStringToLuaID(tostring(yard)) }, false, false, false)
+    log(string.format("ORDER: %s goes to %s for repair", shipcode, yardcode))
+    return true
+end
+
+--- "patrol NBO-436 KYV-745" -> patrol the sector our station is in, as its
+--- default behaviour (order.fight.patrol.xml: space, pursuetargets).
+local function patrol(args)
+    local shipcode, stationcode = args[1], args[2]
+    local ship = shipcode and player_ships()[shipcode]
+    local station = stationcode and player_stations()[stationcode]
+    if not ship or not station then
+        return refuse("patrol needs a ship and a station of ours: patrol <SHIP> <STATION>")
+    end
+    if not C.IsOrderSelectableFor("Patrol", ship) then
+        return refuse("patrol: " .. shipcode .. " cannot take a Patrol order")
+    end
+    CreateOrder(ConvertStringToLuaID(tostring(ship)), "Patrol",
+                { space = station_sector(station), pursuetargets = true }, true, false, false)
+    log(string.format("ORDER: %s patrols around %s", shipcode, stationcode))
+    return true
+end
+
+--- "findbuilds XYZ-123" -> a construction vessel of ours looks for our builds
+--- itself (order.build.find.task.xml; playeronly is the default for ours).
+local function find_builds(args)
+    local ship = args[1] and player_ships()[args[1]]
+    if not ship then
+        return refuse("findbuilds needs a ship of ours: findbuilds <SHIP>")
+    end
+    if not C.IsOrderSelectableFor("FindBuildTasks", ship) then
+        return refuse("findbuilds: " .. args[1] .. " cannot take a FindBuildTasks order")
+    end
+    CreateOrder(ConvertStringToLuaID(tostring(ship)), "FindBuildTasks", {}, true, false, false)
+    log("ORDER: " .. args[1] .. " looks for our build tasks")
+    return true
+end
+
+local function faction_ship(faction, shipcode)
+    local count = C.GetNumAllFactionShips(faction)
+    if count == 0 then
+        return nil
+    end
+    local buffer = ffi.new("UniverseID[?]", count)
+    count = C.GetAllFactionShips(buffer, count, faction)
+    for i = 0, count - 1 do
+        if ffi.string(C.GetObjectIDCode(buffer[i])) == shipcode then
+            return buffer[i]
+        end
+    end
+    return nil
+end
+
+--- "hire CZK-784 antigone KYV-745" -> hire somebody else's construction vessel
+--- for the build at our station. The map menu's selectCV, step by step: not
+--- busy, not an enemy, pay GetBuilderHiringFee to the vessel, then clear its
+--- orders and give it a DeployToStation order to our station.
+local function hire_builder(args)
+    local buildercode, faction, stationcode = args[1], args[2], args[3]
+    if not (buildercode and faction and stationcode) then
+        return refuse("hire needs: hire <BUILDER> <faction> <OUR STATION>")
+    end
+    local builder = faction_ship(faction, buildercode)
+    local station = player_stations()[stationcode]
+    if not builder then return refuse("hire: " .. faction .. " has no ship " .. buildercode) end
+    if not station then return refuse("hire: no station of ours with id code " .. stationcode) end
+    local b64 = ConvertStringTo64Bit(tostring(builder))
+    local isenemy = GetComponentData(b64, "isreallyenemy")
+    if C.IsBuilderBusy(builder) or isenemy then
+        return refuse("hire: " .. buildercode .. " is busy or hostile")
+    end
+    if not C.IsOrderSelectableFor("DeployToStation", builder) then
+        return refuse("hire: " .. buildercode .. " cannot take a DeployToStation order")
+    end
+    local fee = tonumber(C.GetBuilderHiringFee())
+    local before = GetPlayerMoney()
+    if before < fee then
+        return refuse(string.format("hire: the fee is %d Cr, we have %d", fee, before))
+    end
+    TransferPlayerMoneyTo(fee, b64)
+    C.RemoveAllOrders(builder)
+    local index = C.CreateDeployToStationOrder(builder)
+    if index > 0 then
+        SetOrderParam(ConvertStringToLuaID(tostring(builder)), index, 1, nil,
+                      ConvertStringToLuaID(tostring(station)))
+        C.EnableOrder(builder, index)
+    end
+    log(string.format("ORDER: hired %s (%s) for %s, fee %d Cr, money %d -> %d, order %d",
+                      buildercode, faction, stationcode, fee, before, GetPlayerMoney(), index))
+    return true
+end
+
+--- "sellship ASO-629 WRF-001 argon" -> sell a ship of ours at that shipyard,
+--- for what the game says it is worth there. The map menu's sell dialog:
+--- the ship must be sellable and the yard able to build it; the value is
+--- GetTotalValue, the player is paid with TransferMoneyToPlayer, then
+--- SellPlayerShip hands the ship over.
+local function sell_ship(args)
+    local shipcode, yardcode, faction = args[1], args[2], args[3]
+    local ship = shipcode and player_ships()[shipcode]
+    local yard = yardcode and faction and faction_station(faction, yardcode)
+    if not ship or not yard then
+        return refuse("sellship needs: sellship <SHIP> <SHIPYARD> <faction>")
+    end
+    local s64 = ConvertStringTo64Bit(tostring(ship))
+    if not GetComponentData(s64, "issellable") then
+        return refuse("sellship: " .. shipcode .. " cannot be sold")
+    end
+    if not C.CanContainerBuildShip(yard, ship) then
+        return refuse("sellship: " .. yardcode .. " does not take ships like " .. shipcode)
+    end
+    local y64 = ConvertStringTo64Bit(tostring(yard))
+    local price = GetTotalValue(s64, true, y64)
+    local before = GetPlayerMoney()
+    TransferMoneyToPlayer(price, y64, "sellship")
+    C.SellPlayerShip(ship, yard)
+    log(string.format("ORDER: sold %s at %s for %d Cr, money %d -> %d",
+                      shipcode, yardcode, price, before, GetPlayerMoney()))
+    return true
+end
+
+--- "panel clear" / "panel <text>" -> one line of the in-game panel (3.9).
+--- MD keeps the list and renders it; this only takes the string apart.
+local function panel(args)
+    if args[1] == "clear" and #args == 1 then
+        pcall(AddUITriggeredEvent, "X4Agent", "panelclear", "")
+        return true
+    end
+    pcall(AddUITriggeredEvent, "X4Agent", "panel", table.concat(args, " "))
+    return true
+end
+
+--- "licence tradesubscription TJL-171" -> buy a licence, paid, at the faction
+--- whose station the ship is docked at.
+--
+-- The licence tab of the same menu as blueprints: GetOwnLicences(faction)
+-- lists what the faction offers with its price, minrelation (UI scale, which
+-- is what GetUIRelation returns) and precursor; the menu refuses below the
+-- reputation or without the precursor, and only offers what issellable says.
+-- Most licences are not for sale at all: they come with a promotion ceremony.
+local function buy_licence(args)
+    local kind, shipcode = args[1], args[2]
+    if not kind or not shipcode then
+        return refuse("licence needs: licence <type> <SHIP IDCODE>")
+    end
+    local ship = player_ships()[shipcode]
+    if not ship then
+        return refuse("licence: no ship of ours with id code " .. shipcode)
+    end
+    local container = C.GetContextByClass(ship, "container", false)
+    if container == 0 then
+        return refuse("licence: " .. shipcode .. " is not docked anywhere")
+    end
+    local station = ConvertStringTo64Bit(tostring(container))
+    local owner, stationcode = GetComponentData(station, "owner", "idcode")
+    if owner == "player" then
+        return refuse("licence: " .. shipcode .. " is docked at our own " .. tostring(stationcode))
+    end
+    if HasLicence("player", kind, owner) then
+        return refuse("licence: " .. kind .. " from " .. owner .. " is already ours")
+    end
+    local offer
+    for _, licence in ipairs(GetOwnLicences(owner) or {}) do
+        if licence.type == kind then
+            offer = licence
+            break
+        end
+    end
+    if not offer or not offer.issellable then
+        return refuse("licence: " .. owner .. " does not sell " .. kind)
+    end
+    local standing = GetUIRelation(owner)
+    if offer.minrelation > standing then
+        return refuse(string.format("licence: %s from %s needs reputation %s, we stand at %s",
+                                    kind, owner, tostring(offer.minrelation), tostring(standing)))
+    end
+    if offer.precursor ~= nil and not HasLicence("player", offer.precursor, owner) then
+        return refuse("licence: " .. kind .. " from " .. owner .. " needs " .. offer.precursor .. " first")
+    end
+    local before = GetPlayerMoney()
+    if before < offer.price then
+        return refuse(string.format("licence: %s costs %d Cr, we have %d", kind, offer.price, before))
+    end
+    TransferPlayerMoneyTo(offer.price, station)
+    AddLicence("player", kind, owner)
+    log(string.format("ORDER: bought licence %s from %s at %s for %d Cr, money %d -> %d, held now: %s",
+                      kind, owner, tostring(stationcode), offer.price, before, GetPlayerMoney(),
+                      tostring(HasLicence("player", kind, owner))))
+    return true
+end
+
+--- "release FWR-392" -> take away the agent's priority orders (DockAndWait),
+--- so the ship goes back to its own queue and default behaviour.
+local function release(args)
+    local shipcode = args[1]
+    if not shipcode then
+        return refuse("release needs: release <SHIP IDCODE>")
+    end
+    local ship = player_ships()[shipcode]
+    if not ship then
+        return refuse("release: no ship of ours with id code " .. shipcode)
+    end
+    C.RemoveAllOrders2(ship, false, true)
+    log("ORDER: " .. shipcode .. " released")
+    return true
+end
+
 local HANDLERS = {
+    limit = set_limit,
+    turrets = set_turrets,
     price = set_price,
     tradeware = set_tradeware,
     traderule = set_trade_rule,
@@ -657,6 +1191,21 @@ local BARE_HANDLERS = {
     blueprint = buy_blueprint,
     docked = list_docked,
     dockat = dock_at,
+    release = release,
+    licence = buy_licence,
+    command = command_ship,
+    haul = haul,
+    loop = loop_orders,
+    revisit = revisit,
+    satellite = deploy_satellite,
+    resupply = set_resupply,
+    ledger = ledger,
+    repair = repair,
+    patrol = patrol,
+    findbuilds = find_builds,
+    hire = hire_builder,
+    panel = panel,
+    sellship = sell_ship,
     savegame = save_agent_slot,
     signals = list_signals,
     respond = set_response,
@@ -744,7 +1293,7 @@ local function init()
     end
     _G.__X4AGENT_COMMAND_HANDLER = X4Agent.onCommand
     RegisterEvent("X4Agent.Command", X4Agent.onCommand)
-    log("ready (chunk " .. CHUNK .. "), handling: price, tradeware, traderule, avoid hostile, signals, respond, savegame, blueprint, docked, dockat")
+    log("ready (chunk " .. CHUNK .. "), handling: price, tradeware, traderule, avoid hostile, signals, respond, savegame, blueprint, docked, dockat, release, licence, command, haul, loop, limit, turrets, revisit, satellite, resupply, ledger, repair, patrol, findbuilds, hire, panel, sellship")
 end
 
 -- Initialise straight away, and do NOT hand this to Register_OnLoad_Init.

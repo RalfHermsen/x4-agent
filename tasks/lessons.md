@@ -79,6 +79,19 @@ global `SaveGame(filename, name)` with a slot name such as `save_008`. Copy the
 saves a test or a comparison depends on into `saves/reference/` (gitignored)
 before running the game, and read them from there.
 
+**L6f. A profile can have more than one save folder.** `Documents/Egosoft/X4`
+held an empty numbered `save` folder beside the real one, and the empty one
+sorts first. The first `experiment.py` took it: it copied nothing for safety,
+watched a slot that never changed and reported its own final save as missing.
+Find the folder by the save you are about to use, and refuse to run when the
+safety copy is empty.
+
+**L6g. Reputation does not grant licences; ceremonies do.** Teladi stood at
+0.29 in the 105-hour save, above the 0.1 for "ally", and the player held
+neither ceremonyfriend nor ceremonyally, so station_gen_intermediate and every
+licence that needs them stayed closed. The ceremony is attended by the player
+in person. Almost no licence has a price; tradesubscription does.
+
 ## About the bridge
 
 **L8. `Register_OnLoad_Init` only works if the file was loaded before the
@@ -163,6 +176,11 @@ turned planning off but left the "refresh the save before planning" request
 in, and that request is an autosave: one harness run overwrote the player's
 newest autosave (restored from `saves/reference/`). Harness runs now compare
 autosave checksums before and after.
+
+**L8g. A test that builds its own data can agree with itself and be wrong.**
+`builds` on a known shipyard is `["m"]` in a parsed save; a test that wrote
+`["ship_m"]` passed while the code would never have matched a real yard.
+Take test data from a parsed save, or check its shape against one once.
 
 ## About the model
 

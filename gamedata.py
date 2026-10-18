@@ -170,11 +170,20 @@ MODULES = Path(__file__).parent / "data" / "modules.json"
 _MODULE_FILE = re.compile(r"assets/structures/[^/]+/macros/([^/]+_macro)\.xml$")
 _CARGO = re.compile(rb'<cargo max="(\d+)" tags="([^"]+)"')
 _CLASS = re.compile(rb'<macro name="[^"]+" class="([^"]+)"')
+_WORKFORCE = re.compile(rb'<workforce race="([a-z]+)" capacity="(\d+)"')
 # A module ware names its macro in a <component ref=...> child. The negative
 # lookahead stops at the next ware *definition*; production recipes inside a
 # ware are also <ware ...> elements, so "<ware " alone would stop too early.
 _MODULE_WARE = re.compile(r'<ware id="([^"]+)"(?:(?!<ware id=).)*?<component ref="([^"]+_macro)"',
                           re.S)
+
+
+_WARE_BLOCK = re.compile(r'<ware id="(module_[^"]+)"(.*?)</ware>', re.S)
+_COMPONENT_REF = re.compile(r'<component ref="([^"]+_macro)"')
+_PRICE = re.compile(r'<price min="\d+" average="\d+" max="(\d+)"')
+_PRICE_ALL = re.compile(r'<price min="(\d+)" average="(\d+)" max="(\d+)"')
+_LICENCE = re.compile(r'<restriction licence="([^"]+)"')
+_OWNER = re.compile(r'<owner faction="([^"]+)"')
 
 
 def build_modules(x4_dir: Path = X4_DIR) -> dict[str, dict]:
@@ -201,12 +210,31 @@ def build_modules(x4_dir: Path = X4_DIR) -> dict[str, dict]:
                 for amount, tags in _CARGO.findall(data):
                     for tag in tags.decode().split():
                         cargo[tag] = cargo.get(tag, 0) + int(amount)
+                workforce = _WORKFORCE.search(data)
                 modules[match.group(1)] = {"class": cls.group(1).decode() if cls else None,
-                                           "ware": None, "cargo": cargo}
+                                           "ware": None, "cargo": cargo,
+                                           "workforce": ({"race": workforce.group(1).decode(),
+                                                          "capacity": int(workforce.group(2))}
+                                                         if workforce else None)}
     wares = b"".join(extract_all(x4_dir, "libraries/wares.xml")).decode("utf-8", "replace")
     for ware, macro in _MODULE_WARE.findall(wares):
         if macro in modules and ware.startswith("module_"):
             modules[macro]["ware"] = ware
+    # Who sells the blueprint, under which licence, for how much. The blueprint
+    # menu charges a module's maxprice (menu_trader_blueprintsorlicences.lua),
+    # and the factions listed as owners are the ones whose representatives
+    # offer it.
+    for match in _WARE_BLOCK.finditer(wares):
+        ware, body = match.group(1), match.group(2)
+        ref = _COMPONENT_REF.search(body)
+        if not ref or ref.group(1) not in modules:
+            continue
+        entry = modules[ref.group(1)]
+        price = _PRICE.search(body)
+        licence = _LICENCE.search(body)
+        entry["owners"] = sorted(set(_OWNER.findall(body)))
+        entry["licence"] = licence.group(1) if licence else None
+        entry["maxprice"] = int(price.group(1)) if price else None
     return modules
 
 
@@ -231,6 +259,147 @@ def capacity(module_macros: list[str]) -> dict[str, int]:
         for tag, amount in (table.get(macro) or {}).get("cargo", {}).items():
             total[tag] = total.get(tag, 0) + amount
     return total
+
+
+SHIPS = Path(__file__).parent / "data" / "ships.json"
+_SHIP_FILE = re.compile(r"assets/units/size_[a-z]+/macros/(ship_[^/]+_macro)\.xml$")
+_HULL = re.compile(rb'<hull max="(\d+)"')
+
+
+def build_ships(x4_dir: Path = X4_DIR) -> dict[str, dict]:
+    """Every ship macro's maximum hull. The save stores only the current value
+    (<hull value="7658.075"/>), and only when the ship is damaged."""
+    table: dict[str, dict] = {}
+    for cat in archives(x4_dir):
+        index = read_index(cat)
+        with open(cat.with_suffix(".dat"), "rb") as blob:
+            for name, (offset, size) in index.items():
+                match = _SHIP_FILE.search(name)
+                if not match:
+                    continue
+                blob.seek(offset)
+                hull = _HULL.search(blob.read(size))
+                table[match.group(1)] = {"hull": int(hull.group(1)) if hull else None}
+    return table
+
+
+def ships(rebuild: bool = False) -> dict[str, dict]:
+    if SHIPS.exists() and not rebuild:
+        return json.loads(SHIPS.read_text(encoding="utf-8"))
+    try:
+        table = build_ships()
+    except OSError:
+        return {}
+    SHIPS.parent.mkdir(parents=True, exist_ok=True)
+    SHIPS.write_text(json.dumps(table, indent=1, sort_keys=True), encoding="utf-8")
+    return table
+
+
+WARES = Path(__file__).parent / "data" / "wares.json"
+_ANY_WARE = re.compile(r'<ware id="([^"]+)"([^>]*)>(.*?)</ware>', re.S)
+_PRODUCTION = re.compile(r'<production ([^>]*)>(.*?)</production>', re.S)
+_INPUT = re.compile(r'<ware ware="([^"]+)" amount="(\d+)"')
+
+
+def build_wares(x4_dir: Path = X4_DIR) -> dict[str, dict]:
+    """Every ware: transport type, volume, prices, and its recipes.
+
+    One recipe per production method (default, teladi, paranid, ...), because a
+    station's modules decide which one it runs, and a Teladi food line eats
+    different inputs from an Argon one. Work units are wares too: what a
+    station's workforce consumes is the recipe of workunit_busy and _idle.
+    """
+    table: dict[str, dict] = {}
+    for part in extract_all(x4_dir, "libraries/wares.xml"):
+        text = part.decode("utf-8", "replace")
+        for ware, head, body in _ANY_WARE.findall(text):
+            attrs = dict(_ATTR.findall(head))
+            price = _PRICE_ALL.search(body)
+            recipes = {}
+            for prod_head, prod_body in _PRODUCTION.findall(body):
+                p = dict(_ATTR.findall(prod_head))
+                primary = prod_body.split("<primary>", 1)[1].split("</primary>", 1)[0] \
+                    if "<primary>" in prod_body else ""
+                recipes[p.get("method", "default")] = {
+                    "time": float(p.get("time", 0)), "amount": int(p.get("amount", 0)),
+                    "inputs": {w: int(n) for w, n in _INPUT.findall(primary)}}
+            table.setdefault(ware, {
+                "transport": attrs.get("transport"),
+                "volume": int(attrs["volume"]) if attrs.get("volume", "").isdigit() else None,
+                "minprice": int(price.group(1)) if price else None,
+                "avgprice": int(price.group(2)) if price else None,
+                "maxprice": int(price.group(3)) if price else None,
+                "recipes": recipes,
+            })
+    return table
+
+
+def wares(rebuild: bool = False) -> dict[str, dict]:
+    if WARES.exists() and not rebuild:
+        return json.loads(WARES.read_text(encoding="utf-8"))
+    try:
+        table = build_wares()
+    except OSError:
+        return {}
+    WARES.parent.mkdir(parents=True, exist_ok=True)
+    WARES.write_text(json.dumps(table, indent=1, sort_keys=True), encoding="utf-8")
+    return table
+
+
+def consumed_by(products: list[str], table: dict | None = None) -> set[str]:
+    """Every ware a station making `products` may eat: the inputs of every
+    method of every product, plus what a workforce eats. Deliberately the
+    widest reading, because switching off a ware a station needs stalls it."""
+    table = table if table is not None else wares()
+    out: set[str] = set()
+    for ware in list(products) + ["workunit_busy", "workunit_idle"]:
+        for recipe in (table.get(ware) or {}).get("recipes", {}).values():
+            out |= set(recipe.get("inputs", {}))
+    return out
+
+
+LICENCES = Path(__file__).parent / "data" / "licences.json"
+_FACTION_BLOCK = re.compile(r'<faction id="([^"]+)"(.*?)</faction>', re.S)
+_LICENCE_TAG = re.compile(r"<licence [^>]*>")
+_ATTR = re.compile(r'(\w+)="([^"]*)"')
+
+
+def build_licences(x4_dir: Path = X4_DIR) -> dict[str, dict]:
+    """What each faction asks for each licence: reputation, precursor, price.
+
+    From libraries/factions.xml. Reputation is on the save's own scale, -1 to 1
+    (ceremonyfriend at 0.01, ceremonyally at 0.1). Most licences carry no price:
+    they come with a promotion ceremony, which the player attends in person, so
+    the agent cannot buy them. A faction block lists its definitions first;
+    entries without any of the three attributes are something else and skipped.
+    """
+    table: dict[str, dict] = {}
+    for part in extract_all(x4_dir, "libraries/factions.xml"):
+        text = part.decode("utf-8", "replace")
+        for faction, body in _FACTION_BLOCK.findall(text):
+            for tag in _LICENCE_TAG.findall(body):
+                attrs = dict(_ATTR.findall(tag))
+                if not ({"minrelation", "precursor", "price"} & set(attrs)):
+                    continue
+                kinds = table.setdefault(faction, {})
+                kinds.setdefault(attrs["type"], {
+                    "minrelation": float(attrs["minrelation"]) if "minrelation" in attrs else None,
+                    "precursor": attrs.get("precursor"),
+                    "price": int(attrs["price"]) if "price" in attrs else None,
+                })
+    return table
+
+
+def licences(rebuild: bool = False) -> dict[str, dict]:
+    if LICENCES.exists() and not rebuild:
+        return json.loads(LICENCES.read_text(encoding="utf-8"))
+    try:
+        table = build_licences()
+    except OSError:
+        return {}
+    LICENCES.parent.mkdir(parents=True, exist_ok=True)
+    LICENCES.write_text(json.dumps(table, indent=1, sort_keys=True), encoding="utf-8")
+    return table
 
 
 # Sectors belonging to a scenario rather than the living universe. The Timelines
@@ -268,6 +437,9 @@ def main() -> int:
     args = parser.parse_args()
 
     if args.modules:
+        ships(rebuild=True)
+        wares(rebuild=True)
+        licences(rebuild=True)
         table = modules(rebuild=True)
         print(f"{len(table)} module macros in {MODULES}, "
               f"{sum(1 for m in table.values() if m['ware'])} with a blueprint ware")

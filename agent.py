@@ -28,7 +28,9 @@ from pathlib import Path
 import executor
 import memory
 import planner
+import purchases
 import sitrep as sitrep_mod
+import standing
 from save_parser import latest_save, parse_save
 from schemas import PlannerResponse
 
@@ -36,6 +38,22 @@ from schemas import PlannerResponse
 # "the next hours", so a quiet half hour costs nothing, and a forced run now and
 # then catches whatever the fingerprint does not look at.
 MAX_QUIET = float(os.environ.get("X4_AGENT_MAX_QUIET", "1800"))
+
+# A scripted planner for in-game evals: a JSON file holding a list of planner
+# responses, one per cycle, used instead of the two model calls. A test of an
+# action in the running game must not depend on talking a model into
+# proposing it. After the list runs out, cycles plan nothing.
+SCRIPT = os.environ.get("X4_AGENT_SCRIPT")
+
+
+def _scripted(remembered: dict) -> PlannerResponse:
+    steps = json.loads(Path(SCRIPT).read_text(encoding="utf-8"))
+    index = remembered.get("script_index", 0)
+    remembered["script_index"] = index + 1
+    if index < len(steps):
+        return PlannerResponse.model_validate(steps[index])
+    return PlannerResponse(assessment="Script finished.",
+                           updated_goals=remembered.get("goals", []))
 
 
 def _fingerprint(state: dict, failures: list[str], goals: list[str],
@@ -84,7 +102,7 @@ def _fingerprint(state: dict, failures: list[str], goals: list[str],
                         .encode()).hexdigest()
 
 
-def cycle(model: str | None = None, save: Path | None = None) -> dict:
+def cycle(model: str | None = None, save: Path | None = None, force: bool = False) -> dict:
     """Run one full cycle. Returns everything the caller might want to log."""
     model = model or planner.DEFAULT_MODEL
     target = save or latest_save()
@@ -98,6 +116,10 @@ def cycle(model: str | None = None, save: Path | None = None) -> dict:
     failures = memory.check(remembered, state)
     failures += memory.check_fleet(remembered, state, sitrep_mod.ship_type)
     failures += memory.track_expansions(remembered, state)
+    failures += memory.game_refusals(remembered, state)
+    failures += executor.transport_shortage(state)
+    job_commands, job_lines = purchases.advance(remembered, state)
+    failures += job_lines
     report = sitrep_mod.build(state, goals=remembered.get("goals"),
                               failures=failures,
                               refused=remembered.get("refused"))
@@ -108,12 +130,16 @@ def cycle(model: str | None = None, save: Path | None = None) -> dict:
                                remembered.get("refused"))
     quiet_for = time.time() - remembered.get("last_model_run", 0)
     model_ran, quiet_reason = True, None
-    if fingerprint == remembered.get("fingerprint") and quiet_for < MAX_QUIET:
+    if fingerprint == remembered.get("fingerprint") and quiet_for < MAX_QUIET and not force:
         model_ran = False
         quiet_reason = (f"nothing the planner looks at changed; last model run "
                         f"{quiet_for:.0f}s ago, forced after {MAX_QUIET:.0f}s")
 
-    if model_ran:
+    if SCRIPT:
+        model_ran, quiet_reason = True, None
+        analysis, reason_s, extract_s = "scripted planner", 0.0, 0.0
+        plan = _scripted(remembered)
+    elif model_ran:
         analysis, reason_s = planner.reason(
             report, planner.GUIDELINES.read_text(encoding="utf-8"), model)
         plan, extract_s = planner.extract(analysis, report, model)
@@ -124,7 +150,25 @@ def cycle(model: str | None = None, save: Path | None = None) -> dict:
         plan = PlannerResponse(assessment=f"Model not run: {quiet_reason}.",
                                updated_goals=remembered.get("goals", []))
     ok, rejected = planner.check_actions(plan, state)
+    jobs = [a for a in ok if a.type in executor.JOB_ACTIONS]
+    ok = [a for a in ok if a.type not in executor.JOB_ACTIONS]
     commands, skipped = executor.to_commands(ok, state)
+    for action in jobs:
+        if action.type == "sell_ship":
+            first, reason = executor.plan_sale(action, state)
+        elif action.type == "haul":
+            # Haul and loop are one command each; the ship stays its own,
+            # nothing to track over cycles beyond the cargo in the next save.
+            first, reason = executor.plan_haul(action, state, purchases.ships_in_use(remembered))
+            if first and action.repeat:
+                job_commands.append(first)
+                first = f"loop {first.split()[1]}"
+        else:
+            first, reason = purchases.start(remembered, action.ware, state)
+        if reason:
+            skipped.append((action, reason))
+        else:
+            job_commands.append(first)
 
     # Repricing runs every cycle whether the model thought of it or not. Buyers
     # appear and are filled within minutes, so a price is only ever right for a
@@ -137,6 +181,12 @@ def cycle(model: str | None = None, save: Path | None = None) -> dict:
     commands += executor.focus_fleet(state)
     # A build that cannot pay stops buying. Topping it up is a sum.
     commands += executor.funding(state, remembered.setdefault("funded", {}))
+    # A station making a ware itself should not also pay NPCs for it.
+    commands += executor.own_production_buys(state)
+    # A build waits for whoever brings its wares; one of ours brings them.
+    commands += executor.feed_build_storages(state, remembered.setdefault("feeders", {}))
+    # Settings and errands that are arithmetic, each sent once (standing.py).
+    commands += standing.commands(state, remembered)
 
     # Explorers that are exploring the sector they are already in are reported,
     # not re-tasked. Sending them out automatically killed five scouts in an
@@ -154,12 +204,28 @@ def cycle(model: str | None = None, save: Path | None = None) -> dict:
     commands += [c for c in executor.repricing(state)
                  if c.rsplit(" ", 1)[0] not in priced]
 
+    # A ship on an errand belongs to its job until released: nothing else may
+    # give it an order meanwhile, Python's own arithmetic included. A ship the
+    # player reserved (3.8) gets nothing at all, and the refusal says why.
+    errand = purchases.ships_in_use(remembered)
+    reserved = set(remembered.get("reserved", []))
+    kept = []
+    for c in commands:
+        words = c.split()
+        if len(words) > 1 and words[1] in reserved:
+            failures.append(f"not sent, {words[1]} is reserved by the player: {c}")
+            continue
+        if not (len(words) > 1 and words[1] in errand):
+            kept.append(c)
+    commands = kept
+    commands += job_commands
+
     commands, repeats = memory.drop_repeats(remembered, commands)
 
     remembered["goals"] = plan.updated_goals or remembered.get("goals", [])
     memory.record(remembered, commands)
     memory.start_expansions(remembered, commands, state,
-                            lambda ware: executor.EXPANSION_MODULES[ware][0])
+                            lambda ware: executor.EXPANSION_MODULES.get(ware, ("?", False))[0])
     if model_ran:
         # A silent cycle proposed nothing, so it refused nothing; recording
         # that would wipe what the model was last told.
@@ -167,6 +233,7 @@ def cycle(model: str | None = None, save: Path | None = None) -> dict:
     memory.save(remembered)
 
     return {
+        "panel": panel_lines(remembered, commands, failures),
         "save": target,
         "sitrep": report,
         "analysis": analysis,
@@ -182,6 +249,14 @@ def cycle(model: str | None = None, save: Path | None = None) -> dict:
         "model_ran": model_ran,
         "quiet_reason": quiet_reason,
     }
+
+
+def panel_lines(remembered: dict, commands: list[str], failures: list[str]) -> list[str]:
+    """What the in-game panel shows after a cycle (3.9): at most 30 lines."""
+    lines = [f"goal: {g}" for g in remembered.get("goals", [])[:3]]
+    lines += [f"sent: {c}" for c in commands[:12]]
+    lines += [f"note: {f}" for f in failures[:12]]
+    return [line[:120] for line in lines][:30]
 
 
 def render(result: dict) -> str:
