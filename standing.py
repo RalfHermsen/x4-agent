@@ -58,7 +58,7 @@ def sell_limits(state: dict, data: dict) -> list[str]:
                 continue
             keep = int(round((offer.get("desired") or 0), -3))
             if keep >= 1000:
-                out.append(f"limit {st['code']} {ware} sell {keep}")
+                out.append(f"limit {st['code']} {ware} sell {keep} raise")
     return out
 
 
@@ -230,6 +230,8 @@ def hire_builders(state: dict, data: dict) -> list[str]:
 # Below this share of its maximum hull a ship goes for repair; at or above
 # the second it counts as repaired.
 REPAIR_BELOW, REPAIRED_AT = 0.70, 0.95
+SIZE_GROUPS = {"ship_xs": {"s", "m"}, "ship_s": {"s", "m"}, "ship_m": {"s", "m"},
+               "ship_l": {"l", "xl"}, "ship_xl": {"l", "xl"}}
 
 
 def repairs(state: dict, data: dict) -> list[str]:
@@ -253,10 +255,15 @@ def repairs(state: dict, data: dict) -> list[str]:
             if share >= REPAIRED_AT:
                 busy.pop(ship["code"])
             continue
-        if share >= REPAIR_BELOW or not yards:
+        if share >= REPAIR_BELOW:
+            continue
+        # A wharf for S and M docks both; a shipyard for L and XL the big ones.
+        fits = SIZE_GROUPS.get(ship.get("cls"), set())
+        usable = [k for k in yards if fits & set(k.get("builds") or [])]
+        if not usable:
             continue
         sector = (ship.get("place") or {}).get("sector")
-        yard = min(yards, key=lambda k: jumps(graph, sector, (k.get("place") or {}).get("sector")))
+        yard = min(usable, key=lambda k: jumps(graph, sector, (k.get("place") or {}).get("sector")))
         busy[ship["code"]] = yard["code"]
         out.append(f"repair {ship['code']} {yard['code']} {yard.get('owner')}")
     return out

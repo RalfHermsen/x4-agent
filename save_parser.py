@@ -83,6 +83,7 @@ class Asset:
     plot: dict[str, int] = field(default_factory=dict)  # stations: buildplot half-extents, m
     workforce: dict = field(default_factory=dict)  # stations: {"amount": {race: n}, "capacity": n}
     hull: float | None = None   # ships: current hull, only written when damaged
+    loop: int | None = None     # ships: <orders loop="N">, the order queue repeats
     # A station and its build storage are linked by a connection pair: the
     # station's "buildingmodule" connection id appears as <connected> inside the
     # build storage. Resolved to codes after the pass, both ways.
@@ -459,6 +460,9 @@ def _asset(elem, ancestors: list[dict]) -> Asset:
         asset.build["builders"] = _builders(elem)
         asset.build["processor"] = _processor(elem)
     if asset.cls in SHIP_CLASSES:
+        orders = elem.find("orders")
+        if orders is not None and orders.get("loop") is not None:
+            asset.loop = _int(orders.get("loop"))
         hull = elem.find("hull")
         if hull is not None and hull.get("value"):
             asset.hull = float(hull.get("value"))

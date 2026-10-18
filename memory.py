@@ -115,16 +115,28 @@ def check_fleet(data: dict, state: dict, ship_type) -> list[str]:
 
 
 def _setting(command: str) -> tuple[str, str] | None:
+    parts = command.split()
+    # "sellware SHIP WARE" re-creates the ship's default trade order. Sent
+    # every cycle with the same ware, the old order's children were left in the
+    # queue: FWR-392 carried ten TradeRoutine orders in the 73-hour save. Only
+    # a change of ware is worth sending.
+    if len(parts) == 3 and parts[0] == "sellware":
+        return " ".join(parts[:2]), parts[2]
+    return _config_setting(command)
+
+
+def _config_setting(command: str) -> tuple[str, str] | None:
     """A configuration command as (what it configures, what it was set to).
 
-    All three share one shape: `<verb> <station> <ware> <side> <value>`. Keeping
+    All share one shape: `<verb> <station> <ware> <side> <value>`, limit with a
+    trailing mode that is part of the value. Keeping
     the subject and the value apart is what lets a setting be changed back to an
     earlier value later; keying on the whole command would swallow that.
     """
     parts = command.split()
-    if len(parts) != 5 or parts[0] not in CONFIGURATION:
+    if len(parts) not in (5, 6) or parts[0] not in CONFIGURATION:
         return None
-    return " ".join(parts[:4]), parts[4]
+    return " ".join(parts[:4]), " ".join(parts[4:])
 
 
 def drop_repeats(data: dict, commands: list[str]) -> tuple[list[str], list[str]]:

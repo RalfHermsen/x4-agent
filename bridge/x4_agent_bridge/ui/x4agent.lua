@@ -101,6 +101,8 @@ declare [[ int32_t GetContainerBuyLimit(UniverseID containerid, const char* ware
 declare [[ int32_t GetContainerSellLimit(UniverseID containerid, const char* wareid); ]]
 declare [[ typedef struct { double time; int64_t money; int64_t entryid; const char* eventtype; const char* eventtypename; UniverseID partnerid; const char* partnername; const char* partneridcode; int64_t tradeentryid; const char* tradeeventtype; const char* tradeeventtypename; UniverseID buyerid; UniverseID sellerid; const char* ware; uint32_t amount; int64_t price; bool complete; } TransactionLogEntry; ]]
 declare [[ uint32_t GetNumTransactionLog(UniverseID componentid, double starttime, double endtime); ]]
+declare [[ double GetCurrentGameTime(void); ]]
+declare [[ uint32_t GetAmmoCount(UniverseID defensibleid, const char* macroname); ]]
 declare [[ uint32_t GetTransactionLog(TransactionLogEntry* result, uint32_t resultlen, UniverseID componentid, double starttime, double endtime); ]]
 declare [[ void SetPlayerGlobalLoadoutLevel(float value); ]]
 declare [[ float GetPlayerGlobalLoadoutLevel(void); ]]
@@ -677,16 +679,11 @@ local function dock_at(args)
     return true
 end
 
--- A subordinate group carries one assignment for all its members
--- (setgroupassignment), so each role gets its own group under a commander
--- ship, always the same one.
-local ROLE_GROUP = { attack = 1, interception = 2, defence = 3, assist = 4 }
+local ROLE_GROUP = { attack = true, interception = true, defence = true, assist = true }
 
 --- "command NBO-436 JFZ-239 interception" -> put a ship of ours under another
---- ship of ours, in a role. The interact menu's orderAssignCommander, step by
---- step (menu_interactmenu.lua): an AssignCommander order with commander,
---- assignment, group, setgroupassignment, cancelorders, response and
---- informfleetmanager, enabled and moved to the front.
+--- ship of ours, in a role. Lua only finds the two ships; MD assigns (see the
+--- Agent_Command cues).
 local function command_ship(args)
     local shipcode, commandercode, role = args[1], args[2], args[3]
     if not (shipcode and commandercode and role) then
@@ -707,22 +704,9 @@ local function command_ship(args)
     if not GetComponentData(ConvertStringToLuaID(tostring(ship)), "assignedpilot") then
         return refuse("command: " .. shipcode .. " has no pilot")
     end
-    local index = C.CreateOrder(ship, "AssignCommander", false)
-    if index == 0 then
-        return refuse("command: the game would not create the order for " .. shipcode)
-    end
-    SetOrderParam(ship, index, 1, nil, ConvertStringToLuaID(tostring(commander)))
-    SetOrderParam(ship, index, 2, nil, role)
-    SetOrderParam(ship, index, 3, nil, group)
-    SetOrderParam(ship, index, 4, nil, true)
-    SetOrderParam(ship, index, 5, nil, true)
-    SetOrderParam(ship, index, 6, nil, true)
-    SetOrderParam(ship, index, 8, nil, true)
-    C.EnableOrder(ship, index)
-    if index ~= 1 then
-        C.AdjustOrder(ship, index, 1, true, false, false)
-    end
-    log(string.format("ORDER: %s under %s as %s (group %d)", shipcode, commandercode, role, group))
+    -- Hand both over to MD, ship first; MD assigns and logs the result.
+    pcall(AddUITriggeredEvent, "X4Agent", "command_ship", ConvertStringToLuaID(tostring(ship)))
+    pcall(AddUITriggeredEvent, "X4Agent", "command_" .. role, ConvertStringToLuaID(tostring(commander)))
     return true
 end
 
@@ -809,10 +793,13 @@ local function loop_orders(args)
     return true
 end
 
---- "limit KYV-745 energycells sell 5000" -> keep at least 5000 in stock before
---- selling; "limit KYV-745 energycells buy clear" -> back to the manager's own.
+--- "limit KYV-745 energycells sell 5000 raise" -> keep at least 5000 in stock
+--- before selling, but only if the manager keeps less; "... clear" -> back to
+--- the manager's own. Raise is what the agent sends: a manager can keep far
+--- more than the agent would ask for (155,200 energycells on KYV-745 against
+--- an asked 1,000), and lowering that sells what the station needs.
 local function set_limit(station, args)
-    local ware, side, value = args[1], args[2], args[3]
+    local ware, side, value, mode = args[1], args[2], args[3], args[4]
     if not (ware and (side == "buy" or side == "sell") and value) then
         return refuse("limit needs: limit <STATION> <ware> <buy|sell> <amount|clear>")
     end
@@ -825,6 +812,11 @@ local function set_limit(station, args)
         local amount = tonumber(value)
         if not amount then
             return refuse("limit: amount must be a number or clear, got " .. value)
+        end
+        if mode == "raise" and before >= amount then
+            log(string.format("limit: %s %s limit for %s is %d already, not lowering to %d",
+                              args.code, side, ware, before, amount))
+            return true
         end
         if side == "buy" then C.SetContainerBuyLimitOverride(station, ware, amount)
         else C.SetContainerSellLimitOverride(station, ware, amount) end
@@ -876,6 +868,9 @@ local function deploy_satellite(args)
     if not C.IsOrderSelectableFor("DeployObjectAtPosition", ship) then
         return refuse("satellite: " .. shipcode .. " cannot take a DeployObjectAtPosition order")
     end
+    if C.GetAmmoCount(ship, "eq_arg_satellite_01_macro") == 0 then
+        return refuse("satellite: " .. shipcode .. " has no satellite aboard")
+    end
     local pos = C.GetObjectPositionInSector(station)
     CreateOrder(ConvertStringToLuaID(tostring(ship)), "DeployObjectAtPosition", {
         destination = { station_sector(station), { pos.x + 3000, pos.y, pos.z } },
@@ -921,7 +916,7 @@ end
 --- NPC sellers for wares our own ships could have delivered.
 local function ledger(args)
     local hours = tonumber(args[1] or "2") or 2
-    local now = GetCurrentGameTime()
+    local now = C.GetCurrentGameTime()
     for code, station in pairs(player_stations()) do
         local count = C.GetNumTransactionLog(station, now - hours * 3600, now)
         local paid, total = {}, 0
@@ -963,8 +958,15 @@ local function repair(args)
     if not C.IsOrderSelectableFor("Repair", ship) then
         return refuse("repair: " .. shipcode .. " cannot take a Repair order")
     end
+    -- As the ship menu fills it (processRepairsFor): destination, hull to
+    -- 100 percent, no single components, not repairall, accepted cost 0. With
+    -- only a destination the order found nothing to repair and ended at once.
+    -- A priority order: queued normally it waited behind fourteen trade
+    -- orders (FWR-392, 2026-10-18). Its own orders resume after the repair.
     CreateOrder(ConvertStringToLuaID(tostring(ship)), "Repair",
-                { destination = ConvertStringToLuaID(tostring(yard)) }, false, false, false)
+                { destination = ConvertStringToLuaID(tostring(yard)), hullpercent = 100,
+                  damagedcomponents = {}, repairall = false, acceptedcost = 0 },
+                false, false, true)
     log(string.format("ORDER: %s goes to %s for repair", shipcode, yardcode))
     return true
 end

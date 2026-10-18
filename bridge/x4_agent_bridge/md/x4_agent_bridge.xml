@@ -679,19 +679,31 @@
        them. Each writes one logbook line, which the agent reads back, and
        tells the host, which then plans at once instead of waiting. Attacks
        are throttled per object to one line every five minutes. -->
+  <!-- The first version listened to event_player_owned_attacked_object, which
+       is one of ours attacking something ("param = attacker, param2 = attacked
+       object"), and reported our own fighters at work. event_player_owned_attacked
+       is the other way round: object = ours, param = attacker (common.xsd).
+       The throttle lives in a store keyed by object: a variable set on the
+       object itself did not hold between events. -->
+  <cue name="Owned_Attack_Store">
+    <actions>
+      <set_value name="$last" exact="table[]"/>
+    </actions>
+  </cue>
+
   <cue name="Owned_Attacked" instantiate="true">
     <conditions>
-      <event_player_owned_attacked_object comment="param == attacker, param2 == target"/>
-      <check_value value="event.param2.isclass.ship or event.param2.isclass.station"/>
-      <check_value value="event.param.trueowner != event.param2.trueowner"/>
+      <event_player_owned_attacked/>
+      <check_value value="event.object.isclass.ship or event.object.isclass.station"/>
+      <check_value value="@event.param.trueowner != event.object.trueowner"/>
     </conditions>
     <actions>
-      <do_if value="not @event.param2.$x4agent_attacked or player.age gt event.param2.$x4agent_attacked + 300s">
-        <set_value name="event.param2.$x4agent_attacked" exact="player.age"/>
+      <do_if value="not @Owned_Attack_Store.$last.{event.object} or player.age gt Owned_Attack_Store.$last.{event.object} + 300s">
+        <set_value name="Owned_Attack_Store.$last.{event.object}" exact="player.age"/>
         <write_to_logbook category="general"
-          text="'[x4-agent] ATTACKED: %s by %s (%s)'.[event.param2.idcode, @event.param.idcode, @event.param.owner.knownname]"/>
+          text="'[x4-agent] ATTACKED: %s by %s (%s)'.[event.object.idcode, @event.param.idcode, @event.param.owner.knownname]"/>
         <signal_cue_instantly cue="md.Named_Pipes.Write"
-          param="table[$pipe = 'x4_agent', $msg = 'event attacked %s'.[event.param2.idcode]]"/>
+          param="table[$pipe = 'x4_agent', $msg = 'event attacked %s'.[event.object.idcode]]"/>
       </do_if>
     </actions>
   </cue>
@@ -808,6 +820,58 @@
       </do_for_each>
       <write_to_logbook category="general"
         text="'[x4-agent] PANEL opened with %s lines'.[Agent_Panel_Store.$lines.count]"/>
+    </actions>
+  </cue>
+
+  <!-- 3.4 roles under a ship. Lua finds both ships by their codes and hands them
+       over as two UI events, the ship first, then the commander with the role
+       in the control name; MD assigns with set_object_commander, the action
+       already proven for station roles. An AssignCommander order created from
+       Lua removed the old commander and never set the new one. -->
+  <cue name="Agent_Command_Store">
+    <actions>
+      <set_value name="$ship" exact="null"/>
+    </actions>
+  </cue>
+
+  <cue name="Agent_Command_Ship" instantiate="true">
+    <conditions>
+      <event_ui_triggered screen="'X4Agent'" control="'command_ship'"/>
+    </conditions>
+    <actions>
+      <set_value name="Agent_Command_Store.$ship" exact="event.param3"/>
+    </actions>
+  </cue>
+
+  <cue name="Agent_Command_Commander" instantiate="true">
+    <conditions>
+      <event_ui_triggered screen="'X4Agent'"/>
+      <check_value value="event.param2 == 'command_attack' or event.param2 == 'command_interception' or event.param2 == 'command_defence' or event.param2 == 'command_assist'"/>
+    </conditions>
+    <actions>
+      <set_value name="$ship" exact="Agent_Command_Store.$ship"/>
+      <set_value name="$commander" exact="event.param3"/>
+      <set_value name="Agent_Command_Store.$ship" exact="null"/>
+      <do_if value="@$ship.isoperational and @$commander.isoperational and $ship != $commander">
+        <do_if value="event.param2 == 'command_attack'">
+          <set_object_commander object="$ship" commander="$commander" assignment="assignment.attack"/>
+        </do_if>
+        <do_elseif value="event.param2 == 'command_interception'">
+          <set_object_commander object="$ship" commander="$commander" assignment="assignment.interception"/>
+        </do_elseif>
+        <do_elseif value="event.param2 == 'command_defence'">
+          <set_object_commander object="$ship" commander="$commander" assignment="assignment.defence"/>
+        </do_elseif>
+        <do_else>
+          <set_object_commander object="$ship" commander="$commander" assignment="assignment.assist"/>
+        </do_else>
+        <write_to_logbook category="general"
+          text="'[x4-agent] ORDER: %s under %s as %s, commander now %s'.[$ship.idcode, $commander.idcode, event.param2, @$ship.commander.idcode]"/>
+      </do_if>
+      <do_else>
+        <write_to_logbook category="general"
+          text="'[x4-agent] REFUSED: command: ship or commander missing for %s'.[event.param2]"/>
+      </do_else>
     </actions>
   </cue>
 

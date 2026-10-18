@@ -26,7 +26,7 @@ def test_sell_limit_keeps_what_the_station_eats(small_state):
     st["production_queue"] = ["sunriseflowers", "energycells"]
     st["offers"] = [{"ware": "energycells", "side": "buy", "price": 16, "amount": 0, "desired": 1485},
                     {"ware": "energycells", "side": "sell", "price": 18, "amount": 300, "desired": 0}]
-    assert standing.sell_limits(state, {}) == ["limit KYV-745 energycells sell 1000"]
+    assert standing.sell_limits(state, {}) == ["limit KYV-745 energycells sell 1000 raise"]
 
 
 def test_revisit_sends_one_idle_scout_once(small_state):
@@ -166,3 +166,14 @@ def test_inventory_read_from_the_save(large_state):
     inventory = large_state["player"]["inventory"]
     assert inventory.get("weapon_gen_spacesuit_repairlaser_01_mk1") == 1
     assert not any(w.startswith("inv_seminar") for w in inventory)
+
+
+def test_no_repair_where_the_ship_cannot_dock(small_state):
+    import gamedata
+    state = copy.deepcopy(small_state)
+    aso = next(a for a in state["assets"] if a["code"] == "ASO-629")    # an M freighter
+    aso["hull"] = gamedata.ships()[aso["macro"]]["hull"] * 0.5
+    sector = aso["place"]["sector"]
+    state["known_stations"] = [{"code": "BIG-001", "owner": "argon", "builds": ["l", "xl"],
+                                "place": {"sector": sector}, "offers": []}]
+    assert standing.repairs(state, {}) == []

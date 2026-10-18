@@ -24,3 +24,11 @@ def test_memory_goes_to_the_temp_store(run_cycle, fake_planner, isolated_memory)
     assert memory.STORE == isolated_memory
     stored = json.loads(isolated_memory.read_text(encoding="utf-8"))
     assert stored["goals"] == ["keep KYV-745 supplied"]
+
+
+def test_sellware_sent_only_when_the_ware_changes():
+    data = {}
+    fresh, repeats = memory.drop_repeats(data, ["sellware KTK-861 water"])
+    memory.record(data, fresh)
+    assert memory.drop_repeats(data, ["sellware KTK-861 water"]) == ([], ["sellware KTK-861 water"])
+    assert memory.drop_repeats(data, ["sellware KTK-861 microchips"])[0] == ["sellware KTK-861 microchips"]
