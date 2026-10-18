@@ -72,6 +72,8 @@ def main() -> int:
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("command", nargs="*", help="bridge commands to send first")
     parser.add_argument("--timeout", type=float, default=120)
+    parser.add_argument("--baseline", type=Path,
+                        help="the save that was loaded; its logbook lines are not new")
     args = parser.parse_args()
 
     path = slot_path()
@@ -80,6 +82,8 @@ def main() -> int:
     # along than the one loaded. Not by text alone: a verb that writes the same
     # line twice must show twice.
     seen = set(logbook(path)) if path.exists() else set()
+    if args.baseline:
+        seen |= set(logbook(args.baseline))
     before = path.stat().st_mtime if path.exists() else 0
     send(args.command + ["savegame"])
     print(f"[harness] queued: {args.command + ['savegame']}")

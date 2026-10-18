@@ -69,6 +69,21 @@ declare [[ uint32_t GetAllResponsesToSignal(ResponseInfo* result, uint32_t resul
 declare [[ bool SetDefaultResponseToSignalForFaction2(const char* newresponse, bool ask, const char* signalid, const char* factionid, const char* purposeid); ]]
 declare [[ const char* GetDefaultResponseToSignalForFaction2(const char* signalid, const char* factionid, const char* purposeid); ]]
 
+-- Buying blueprints. Every signature below is copied from the game's own UI
+-- Lua (menu_trader_blueprintsorlicences, menu_docked, menu_playerinfo,
+-- menu_crafting), not written from memory.
+declare [[ typedef struct { const char* macro; const char* ware; const char* productionmethodid; } UIBlueprint; ]]
+declare [[ uint32_t GetNumBlueprints(const char* set, const char* category, const char* macroname); ]]
+declare [[ uint32_t GetBlueprints(UIBlueprint* result, uint32_t resultlen, const char* set, const char* category, const char* macroname); ]]
+declare [[ void LearnBlueprint(const char* wareid); ]]
+declare [[ uint32_t GetNumWares(const char* tags, bool research, const char* licenceownerid, const char* exclusiontags); ]]
+declare [[ uint32_t GetWares(const char** result, uint32_t resultlen, const char* tags, bool research, const char* licenceownerid, const char* exclusiontags); ]]
+declare [[ uint32_t GetNumAllFactionShips(const char* factionid); ]]
+declare [[ uint32_t GetAllFactionShips(UniverseID* result, uint32_t resultlen, const char* factionid); ]]
+declare [[ UniverseID GetContextByClass(UniverseID componentid, const char* classname, bool includeself); ]]
+declare [[ bool IsOrderSelectableFor(const char* orderdefid, UniverseID controllableid); ]]
+declare [[ bool RemoveAllOrders2(UniverseID controllableid, bool onlytrade, bool onlypriority); ]]
+
 local X4Agent = {}
 
 -- DebugError only reaches a log file the game does not write unless it was
@@ -440,6 +455,190 @@ local function save_agent_slot(args)
     return true
 end
 
+--- Every ship the player owns, as {idcode = UniverseID}.
+local function player_ships()
+    local found = {}
+    local count = C.GetNumAllFactionShips("player")
+    if count == 0 then
+        return found
+    end
+    local buffer = ffi.new("UniverseID[?]", count)
+    count = C.GetAllFactionShips(buffer, count, "player")
+    for i = 0, count - 1 do
+        found[ffi.string(C.GetObjectIDCode(buffer[i]))] = buffer[i]
+    end
+    return found
+end
+
+local function owned_blueprints()
+    local owned = {}
+    local count = C.GetNumBlueprints("", "", "")
+    if count == 0 then
+        return owned
+    end
+    local buffer = ffi.new("UIBlueprint[?]", count)
+    count = C.GetBlueprints(buffer, count, "", "", "")
+    for i = 0, count - 1 do
+        owned[ffi.string(buffer[i].ware)] = true
+    end
+    return owned
+end
+
+local function faction_sells_module(faction, ware)
+    -- What the faction representative would list: the same tag, faction and
+    -- exclusions the blueprint menu asks for.
+    local count = C.GetNumWares("module", false, faction, "noplayerblueprint missiononly")
+    if count == 0 then
+        return false
+    end
+    local buffer = ffi.new("const char*[?]", count)
+    count = C.GetWares(buffer, count, "module", false, faction, "noplayerblueprint missiononly")
+    for i = 0, count - 1 do
+        if ffi.string(buffer[i]) == ware then
+            return true
+        end
+    end
+    return false
+end
+
+--- "blueprint module_gen_prod_water_01 TJL-171" -> buy a module blueprint, paid.
+--
+-- Bought from the faction whose station TJL-171 is docked at: the agent may buy
+-- remotely, but only where one of its ships actually is (owner's rule,
+-- 2026-10-18). The order of checks and the payment follow the game's own
+-- blueprint menu. LearnBlueprint does not take money, and neither does MD's
+-- add_blueprints; the menu pays with a separate TransferPlayerMoneyTo, and so
+-- must this, or the agent gets blueprints for free and is no longer playing
+-- the same game. Module blueprints cost the ware's maxprice (the menu's own
+-- rule for the module tag; other tags use avgprice * 10).
+--
+-- Modules only. Every refusal says why in the logbook, so the next cycle can
+-- read it.
+local function buy_blueprint(args)
+    local ware, shipcode = args[1], args[2]
+    if not ware or not shipcode then
+        log("blueprint needs: blueprint <module ware> <SHIP IDCODE>")
+        return false
+    end
+    local ship = player_ships()[shipcode]
+    if not ship then
+        log("blueprint: no ship of ours with id code " .. shipcode)
+        return false
+    end
+    local container = C.GetContextByClass(ship, "container", false)
+    if container == 0 then
+        log("blueprint: " .. shipcode .. " is not docked anywhere")
+        return false
+    end
+    local station = ConvertStringTo64Bit(tostring(container))
+    local owner, stationcode = GetComponentData(station, "owner", "idcode")
+    if owner == "player" then
+        log("blueprint: " .. shipcode .. " is docked at our own " .. tostring(stationcode)
+            .. "; blueprints are bought from another faction")
+        return false
+    end
+    if owned_blueprints()[ware] then
+        log("blueprint: " .. ware .. " is already ours, not buying it again")
+        return false
+    end
+    if not faction_sells_module(owner, ware) then
+        log("blueprint: " .. tostring(owner) .. " does not sell " .. ware)
+        return false
+    end
+    local tradelicence = GetWareData(ware, "tradelicence")
+    if not HasLicence("player", tradelicence, owner) then
+        log("blueprint: " .. ware .. " needs licence " .. tostring(tradelicence)
+            .. " from " .. tostring(owner) .. ", which we do not hold")
+        return false
+    end
+    local price = GetWareData(ware, "maxprice")
+    local before = GetPlayerMoney()
+    if before < price then
+        log(string.format("blueprint: %s costs %d Cr, we have %d", ware, price, before))
+        return false
+    end
+    -- Pay first, then learn, as the menu does.
+    TransferPlayerMoneyTo(price, station)
+    C.LearnBlueprint(ware)
+    log(string.format("ORDER: bought blueprint %s from %s at %s for %d Cr, money %d -> %d, owned now: %s",
+                      ware, owner, tostring(stationcode), price, before, GetPlayerMoney(),
+                      tostring(owned_blueprints()[ware] == true)))
+    return true
+end
+
+--- "docked" -> one logbook line per ship of ours docked at another faction's
+--- station. That is where a blueprint can be bought (owner's rule), and
+--- ships move, so the answer is only good for the moment it is asked.
+local function list_docked(args)
+    local count = 0
+    for code, ship in pairs(player_ships()) do
+        local container = C.GetContextByClass(ship, "container", false)
+        if container ~= 0 then
+            local owner, stationcode = GetComponentData(ConvertStringTo64Bit(tostring(container)),
+                                                        "owner", "idcode")
+            if owner ~= "player" then
+                log(string.format("docked: %s at %s (%s)", code, tostring(stationcode), tostring(owner)))
+                count = count + 1
+            end
+        end
+    end
+    log("docked: " .. count .. " ship(s) of ours at other factions' stations")
+    return true
+end
+
+--- "dockat FWR-392 YJA-160 teladi" -> dock and wait at another faction's station.
+--
+-- Buying a blueprint needs a ship of ours docked where it is sold, and traders
+-- only ever dock for moments, so the agent has to be able to send one. This is
+-- what the interact menu's "Dock at" does: check the order is allowed and the
+-- ship has a pilot, clear its queue, then CreateOrder("DockAndWait") with the
+-- station as destination. The faction is passed in because a station of
+-- somebody else is found by walking that faction's stations; Python knows the
+-- owner from the save. MD cannot do any of this: it cannot take the codes out
+-- of the command string.
+local function dock_at(args)
+    local shipcode, stationcode, faction = args[1], args[2], args[3]
+    if not (shipcode and stationcode and faction) then
+        log("dockat needs: dockat <SHIP IDCODE> <STATION IDCODE> <faction>")
+        return false
+    end
+    local ship = player_ships()[shipcode]
+    if not ship then
+        log("dockat: no ship of ours with id code " .. shipcode)
+        return false
+    end
+    local count = C.GetNumAllFactionStations(faction)
+    local target
+    if count > 0 then
+        local buffer = ffi.new("UniverseID[?]", count)
+        count = C.GetAllFactionStations(buffer, count, faction)
+        for i = 0, count - 1 do
+            if ffi.string(C.GetObjectIDCode(buffer[i])) == stationcode then
+                target = buffer[i]
+                break
+            end
+        end
+    end
+    if not target then
+        log("dockat: " .. faction .. " has no station " .. stationcode)
+        return false
+    end
+    if not C.IsOrderSelectableFor("DockAndWait", ship) then
+        log("dockat: " .. shipcode .. " cannot take a DockAndWait order")
+        return false
+    end
+    local luaship = ConvertStringToLuaID(tostring(ship))
+    if not GetComponentData(luaship, "assignedpilot") then
+        log("dockat: " .. shipcode .. " has no pilot")
+        return false
+    end
+    C.RemoveAllOrders2(ship, false, false)
+    CreateOrder(luaship, "DockAndWait", { destination = ConvertStringToLuaID(tostring(target)) },
+                false, false, false)
+    log(string.format("ORDER: %s docking at %s (%s)", shipcode, stationcode, faction))
+    return true
+end
+
 local HANDLERS = {
     price = set_price,
     tradeware = set_tradeware,
@@ -455,6 +654,9 @@ local GLOBAL_HANDLERS = {
 
 -- Commands with no subject at all: the verb and its own arguments.
 local BARE_HANDLERS = {
+    blueprint = buy_blueprint,
+    docked = list_docked,
+    dockat = dock_at,
     savegame = save_agent_slot,
     signals = list_signals,
     respond = set_response,
@@ -542,7 +744,7 @@ local function init()
     end
     _G.__X4AGENT_COMMAND_HANDLER = X4Agent.onCommand
     RegisterEvent("X4Agent.Command", X4Agent.onCommand)
-    log("ready (chunk " .. CHUNK .. "), handling: price, tradeware, traderule, avoid hostile, signals, respond, savegame")
+    log("ready (chunk " .. CHUNK .. "), handling: price, tradeware, traderule, avoid hostile, signals, respond, savegame, blueprint, docked, dockat")
 end
 
 -- Initialise straight away, and do NOT hand this to Register_OnLoad_Init.
