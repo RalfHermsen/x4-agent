@@ -219,6 +219,15 @@ actually went somewhere new was destroyed, and the only survivor was the one
 that never left its own sector. The report now states the situation and leaves
 the decision where it belongs.
 
+**L19. A rule about what may never get an order goes where every command
+passes, not into each thing that makes commands.** Hauls, sales, purchases and
+the standing rules each skipped the ship the player sits in. The model's own
+proposals did not, and the sitrep even listed that ship as idle and earning
+nothing, so the first cycle with the player in the pilot seat proposed
+exploring with it. The command filter in `agent.cycle` is the one place all
+commands pass, and the reserved ships were already refused there; the
+player's ship is now too, with a reason the next report shows.
+
 ## About working on this
 
 **L15. A log line must say whether it worked, not what happened.** "sending:
