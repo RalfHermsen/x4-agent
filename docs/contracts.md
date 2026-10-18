@@ -260,6 +260,12 @@ these are indications, not measurements of variance.
 | Model time per save | 100 to 316 s | 64 to 173 s, mostly the local translation |
 | `expand_station` proposed | 0 | 0 |
 
+The model times are almost certainly CPU times. The model server had fallen
+back to running the local model on its CPU after a restart on 2026-10-15
+(found and fixed on the evening of 2026-10-18, `docs/experiments.md`); on
+its GPU a whole cycle, both calls, takes about 16 s. The counts are not
+affected; the times say nothing about the GPU setup.
+
 What it says:
 
 * **The hosted model reads more of the report and does more.** It assigns
