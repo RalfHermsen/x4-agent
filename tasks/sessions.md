@@ -51,3 +51,31 @@ tradeware, traderule` in the logbook.
 Also that day: ships that cannot carry out their orders are now reported with
 the game's own failure message and how long it has been going on, which came out
 of a question about the two miners that could not sell what they mined.
+
+## 2026-10-18: reading the log, and a plan for playing unattended
+
+No code against the game. The six-day live log was read end to end: 1,511
+cycles, 3,511 repricing commands from Python against about 900 model
+decisions, 757 proposals swallowed by the gates (220 of them "already busy":
+the model never hears that a proposal was refused), 397 empty cycles. The
+conclusion, and the order of work that follows from it, is in
+`tasks/plan-2026-10.md`.
+
+Built for measuring: `planner.py` can send the reasoning call to an
+OpenAI-compatible endpoint (`--model openai:<name>`, `X4_OPENAI_URL`,
+`X4_OPENAI_KEY`) while `X4_EXTRACT_MODEL` keeps the translation step on the
+measured local setup; `evaluate.py` now counts the executor gates too and
+ignores the `*.replaced-*` copies `edit_save.py` leaves behind. A comparison
+of the local model against a hosted one over every save was started; the
+advice per save is under `out/cmp-*`.
+
+Established by reading the game's own Lua: blueprints are bought with
+`C.LearnBlueprint` after a separate `TransferPlayerMoneyTo`, gated by
+`HasLicence` and the licence's `minrelation`, priced at `avgprice * 10`.
+Neither that call nor MD's `add_blueprints` takes money by itself. The house
+rules for an honest `blueprint` verb are in the plan.
+
+Also assessed: X4Mcp/X4Native as the hand on the keyboard for unattended
+test runs (load a save, reload, chat commands, screenshot, shut down), and the
+community's construction plans as hand-designed layouts applied in stages.
+Both are Phase 2 of the plan.
