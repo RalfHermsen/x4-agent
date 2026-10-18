@@ -238,3 +238,41 @@ every visible part of the pipeline looked healthy.
 convenience, it is permission to skip. Any field you actually need must be
 required, even when an empty value is legal. `updated_goals` is now required and
 documented as "may be empty, but the field itself must be present".
+
+---
+
+## Local against hosted: one run each, 2026-10-18
+
+The same reasoning prompt over the same 15 saves (one more failed on the
+hosted side with HTTP 429, a rate limit). Run A: `gemma4:26b-a4b-it-qat` for
+both calls. Run B: GPT-OSS 120B on a hosted endpoint for the reasoning call,
+the same local gemma4 translating (`X4_EXTRACT_MODEL`). One run each, so
+these are indications, not measurements of variance.
+
+| | A: local | B: hosted reasoning |
+|---|---|---|
+| Valid actions | 74 | 118 |
+| Action types used | 4 | 8 (adds trade rules, purchase, build_station, hold) |
+| Refused by the executor gates | 27 | 46 |
+| Of which "ship already busy" | 3 | 16 |
+| Prices outside the sane band | 2 | 6, four of them 0 Cr |
+| Invented references (rejected) | 3 | 2 |
+| Model time per save | 100 to 316 s | 64 to 173 s, mostly the local translation |
+| `expand_station` proposed | 0 | 0 |
+
+What it says:
+
+* **The hosted model reads more of the report and does more.** It assigns
+  ships and sets trade rules where the local one mostly proposes prices. It is
+  also the one that keeps assigning ships that are already working: 16 of its
+  refusals are "already busy", the exact failure that 1.2 (refusals back in
+  the report) was built against. Neither run had that feedback.
+* **Both spend most of their actions on prices** (44 and 50), which the
+  guidelines say not to do because Python reprices every cycle. That is a
+  prompt and guideline problem, not a model one.
+* **The 0 Cr prices are probably the translation step**, which was gemma4 in
+  both runs: the reasoning names a price, the structured action carries none.
+  Worth checking before blaming either model.
+* **Neither is good enough to pick on this evidence.** The deciding test is
+  the scorecard over game hours from one baseline, with the refusal feedback
+  in place, which this comparison predates.
