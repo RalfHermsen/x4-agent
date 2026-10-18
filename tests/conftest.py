@@ -32,6 +32,15 @@ REPO = Path(__file__).resolve().parent.parent
 
 
 def _find_save(name: str) -> Path | None:
+    """A frozen copy under saves/reference first, the live profile otherwise.
+
+    The autosaves rotate: any run of the game, and every `save` the bridge
+    sends, overwrites one of them. Tests must not change meaning because the
+    game was played.
+    """
+    frozen = REPO / "saves" / "reference" / name
+    if frozen.exists():
+        return frozen
     root = documents_dir() / "Egosoft" / "X4"
     return next(iter(sorted(root.glob(f"*/save/{name}"))), None)
 

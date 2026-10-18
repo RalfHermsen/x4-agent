@@ -69,6 +69,16 @@ ever map a name back to a macro.
 **L7. MD file names must be lowercase.** X4 ignores the file otherwise, without
 a word.
 
+**L6e. The bridge's `save` is an autosave, and autosaves rotate.** `save`
+runs `<trigger_autosave/>`, which writes autosave_01 to 03 in turn, and the game
+does the same on its own interval. Those slots hold the newest state of
+whatever game was played last. A harness that loads a baseline and asks for a
+save overwrites the player's latest autosave with the baseline's future. MD
+has no other save action (`libraries/common.xsd`); the menus use the Lua
+global `SaveGame(filename, name)` with a slot name such as `save_008`. Copy the
+saves a test or a comparison depends on into `saves/reference/` (gitignored)
+before running the game, and read them from there.
+
 ## About the bridge
 
 **L8. `Register_OnLoad_Init` only works if the file was loaded before the
@@ -125,6 +135,19 @@ generator cannot connect the modules it "will be added in free space without any
 connections". The build is planned, the logbook says it worked, and the player
 finds a module floating beside the station. Pass `failsafe="false"` and supply
 every connector the station is actually built from.
+
+**L8c. X4Mcp 1.0.6 needs OpenSSL 3 beside X4.exe.** Its DLL imports
+`libcrypto-3-x64.dll` and `libssl-3-x64.dll` and the release does not ship
+them. Without them X4Native's log, `x4native/x4native.log` in the X4 profile
+folder, says `LoadLibrary failed (error=126)`, the game runs normally and port
+7779 never opens. The game's own folder is on the DLL search path, the
+extension's folder is not. Read that log first whenever the port is silent.
+
+**L8d. X4Native's MD-event hook does not resolve on build 611726.**
+`EventQueue_InsertOrDispatch`, `X4_FrameTick` and
+`RadarVisibilityChanged_BuildEvent` log "missing RVA for this build?"; the
+2,065 exported game functions do resolve. Typed game events from C++ are not
+available on this build, so nothing here may depend on them.
 
 ## About the model
 
