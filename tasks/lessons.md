@@ -228,6 +228,17 @@ exploring with it. The command filter in `agent.cycle` is the one place all
 commands pass, and the reserved ships were already refused there; the
 player's ship is now too, with a reason the next report shows.
 
+**L20. Before a batch against a hosted model, do the sum against its daily
+limit, and stop at the first per-day refusal.** The hosted route ran on a
+free tier with 200,000 tokens per day, shared with another service; one
+translation call is about 4,400 tokens, so the whole budget is some 45
+calls. A backtest of 142 calls ran into the limit and kept retrying into
+it until it was stopped, three and a half hours after it began, with every
+result held back until the end. A per-day 429 now ends that model's part of the run, and
+results are written after each input. The same sum rules the hosted route
+out for unattended runs on that tier: at 25 cycles an hour the budget lasts
+under two hours.
+
 ## About working on this
 
 **L15. A log line must say whether it worked, not what happened.** "sending:
