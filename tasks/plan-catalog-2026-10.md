@@ -120,6 +120,16 @@ advise runs, and if they beat 2.4's execute run.
 | 5.4 | `evaluate.py` with the catalog, gemma4 and the Claude subagents | refused plus skipped under 10 %; executable at least the baseline; the four problems answered |
 | 5.5 | two pairs of runs on the 73-hour baseline | written up; execute against advise, and against 2.4 |
 
+## Status, 2026-10-19
+
+| Item | State | Evidence |
+|---|---|---|
+| 5.1 | done | `tasks/research-actions-2026-10.md`: all 44 player-facing orders and every bridge verb with a status |
+| 5.2 | done | detectors over the 16 saves; on the 73-hour save the four problems plus idle capital |
+| 5.3 | done | `catalog.py` behind `X4_CATALOG=1`; tests green; options checked when offered |
+| 5.4 | done | executable actions 28 to 63 on the 16 saves, nothing refused or skipped; every model's choices carried out (`docs/contracts.md`) |
+| 5.5 | to do | needs the game to itself |
+
 ## Order of work, and what needs a person
 
 5.1 and 5.2 need nobody. 5.3 and 5.4 need nobody. 5.5 runs unattended on the

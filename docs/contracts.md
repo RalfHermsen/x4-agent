@@ -390,3 +390,47 @@ Claude models named the same four problems (solid storage, no budget at
 GKL-870, a fighter under fire in The Void, scouts on covered ground), where
 the local model reassigned eight freighters that were traders already and
 took the full store for container storage.
+
+## The action catalog, measured offline: 2026-10-19
+
+`catalog.py` (5.3) puts situations with prepared options in the report, and
+call 1 answers per situation. `evaluate.py` with `X4_CATALOG=1` over the same
+16 saves, on the local model:
+
+| | free actions (cap 4) | catalog |
+|---|---|---|
+| Lines or situations | 61 lines | 77 situations, 130 options |
+| Executable actions | 28 (67 valid, 39 skipped by the gates) | 63 |
+| Refused or skipped | 46 | 0 |
+| Answers that could not be read | n/a | 0 |
+
+The first catalog run read nothing: the local model wrote its `S1: 2` lines
+without the DECISIONS heading, in every save. The parser now takes decision
+lines without the heading too (`abecd96`).
+
+The same five saves as the model comparison, with the Claude models again as
+subagents of a coding session:
+
+| | gemma4 | Haiku | Sonnet | Opus |
+|---|---|---|---|---|
+| Situations answered | 23 of 23 | 22 of 22 | 22 of 22 | 22 of 22 |
+| Options chosen | 17 | 19 | 19 | 16 |
+| None, on purpose | 6 | 3 | 3 | 6 |
+
+On the 73-hour save all four models now bring the fighter home from Xenon
+space, and three of four expand KYV-745 with refined metals to use the ore
+that fills its solid store; Opus declined a budget for GKL-870, which has no
+modules, and no Claude model bought a ship while the store is full. The
+local model still read "exploring the sector it is already in" as a reason
+to leave the scout alone.
+
+With the catalog the model question mostly goes away for execution: every
+model's choices are carried out. What remains is the quality of the choice,
+which only runs in the game can measure (5.5). Opus's free ideas are the next
+catalog entries: keep traders out of a sector with Xenon in it, escort
+traders that were attacked, satellites where stations are known but unseen.
+
+A side finding: Sonnet 5.5 stopped once on its safety classifier
+(`reasoning_extraction`), apparently on "think out loud" in the planner's
+prompt. Asked for a short assessment instead, it answered normally. A hosted
+Claude planner should be prompted that way.
