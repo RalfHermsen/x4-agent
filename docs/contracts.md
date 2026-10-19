@@ -282,3 +282,46 @@ What it says:
 * **Neither is good enough to pick on this evidence.** The deciding test is
   the scorecard over game hours from one baseline, with the refusal feedback
   in place, which this comparison predates.
+
+## The translation step, replayed: 2026-10-19
+
+`backtest_extract.py` ran every stored pair of report and reasoning (175:
+the comparison files and every model cycle of the 2.4 runs) through call 2
+on the local model, twice, and through a parser that fills the simple types
+from the words of a line and only with codes from that cycle's report.
+
+| | call 2, `gemma4:26b-a4b-it-qat` | parser |
+|---|---|---|
+| Numbered lines in | 681 | 681 |
+| Actions out | 765 | 546 |
+| Answers with lines but no action | 5 | 11 |
+| Invented references | 22 | 0 |
+| Identical on a second run | 151 of 175 | always |
+| Median time per call | 5.7 s (GPU) | none |
+
+* **The parser alone reads 75 of the 173 inputs that have actions
+  completely**; for those no model call is needed at all.
+* **The 5 answers where call 2 dropped every action** all had lines the
+  parser could read: 1 to 4 actions each.
+* **All 22 invented references are in inputs the parser did not read
+  completely**: sector names, `UNKNOWN`, a ware or an order name where a
+  station code belongs.
+* **Call 2 flips the side of prices.** Of the 441 prices the parser read off
+  a line, call 2 gave 347 back unchanged; 87 of the other 94 had become buy
+  prices, mostly from lines that name no side, such as "set_price for
+  KYV-745: microchips to 1198, ..." at the station that makes microchips. 7
+  were dropped. No buy-side price reached the game in the 2.4 runs, but the
+  73-hour save carries two buy-side overrides from an earlier session at
+  KYV-745 (medical supplies at 88, nostropoil at 46, game hour 64.9) that
+  look like the same error.
+* **Call 2 is not repeatable at temperature 0**: 24 of 175 inputs came back
+  different the second time.
+* **The hosted route could not be measured.** On the free tier its daily
+  budget is 200,000 tokens, about 45 translation calls, and it was spent
+  (L20).
+
+What this suggests: the parser first, for every line it reads with
+certainty, and call 2 only for the rest, told to read a price without a side
+as a sell price when the station makes the ware. That removes the empty
+answers and the flipped sides on the lines the parser takes, and leaves
+call 2 a quarter of the lines (169 of 681).

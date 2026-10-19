@@ -92,3 +92,51 @@ Lua command had always run twice (the file is loaded twice), and a
 no-plan host still asked for an autosave and overwrote the player's newest
 one, restored from saves/reference. Then dockat, docked and blueprint,
 proven by buying a Teladi module blueprint for exactly its maxprice.
+
+## 2026-10-18 evening to 2026-10-19 morning: the rest of the plan, and the first measurement
+
+The evening built what was left of phases 2 to 4 and proved most of it in the
+game with no one at the keyboard: blueprint purchases with a docked ship and
+release (2.1a), fleet roles under a ship (3.4), repeating orders (3.5), the
+player's reservation of a ship (3.8), limits that only raise (4.3), revisits
+(4.4), the trade ledger (4.7), resupply (4.10), patrols (4.11) and turret
+settings (4.12). Phase 4's verbs for buying and selling ships, hauls and
+repairs were built and tested offline.
+
+For 2.4 the runs were made to cover game hours: SETA from MD, which the game
+allows only with the item in the player's inventory and the player in a
+pilot seat, so the item was added to a copy of the baseline and the player
+seated by hand once. One cycle of three minutes then covers about eighteen
+game minutes. The first pair, from the small-station start, was stopped:
+one usable ship and no known shipyard leave the agent nothing to add. Its
+advise run found two bugs: the model proposed exploring with the ship the
+player sits in (now refused for every command, L19), and the panel and the
+memory treated advise mode as if it sent (now `sends=False`). One look at
+the panel by the player proved 3.9.
+
+The measured pair ran on the 73-hour save with 50 million credits, execute
+first. Result: nothing measurable, slightly less income per game hour than
+the game alone and a freighter lost to pirates (`docs/experiments.md`). The
+model's prices and Python's repricing cancel out, and in 117 model cycles it
+never proposed spending the money. On the way, 4.1 (a freighter for the
+build storage), 4.8 (attack events, with the killer named) and 4.9 (a
+repair) were proven. Two things outside the code: the model server had been
+running the planner on its CPU since a restart three days earlier, which
+made the first cycle take four minutes (fixed by restarting it); and a
+backtest of the hosted route spent that key's whole daily budget on the free
+tier, which another service shares (L20).
+
+`backtest_extract.py` replays every stored reasoning through the translation
+step three ways. A parser that only fills simple action types from words in
+the line, and only with codes from that cycle's report, turned 681 numbered
+lines into 546 actions with no invented reference; the hosted model could
+not be measured within its daily budget.
+
+In the morning's proofs, a ship was bought at a wharf for exactly the logged
+price and queued there, a ship was sold for exactly the logged value, and a
+repair turned out to have been free: the game's Repair order does not
+charge a ship of ours, so the verb now pays like the ship menu (L8i).
+Proven again with the payment: 10,159 Cr for FWR-392, hull full one save
+later, and a purchase above its cap refused. Not yet: the bought ship was
+not built within 100 game minutes (the wharf started nothing), and the
+haul's two orders left the queue without running.
