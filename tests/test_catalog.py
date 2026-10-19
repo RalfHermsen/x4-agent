@@ -190,3 +190,17 @@ def test_a_second_answer_to_one_situation_is_reported_not_sent():
     commands, notes, counts = catalog.decide(found, "DECISIONS:\nS1: 1\nS1: 2\n")
     assert commands == ["automine A"] and counts["chosen"] == 1
     assert "S1 answered more than once; only the first answer counts" in notes
+
+
+def test_a_scout_we_just_sent_is_left_to_sweep(small_state):
+    import executor
+    state = copy.deepcopy(small_state)
+    ship = next(a for a in state["assets"] if a["code"] == "ASO-629")
+    ship["orders"] = [{"order": "Explore", "target_sector": ship["place"]["sector"], "default": False}]
+    now = state["meta"]["playtime_s"]
+    assert executor._exploring_nothing(ship, state)
+    state["logbook"] = [[now - 900, "[x4-agent] ORDER: ASO-629 exploring Black Hole Sun IV"]]
+    assert not executor._exploring_nothing(ship, state)
+    assert not any(s.key == "explore:ASO-629" for s in catalog.situations(state))
+    state["logbook"] = [[now - 4000, "[x4-agent] ORDER: ASO-629 exploring Black Hole Sun IV"]]
+    assert executor._exploring_nothing(ship, state)

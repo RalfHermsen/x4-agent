@@ -236,8 +236,12 @@ def storage_full(state: dict) -> list[Situation]:
     """A store at 90 % or more: what is in it decides what helps.
 
     Products piling up need more traders; mined inputs piling up need
-    production that uses them, or miners selling elsewhere for a while.
-    Storage modules would help both, and the bridge cannot build them yet.
+    production that uses them. Storage modules would help both, and the
+    bridge cannot build them yet. Taking miners off the station is not
+    offered: `automine` queues a mining order but leaves the ship in the
+    station's mining group, so it went on delivering to the full store
+    (POS-705, twice, in the first catalog run). That needs a verb that
+    releases a ship from its commander first.
     """
     import gamedata
     table = gamedata.wares()
@@ -259,12 +263,6 @@ def storage_full(state: dict) -> list[Situation]:
                 if consumer:
                     candidates.append((f"expand {st['code']} with {consumer} production, which uses {ware}",
                                        {"type": "expand_station", "station_id": st["code"], "ware": consumer}))
-            for ship in ships:
-                kind = executor._miner_kind(ship.get("macro"))
-                if kind and any(w in executor.MINABLE.get(kind, ()) for w in inputs) \
-                        and (ship.get("assignment") or {}).get("group") is not None:
-                    candidates.append((f"take miner {ship['code']} off the station onto automine for a while",
-                                       {"type": "set_behaviour", "ship_ref": ship["code"], "behaviour": "automine"}))
             if products:
                 hulls = executor.CARRIES.get(transport, ())
                 for ship in ships:
@@ -344,7 +342,7 @@ def covered_ground(state: dict) -> list[Situation]:
     """An explorer sweeping the sector it is already in finds nothing new."""
     out = []
     for ship in _ships(state):
-        if not executor._exploring_nothing(ship):
+        if not executor._exploring_nothing(ship, state):
             continue
         option = _option(f"send {ship['code']} to an unseen sector",
                          {"type": "set_behaviour", "ship_ref": ship["code"], "behaviour": "explore"}, state)

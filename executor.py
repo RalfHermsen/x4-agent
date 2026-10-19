@@ -326,7 +326,7 @@ def restart_explorers(state: dict, tried: dict, send: bool = True) -> tuple[list
     not change that; it is reported as a fact instead, which is a different
     problem and needs a different answer.
     """
-    stuck = [a for a in state.get("assets", []) if _exploring_nothing(a)]
+    stuck = [a for a in state.get("assets", []) if _exploring_nothing(a, state)]
     out, exhausted = [], []
     for ship in stuck:
         code = ship["code"]
@@ -875,7 +875,10 @@ def _budget_already_set(action, state: dict) -> bool:
     return False
 
 
-def _exploring_nothing(ship: dict) -> bool:
+EXPLORE_GAP = 3600   # game seconds a scout gets to sweep the sector it was sent to
+
+
+def _exploring_nothing(ship: dict, state: dict | None = None) -> bool:
     """True when a ship is exploring the sector it is already in.
 
     X4 accepts an Explore order aimed at the ship's own sector and carries it
@@ -883,12 +886,25 @@ def _exploring_nothing(ship: dict) -> bool:
     indistinguishable from real exploring: the order is Explore, the state is
     started, nothing fails. Five ships sat like that twice, and the third gate
     kept refusing to send them anywhere because they were already busy.
+
+    A scout we sent somewhere new looks the same once it arrives: it sweeps
+    the sector it is in. With `state`, a scout our own explore order went out
+    for within the last EXPLORE_GAP is left to finish; without that, GWH-145
+    was sent on every cycle or two and never finished a sector.
     """
     order = (ship.get("orders") or [{}])[0]
     if order.get("order") != "Explore":
         return False
     target = order.get("target_sector")
-    return bool(target) and target == (ship.get("place") or {}).get("sector")
+    if not (bool(target) and target == (ship.get("place") or {}).get("sector")):
+        return False
+    if state is not None:
+        now = state.get("meta", {}).get("playtime_s", 0.0)
+        sent = f"[x4-agent] ORDER: {ship.get('code')} exploring"
+        if any(text and text.startswith(sent) and now - t < EXPLORE_GAP
+               for t, text in state.get("logbook", [])):
+            return False
+    return True
 
 
 # A station's subordinate group names for each role a ship can be assigned.
@@ -944,7 +960,7 @@ def _already_done(action, key, state: dict) -> bool:
         return False
     if key == ("set_behaviour", "explore"):
         asset = next((a for a in state.get("assets", []) if a.get("code") == ship), None)
-        if asset and _exploring_nothing(asset):
+        if asset and _exploring_nothing(asset, state):
             return False   # busy, but with nothing
     return True
 

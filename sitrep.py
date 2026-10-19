@@ -690,7 +690,7 @@ def build(state: dict, goals: list[str] | None = None,
     # every angle the report used to have, which is how five of them stayed that
     # way for hours.
     for ship in ships:
-        if executor._exploring_nothing(ship):
+        if executor._exploring_nothing(ship, state):
             add(f"{ship['code']} ({ship_type(ship.get('macro'))}) is exploring "
                 f"{gamedata.pretty(ship['place'].get('sector'), names)}, the sector "
                 f"it is already in. It is covering ground we have seen.")
