@@ -62,6 +62,25 @@ def call(tool: str, arguments: dict | None = None, timeout: float = 60) -> str:
     return text
 
 
+def restore_window() -> bool:
+    """Bring a minimized game window back; True if it was minimized.
+
+    X4 stands still while minimized: no state messages, no saves, no game
+    time. A catalog run lost 24 minutes that way on 2026-10-19, waiting for
+    a save the game was not going to write.
+    """
+    if sys.platform != "win32":
+        return False
+    import ctypes
+    user32 = ctypes.windll.user32
+    window = user32.FindWindowW(None, "X4")
+    if not window or not user32.IsIconic(window):
+        return False
+    user32.ShowWindow(window, 9)   # SW_RESTORE
+    user32.SetForegroundWindow(window)
+    return True
+
+
 def running() -> bool:
     if sys.platform != "win32":
         return False

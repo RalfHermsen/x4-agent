@@ -218,6 +218,8 @@ def main() -> int:
         next_note = time.monotonic() + 600
         while time.monotonic() < end:
             time.sleep(20)
+            if launch_game.restore_window():
+                log(run_dir, "the game window was minimized, so the game stood still; restored it")
             if args.seta and time.monotonic() >= next_seta:
                 OUTBOX.parent.mkdir(parents=True, exist_ok=True)
                 with OUTBOX.open("a", encoding="utf-8") as handle:
