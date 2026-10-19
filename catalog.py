@@ -350,7 +350,8 @@ def covered_ground(state: dict) -> list[Situation]:
                          {"type": "set_behaviour", "ship_ref": ship["code"], "behaviour": "explore"}, state)
         if option:
             out.append(Situation(f"explore:{ship['code']}",
-                                 f"{ship['code']} is exploring the sector it is already in.", [option]))
+                                 f"{ship['code']} is exploring the sector it is already in, which we "
+                                 f"have seen; it finds nothing new there.", [option]))
     return out
 
 
@@ -452,7 +453,9 @@ def decide(found: list[Situation], analysis: str) -> tuple[list[str], list[str],
     """Commands for the options chosen, notes on answers that do not fit, and counts.
 
     A situation without an answer counts as none. A line that names no
-    situation or an option that does not exist is reported, never guessed.
+    situation or an option that does not exist is reported, never guessed,
+    and so is a second answer to the same situation: one cycle the model
+    wrote S1: 1 to S1: 4 and all four miners left their station.
     """
     import action_lines
     answers, unreadable = action_lines.decisions(analysis)
@@ -461,6 +464,9 @@ def decide(found: list[Situation], analysis: str) -> tuple[list[str], list[str],
     for number, option, _ in answers:
         if not 1 <= number <= len(found):
             notes.append(f"S{number} is not a situation in this report")
+            continue
+        if number in answered:
+            notes.append(f"S{number} answered more than once; only the first answer counts")
             continue
         answered.add(number)
         if option is None:

@@ -183,3 +183,10 @@ def test_a_station_without_modules_gets_no_budget_situation(small_state):
     station = next(a for a in state["assets"] if a["code"] == "KYV-745")
     station["modules"] = []
     assert not any(s.key == "budget:KYV-745" for s in catalog.no_budget(state))
+
+
+def test_a_second_answer_to_one_situation_is_reported_not_sent():
+    found = [Situation("a", "full", [Option("x", "automine A"), Option("y", "automine B")])]
+    commands, notes, counts = catalog.decide(found, "DECISIONS:\nS1: 1\nS1: 2\n")
+    assert commands == ["automine A"] and counts["chosen"] == 1
+    assert "S1 answered more than once; only the first answer counts" in notes
