@@ -111,8 +111,13 @@ in Hewa's Twin II by ZII-143.
   to waiting for its construction vessel.
 * **4.9 repair.** Three priority repair orders sent KGZ-352 to SCY-867. Its
   hull was 2,183 in the baseline and full in the final save (the game writes
-  a hull value only for a damaged ship). The payment is not in the logbook,
-  and the trade income hides it in the totals.
+  a hull value only for a damaged ship). There was no payment, found the
+  next morning: the game's Repair order does not charge a ship of ours (the
+  transfer is commented out in `order.repair.xml`, because the ship menu
+  pays up front), so that repair was free. The verb now pays the yard's
+  repair price before the order exists. The free repair is small against
+  the 19 million either run earned, but the execute run had it and the
+  control did not.
 
 **What went wrong on the way.** The model server had been running the
 planner on its CPU since a restart three days earlier: the first cycle took

@@ -97,6 +97,9 @@ declare [[ void SellPlayerShip(UniverseID shipid, UniverseID shipyardid); ]]
 -- make the menu's own declaration fail, and that would break the player's
 -- ship menu. Their functions are found once that menu has declared them.
 declare [[ int64_t GetBuildWarePrice(UniverseID containerid, const char* warename); ]]
+-- 4.9: copied from menu_ship_configuration.lua and menu_map.lua.
+declare [[ int64_t GetRepairPrice(UniverseID componenttorepairid, UniverseID containerid); ]]
+declare [[ uint32_t GetNumOrders(UniverseID controllableid); ]]
 -- 4.3, 4.7, 4.10, 4.12: signatures copied from helper.lua, menu_playerinfo.lua,
 -- menu_station_overview.lua, menu_docked.lua and menu_map.lua.
 declare [[ void SetContainerBuyLimitOverride(UniverseID containerid, const char* wareid, int32_t amount); ]]
@@ -952,8 +955,14 @@ local function ledger(args)
     return true
 end
 
---- "repair NBO-436 SHY-001 argon" -> fly to a shipyard and repair there. The
---- Repair order pays the station itself and logs it (order.repair.xml).
+--- "repair NBO-436 SHY-001 argon" -> fly to a shipyard and repair there, paid.
+--- The Repair order does not charge a ship of ours: in order.repair.xml the
+--- transfer for player-owned ships is commented out, because the ship menu
+--- takes the money up front with the rest of its shopping list and puts the
+--- price in the order as its accepted cost. Two repairs went unpaid that way
+--- (KGZ-352 and FWR-392, 2026-10-18/19) before this paid like the menu: the
+--- hull at that yard's GetRepairPrice, no discount, before the order exists,
+--- refunded if no order appears.
 local function repair(args)
     local shipcode, yardcode, faction = args[1], args[2], args[3]
     local ship = shipcode and player_ships()[shipcode]
@@ -964,16 +973,34 @@ local function repair(args)
     if not C.IsOrderSelectableFor("Repair", ship) then
         return refuse("repair: " .. shipcode .. " cannot take a Repair order")
     end
+    local price = tonumber(C.GetRepairPrice(ship, yard))
+    if not price or price <= 0 then
+        return refuse("repair: " .. shipcode .. " has no hull damage to repair at " .. yardcode)
+    end
+    local before = GetPlayerMoney()
+    if before < price then
+        return refuse(string.format("repair: %s costs %d Cr at %s, we have %d", shipcode, price, yardcode, before))
+    end
+    local y64 = ConvertStringTo64Bit(tostring(yard))
+    local queued = C.GetNumOrders(ship)
+    TransferPlayerMoneyTo(price, y64)
     -- As the ship menu fills it (processRepairsFor): destination, hull to
-    -- 100 percent, no single components, not repairall, accepted cost 0. With
-    -- only a destination the order found nothing to repair and ended at once.
-    -- A priority order: queued normally it waited behind fourteen trade
-    -- orders (FWR-392, 2026-10-18). Its own orders resume after the repair.
-    CreateOrder(ConvertStringToLuaID(tostring(ship)), "Repair",
-                { destination = ConvertStringToLuaID(tostring(yard)), hullpercent = 100,
-                  damagedcomponents = {}, repairall = false, acceptedcost = 0 },
-                false, false, true)
-    log(string.format("ORDER: %s goes to %s for repair", shipcode, yardcode))
+    -- 100 percent, no single components, not repairall, and the price as the
+    -- accepted cost. With only a destination the order found nothing to
+    -- repair and ended at once. A priority order: queued normally it waited
+    -- behind fourteen trade orders (FWR-392, 2026-10-18). Its own orders
+    -- resume after the repair.
+    local ok, err = pcall(CreateOrder, ConvertStringToLuaID(tostring(ship)), "Repair",
+                          { destination = ConvertStringToLuaID(tostring(yard)), hullpercent = 100,
+                            damagedcomponents = {}, repairall = false, acceptedcost = price },
+                          false, false, true)
+    if not ok or C.GetNumOrders(ship) <= queued then
+        TransferMoneyToPlayer(price, y64, "refund")
+        return refuse(string.format("repair: no Repair order for %s; %d Cr refunded%s",
+                                    shipcode, price, ok and "" or (": " .. tostring(err))))
+    end
+    log(string.format("ORDER: %s goes to %s for repair, paid %d Cr, money %d -> %d",
+                      shipcode, yardcode, price, before, GetPlayerMoney()))
     return true
 end
 

@@ -191,6 +191,17 @@ from anything of ours. Copy struct definitions verbatim from the game's Lua
 the ship menu's loadout and crew types declare none at all: use them only once
 that menu has.
 
+**L8i. An order that brings something is not a purchase: read who pays in
+the order's own script before the first proof.** `LearnBlueprint`,
+`AddBuildTask6` and MD's `add_blueprints` take no money, and neither does the
+Repair order for a ship of ours: in `order.repair.xml` the transfer for
+player-owned ships is commented out, because the ship menu takes the money
+up front with its shopping list. The repair verb trusted a comment of ours
+saying the order pays, and two repairs were free before a save gave it
+away: player money after the proof was exactly the purchase plus the sale.
+Every verb that gets something now pays first, at the menu's price without
+its discounts, and logs the money before and after.
+
 ## About the model
 
 **L12. Put `type` first in a discriminated union, and give it no default.** With
