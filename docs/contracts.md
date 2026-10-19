@@ -434,3 +434,17 @@ A side finding: Sonnet 5.5 stopped once on its safety classifier
 (`reasoning_extraction`), apparently on "think out loud" in the planner's
 prompt. Asked for a short assessment instead, it answered normally. A hosted
 Claude planner should be prompted that way.
+
+### The first entry taken from OTHER: a mined shortage
+
+The local model's free ideas kept asking for miners for a station short of a
+mined ware, and the report had said so in words for a while ("methane is
+mined, not bought: we have 0 liquid miner(s)"), with no option to act on it.
+`catalog.mined_shortage` offers our miners of that kind, those working for
+nobody first, and one bought at the nearest known wharf. Over the 16 saves it
+fires four times, in save_003 (hydrogen and methane), save_004 and save_005
+(methane), exactly where the report lists the shortage, and it pushes no other
+situation out of the ten. On those three saves the local model chose the
+liquid miner purchase each time; in save_005 it bought one rather than assign
+the two liquid miners we own, because two had not kept the store up. Two
+situations offering the same purchase now send it once.

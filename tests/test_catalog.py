@@ -86,3 +86,30 @@ def test_decisions_without_their_heading_still_count():
     answers, unreadable = action_lines.decisions(analysis)
     assert [(n, k) for n, k, _ in answers] == [(1, 1), (2, 2), (5, None)]
     assert unreadable == []
+
+
+def test_a_station_short_of_methane_is_offered_a_liquid_miner(small_state):
+    state = copy.deepcopy(small_state)
+    station = next(a for a in state["assets"] if a["code"] == "KYV-745")
+    station["offers"].append({"ware": "methane", "side": "buy", "desired": 10000, "amount": 10000})
+    station.setdefault("cargo", {})["methane"] = 100
+    miner = next(a for a in state["assets"] if a["code"] == "ASO-629")
+    miner["macro"] = "ship_arg_m_miner_liquid_01_a_macro"
+    miner["assignment"] = {}
+    found = {s.key: s for s in catalog.situations(state)}
+    assert "assign ASO-629 KYV-745 mine" in [o.command for o in found["short:KYV-745:methane"].options]
+    assert "0 of our 1 liquid miner(s)" in found["short:KYV-745:methane"].text
+
+
+def test_a_shortage_of_a_bought_ware_is_not_a_mining_situation(small_state):
+    state = copy.deepcopy(small_state)
+    station = next(a for a in state["assets"] if a["code"] == "KYV-745")
+    station["offers"].append({"ware": "microchips", "side": "buy", "desired": 10000, "amount": 10000})
+    assert not any(s.key.startswith("short:") for s in catalog.situations(state))
+
+
+def test_the_same_purchase_chosen_twice_is_sent_once():
+    found = [Situation("a", "first", [Option("x", "buyship A")]),
+             Situation("b", "second", [Option("y", "buyship A")])]
+    commands, _, counts = catalog.decide(found, "DECISIONS:\nS1: 1\nS2: 1\n")
+    assert commands == ["buyship A"] and counts["chosen"] == 2 and counts["none"] == 0

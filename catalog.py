@@ -114,6 +114,47 @@ def _combat(ship: dict) -> bool:
     return any(h in macro for h in executor.COMBAT_HINTS)
 
 
+def _spare(state: dict) -> float:
+    from purchases import RESERVE
+    return (state.get("player", {}).get("money") or 0) * (1 - RESERVE)
+
+
+def _buy_options(state: dict, roles: tuple[tuple[str, str], ...]) -> list[Option]:
+    """Ships to buy at the two nearest wharfs we know that build M ships.
+
+    `roles` pairs a description with a macro pattern ("solid miner",
+    "ship_{race}_m_miner_solid_01_a_macro"). Only a wharf's own race's ship,
+    only with a known route, and nothing below the capital floor. The price
+    is the wharf's; the cap is a ceiling, and the buy verb refuses above it.
+    """
+    import gamedata
+    from purchases import _graph, jumps
+    spare = _spare(state)
+    if spare < CAPITAL_FLOOR:
+        return []
+    home = next((a for a in _stations(state) if a.get("modules")), None)
+    if not home:
+        return []
+    graph, ships = _graph(), gamedata.ships()
+    sector = (home.get("place") or {}).get("sector")
+    yards = sorted((k for k in state.get("known_stations", [])
+                    if "m" in (k.get("builds") or []) and RACE.get(k.get("owner"))
+                    and jumps(graph, sector, (k.get("place") or {}).get("sector")) < UNKNOWN_ROUTE),
+                   key=lambda k: jumps(graph, sector, (k.get("place") or {}).get("sector")))
+    cap = int(min(SHIP_CAP, spare))
+    options = []
+    for yard in yards[:2]:
+        race = RACE[yard["owner"]]
+        hops = jumps(graph, sector, (yard.get("place") or {}).get("sector"))
+        for role, pattern in roles:
+            macro = pattern.format(race=race)
+            if macro in ships:
+                options.append(Option(
+                    f"buy an M {role} at {yard['code']} ({yard['owner']}, {hops} jumps), at most {cap:,} Cr",
+                    f"buyship {yard['code']} {yard['owner']} {macro} x4-agent-m {cap}"))
+    return options
+
+
 # ---------------------------------------------------------------- entries
 
 def idle_ships(state: dict) -> list[Situation]:
@@ -293,47 +334,60 @@ def covered_ground(state: dict) -> list[Situation]:
 
 
 def idle_capital(state: dict) -> list[Situation]:
-    """Money above the reserve that nothing is using: concrete ships to buy.
-
-    Only wharfs we know that build M ships, only their own race's freighter and
-    solid miner, nearest first. The price is the wharf's; the cap is a ceiling,
-    and the buy verb refuses above it.
-    """
-    import gamedata
-    from purchases import RESERVE, _graph, jumps
-    money = state.get("player", {}).get("money") or 0
-    spare = money * (1 - RESERVE)
-    if spare < CAPITAL_FLOOR:
-        return []
-    home = next((a for a in _stations(state) if a.get("modules")), None)
-    if not home:
-        return []
-    graph, ships = _graph(), gamedata.ships()
-    sector = (home.get("place") or {}).get("sector")
-    yards = sorted((k for k in state.get("known_stations", [])
-                    if "m" in (k.get("builds") or []) and RACE.get(k.get("owner"))
-                    and jumps(graph, sector, (k.get("place") or {}).get("sector")) < UNKNOWN_ROUTE),
-                   key=lambda k: jumps(graph, sector, (k.get("place") or {}).get("sector")))
-    cap = int(min(SHIP_CAP, spare))
-    options = []
-    for yard in yards[:2]:
-        race = RACE[yard["owner"]]
-        hops = jumps(graph, sector, (yard.get("place") or {}).get("sector"))
-        for role, macro in (("container freighter", f"ship_{race}_m_trans_container_01_a_macro"),
-                            ("solid miner", f"ship_{race}_m_miner_solid_01_a_macro")):
-            if macro in ships:
-                options.append(Option(
-                    f"buy an M {role} at {yard['code']} ({yard['owner']}, {hops} jumps), at most {cap:,} Cr",
-                    f"buyship {yard['code']} {yard['owner']} {macro} x4-agent-m {cap}"))
+    """Money above the reserve that nothing is using: concrete ships to buy,
+    a freighter or a solid miner of the wharf's own race, nearest wharf first."""
+    options = _buy_options(state, (("container freighter", "ship_{race}_m_trans_container_01_a_macro"),
+                                   ("solid miner", "ship_{race}_m_miner_solid_01_a_macro")))
     if not options:
         return []
-    return [Situation("capital", f"{spare:,.0f} Cr above the reserve is not being used.",
+    return [Situation("capital", f"{_spare(state):,.0f} Cr above the reserve is not being used.",
                       options[:MAX_OPTIONS])]
 
 
+def mined_shortage(state: dict) -> list[Situation]:
+    """A station low on a ware that is mined, not bought: miners are the answer.
+
+    The report has said so in words since the model went exploring for a
+    seller of ore, and the model kept asking for it under OTHER: QDA-703 short
+    of methane with no liquid miner, in four of the 16 saves. The options are
+    our miners of that kind, those working for nobody first, and one bought.
+    Miners in the station's mining group and in its sector are taken to be
+    its own already: which commander a subordinate has is not in the save,
+    only its group number (save_parser._assignment).
+    """
+    out = []
+    ships = _ships(state)
+    for st in _stations(state):
+        mining = {int(i) for i, role in ((st.get("assignment") or {}).get("groups") or {}).items()
+                  if role == "mining"}
+        sector = (st.get("place") or {}).get("sector")
+        for code, ware, have, target in sitrep.low_stock([st]):
+            kind = next((k for k, wares in executor.MINABLE.items() if ware in wares), None)
+            if not kind:
+                continue
+            fleet = [s for s in ships if executor._miner_kind(s.get("macro")) == kind]
+            own = [s for s in fleet if (s.get("assignment") or {}).get("group") in mining
+                   and (s.get("place") or {}).get("sector") == sector]
+            free = sorted((s for s in fleet if s not in own),
+                          key=lambda s: (s.get("assignment") or {}).get("group") is not None)
+            assigns = [o for o in (_option(f"assign {s['code']} to {code} as miner (now on {_order(s)})",
+                                           {"type": "assign_ship", "ship_ref": s["code"],
+                                            "station_id": code, "role": "mine"}, state)
+                                   for s in free) if o]
+            buys = _buy_options(state, ((f"{kind} miner", f"ship_{{race}}_m_miner_{kind}_01_a_macro"),))
+            options = (assigns[:2] + buys[:2])[:MAX_OPTIONS]
+            if options:
+                out.append(Situation(
+                    f"short:{code}:{ware}",
+                    f"{code} is low on {ware} ({have} of {target}, {100 * have / target:.0f} %). "
+                    f"{ware} is mined, not bought; {len(own)} of our {len(fleet)} {kind} miner(s) "
+                    f"work for {code}.", options))
+    return out
+
+
 # Risk first, then what blocks production, then money, then idle hands.
-ENTRIES = (under_fire, in_hostile_space, storage_full, no_budget, idle_capital,
-           idle_ships, covered_ground)
+ENTRIES = (under_fire, in_hostile_space, storage_full, mined_shortage, no_budget,
+           idle_capital, idle_ships, covered_ground)
 DANGER = (under_fire, in_hostile_space)
 
 
@@ -375,7 +429,7 @@ def decide(found: list[Situation], analysis: str) -> tuple[list[str], list[str],
     import action_lines
     answers, unreadable = action_lines.decisions(analysis)
     commands, notes = [], [f"could not read the decision: {line}" for line in unreadable]
-    answered = set()
+    answered, chosen = set(), 0
     for number, option, _ in answers:
         if not 1 <= number <= len(found):
             notes.append(f"S{number} is not a situation in this report")
@@ -387,9 +441,12 @@ def decide(found: list[Situation], analysis: str) -> tuple[list[str], list[str],
         if not 1 <= option <= len(situation.options):
             notes.append(f"S{number} has no option {option}")
             continue
-        commands.append(situation.options[option - 1].command)
+        chosen += 1
+        command = situation.options[option - 1].command
+        if command not in commands:
+            commands.append(command)
     counts = {"situations": len(found), "options": sum(len(s.options) for s in found),
-              "chosen": len(commands), "none": len(answered) - len(commands),
+              "chosen": chosen, "none": len(answered) - chosen,
               "unanswered": len(found) - len(answered), "unreadable": len(notes),
               "other": len(action_lines.other_lines(analysis))}
     return commands, notes, counts

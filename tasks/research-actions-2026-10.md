@@ -107,28 +107,30 @@ measured runs).
 
 ## Situations and what the guides do there
 
-The starting point for 5.2. Each row still needs a detector against the
-parsed save; the third column says what in the save shows it.
+The starting point for 5.2. The second column says what in the save shows
+it; the last says what detects it now: a `catalog.py` entry, which offers
+options for the model to choose; Python acting on its own every cycle, which
+keeps it out of the catalog; or what is still missing.
 
-| Situation | In the save | Actions guides recommend | Source |
-|---|---|---|---|
-| A ship with no orders | first order Wait or none, no assignment | a default behaviour (AutoTrade, AutoMine, Patrol) or an assignment | S1, S2 |
-| A station's storage nearly full, production stalls | storage fill per transport type, `executor.storage_fill` | more storage, more traders or consumers, less production | S5, S6 |
-| A station without operating budget | no `account` amount on the station | set a budget | S4, guidelines |
-| A station with too few traders or miners | subordinates per role against its wares | assign free ships of the right type | S4, S7 |
-| A station not selling | open sales, outside traders zero | Python's prices, a trader, a better manager | S4, S6 |
-| A build waiting for resources | build storage processor `waitingforresources` | a freighter for the build storage, funding | S4, 4.1 |
-| A build waiting for a vessel | processor `vessel_required` with no builder | hire a builder | 2.2 |
-| A ship under fire or damaged | logbook ATTACKED lines, hull below 70 % | bring it home, repair, defenders | S3, S8, 4.8, 4.9 |
-| A trader keeps dying in a sector | DESTROYED lines in one sector | blacklist the sector; escape as the pirate response | S3, S8 |
-| Idle capital | player money above the reserve | ships at known wharfs, a blueprint, an expansion | S5, guidelines phases |
-| A ware the market lacks | known buy offers with no known seller | produce it, or Fill Shortages with a trader | S7 |
-| A market already flooded | many sellers at low prices | do not add production of it | S5, S7 |
-| Scouts on covered ground | explorer in an explored sector | send to unseen sectors, satellites | S1, 4.4, 4.5 |
-| Crew too weak for a behaviour | pilot skill under the behaviour's stars | seminars, swap pilots | S1, S2 |
-| A manager too weak for range | management stars under 3 | seminar | S6, S7, 4.2 |
-| An abandoned ship seen | encounter response not set to claim | set Claim | S2, 4.13 |
-| Wares needed for our own build sold to others | build storage short of a ware the station sells | trade rule own faction for that ware | S4, S9 |
+| Situation | In the save | Actions guides recommend | Source | Detector |
+|---|---|---|---|---|
+| A ship with no orders | first order Wait or none, no assignment | a default behaviour (AutoTrade, AutoMine, Patrol) or an assignment | S1, S2 | `catalog.idle_ships` |
+| A station's storage nearly full, production stalls | storage fill per transport type, `executor.storage_fill` | more storage, more traders or consumers, less production | S5, S6 | `catalog.storage_full`; storage modules have no verb yet |
+| A station without operating budget | no `account` amount on the station | set a budget | S4, guidelines | `catalog.no_budget` |
+| A station with too few traders or miners | subordinates per role against its wares | assign free ships of the right type | S4, S7 | miners: `catalog.mined_shortage` (low stock of a mined ware); traders: `catalog.storage_full` for products piling up |
+| A station not selling | open sales, outside traders zero | Python's prices, a trader, a better manager | S4, S6 | Python reprices every cycle (`executor.repricing`) |
+| A build waiting for resources | build storage processor `waitingforresources` | a freighter for the build storage, funding | S4, 4.1 | Python feeds the build storage (`executor.feed_build_storages`) |
+| A build waiting for a vessel | processor `vessel_required` with no builder | hire a builder | 2.2 | Python hires a builder (`standing.hire_builders`) |
+| A ship under fire or damaged | logbook ATTACKED lines, hull below 70 % | bring it home, repair, defenders | S3, S8, 4.8, 4.9 | `catalog.under_fire`, `catalog.in_hostile_space`; repairs below 70 % hull are Python's |
+| A trader keeps dying in a sector | DESTROYED lines in one sector | blacklist the sector; escape as the pirate response | S3, S8 | not yet: the `avoid hostile` verb is built, unproven; the bridge's logbook lines are parsed, losses per sector are not counted |
+| Idle capital | player money above the reserve | ships at known wharfs, a blueprint, an expansion | S5, guidelines phases | `catalog.idle_capital` |
+| A ware the market lacks | known buy offers with no known seller | produce it, or Fill Shortages with a trader | S7 | not yet: the report says "NO station we know sells it"; no entry |
+| A market already flooded | many sellers at low prices | do not add production of it | S5, S7 | not yet: a judgement on known sell offers, no entry |
+| Scouts on covered ground | explorer in an explored sector | send to unseen sectors, satellites | S1, 4.4, 4.5 | `catalog.covered_ground`; satellites are Python's |
+| Crew too weak for a behaviour | pilot skill under the behaviour's stars | seminars, swap pilots | S1, S2 | needs the parser to read pilot skills (it reads only managers') |
+| A manager too weak for range | management stars under 3 | seminar | S6, S7, 4.2 | not yet: the parser reads the manager's skill; `seminar` needs a seminar in the inventory |
+| An abandoned ship seen | encounter response not set to claim | set Claim | S2, 4.13 | not yet: `respond` is proven, no entry |
+| Wares needed for our own build sold to others | build storage short of a ware the station sells | trade rule own faction for that ware | S4, S9 | not yet: `traderule` is built, unproven |
 
 ## Mistakes the guides warn about
 

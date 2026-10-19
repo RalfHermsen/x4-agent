@@ -357,6 +357,28 @@ def attacks(ships: list[dict], now: float) -> list[str]:
 MAX_REFUSED = 10
 
 
+def low_stock(stations: list[dict]) -> list[tuple[str, str, int, int]]:
+    """(station, ware, in store, target) for each bought ware that is genuinely low.
+
+    A station always wants its storage full, so `desired` is a target and not a
+    need. Reporting the gap as a shortage turned a station running comfortably
+    at a third full into "massive shortages in raw materials", and the model
+    duly proposed dropping everything for mining. Only genuinely low stock is
+    worth a line, and the fill level goes with it so the size can be judged.
+    """
+    shortages = []
+    for st in stations:
+        stock = st.get("cargo") or {}
+        for o in st.get("offers", []):
+            target = o.get("desired") or 0
+            if o["side"] != "buy" or not target:
+                continue
+            have = stock.get(o["ware"], 0)
+            if have < target * LOW_STOCK:
+                shortages.append((st["code"], o["ware"], have, target))
+    return shortages
+
+
 def build(state: dict, goals: list[str] | None = None,
           failures: list[str] | None = None,
           refused: list[dict] | None = None,
@@ -509,21 +531,7 @@ def build(state: dict, goals: list[str] | None = None,
     idle = [s["code"] for s in ships if _first_order(s) in IDLE_ORDERS
             and s["code"] != state["player"].get("occupied_ship")]
     failing = failing_ships(ships, state.get("meta", {}).get("playtime_s", 0.0))
-    # A station always wants its storage full, so `desired` is a target and not a
-    # need. Reporting the gap as a shortage turned a station running comfortably
-    # at a third full into "massive shortages in raw materials", and the model
-    # duly proposed dropping everything for mining. Only genuinely low stock is
-    # worth a line, and the fill level goes with it so the size can be judged.
-    shortages = []
-    for st in stations:
-        stock = st.get("cargo") or {}
-        for o in st["offers"]:
-            target = o.get("desired") or 0
-            if o["side"] != "buy" or not target:
-                continue
-            have = stock.get(o["ware"], 0)
-            if have < target * LOW_STOCK:
-                shortages.append((st["code"], o["ware"], have, target))
+    shortages = low_stock(stations)
 
     # An idle miner is a different problem from an idle freighter: it may be
     # idle because nothing we own wants what it can dig up. The game accepts the
