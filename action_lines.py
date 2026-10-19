@@ -231,10 +231,20 @@ def _section(analysis: str, heading: str, ends: tuple[str, ...]) -> str | None:
 
 def decisions(analysis: str) -> tuple[list[tuple[int, int | None, str]], list[str]]:
     """The answers under DECISIONS: (situation, option or None, reason), and the
-    lines there that could not be read."""
+    lines there that could not be read.
+
+    The local model wrote its `S1: 2` lines straight after its reasoning and
+    left the heading out, in all 16 saves; the same happened with ACTIONS
+    before. Without the heading, the lines that start like a decision anywhere
+    before OTHER and the goals still count, and the prose around them is not
+    reported as unreadable.
+    """
     section = _section(analysis, DECISIONS_HEADING, (OTHER_HEADING,) + GOAL_MARKERS)
+    strict = section is not None
     if section is None:
-        return [], []
+        section = analysis
+        for marker in (OTHER_HEADING,) + GOAL_MARKERS:
+            section = section.split(marker)[0]
     answers, unreadable = [], []
     for line in section.splitlines():
         text = line.strip().strip("*").strip()
@@ -244,7 +254,7 @@ def decisions(analysis: str) -> tuple[list[tuple[int, int | None, str]], list[st
         if match:
             option = None if match.group(2).lower() == "none" else int(match.group(2))
             answers.append((int(match.group(1)), option, match.group(3).strip(" -:")))
-        else:
+        elif strict:
             unreadable.append(text[:120])
     return answers, unreadable
 

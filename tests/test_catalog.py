@@ -74,3 +74,15 @@ def test_a_cycle_with_the_catalog_sends_the_chosen_option(run_cycle, fake_planne
     result = run_cycle()
     assert "budget KYV-745 mid" in result["commands"]
     assert "# SITUATIONS" in result["sitrep"]
+
+
+def test_decisions_without_their_heading_still_count():
+    """The local model's own answer on the 73-hour save, shortened."""
+    analysis = ("The solid storage at KYV-745 is at 99% capacity, which is critical.\n\n"
+                "S1: 1 KGZ-352 is in a moderate threat sector.\n"
+                "S2: 2 expanding refinedmetals production will consume the ore.\n"
+                "S5: none GWH-145 needs no action.\n\nOTHER\nAssign a scout.\n\n"
+                "STANDING GOALS\n1. Expand KYV-745.\n")
+    answers, unreadable = action_lines.decisions(analysis)
+    assert [(n, k) for n, k, _ in answers] == [(1, 1), (2, 2), (5, None)]
+    assert unreadable == []
