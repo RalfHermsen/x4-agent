@@ -108,3 +108,9 @@ def test_a_station_where_the_ship_goes_is_refused(small_state):
          "role": "trade", "rationale": "Assign a trader to sell refined metals"}]})
     ok, rejected = planner.check_actions(plan, small_state)
     assert ok == [] and "is not a ship" in rejected[0][1]
+
+
+def test_the_action_cap_is_a_setting():
+    assert "at\nmost four concrete actions" in planner.reason_system(4)
+    assert "at\nmost eight concrete actions" in planner.reason_system(8)
+    assert "{max_actions}" not in planner.reason_system()

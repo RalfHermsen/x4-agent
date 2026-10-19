@@ -24,6 +24,7 @@ import time
 import traceback
 from pathlib import Path
 
+import action_lines
 import executor
 import planner
 import sitrep as sitrep_mod
@@ -57,7 +58,7 @@ def evaluate(save: Path, model: str, guidelines: str, out_dir: Path | None) -> d
     row["sitrep_b"] = len(report.encode("utf-8"))
 
     analysis, reason_s = planner.reason(report, guidelines, model)
-    plan, extract_s = planner.extract(analysis, report, model)
+    plan, extract_s = planner.translate(analysis, report, model)
     ok, rejected = planner.check_actions(plan, state)
     # The executor's gates are the last filter before the game, and in a live
     # run they swallowed more proposals than the semantic check did: a ship
@@ -65,6 +66,7 @@ def evaluate(save: Path, model: str, guidelines: str, out_dir: Path | None) -> d
     _, skipped = executor.to_commands(ok, state)
 
     row["llm_s"] = reason_s + extract_s
+    row["lines"] = len(action_lines.numbered_lines(analysis))
     row["actions"] = len(ok)
     row["rejected"] = len(rejected)
     row["skipped"] = len(skipped)
@@ -96,7 +98,7 @@ def main() -> int:
     out_dir = Path(args.out) if args.out else None
 
     header = (f"{'save':<20}{'ver':>5}{'credits':>14}{'ships':>7}"
-              f"{'sitrep':>9}{'parse':>8}{'llm':>8}{'actions':>9}{'rej.':>6}"
+              f"{'sitrep':>9}{'parse':>8}{'llm':>8}{'lines':>7}{'actions':>9}{'rej.':>6}"
               f"{'skip':>6}  types")
     print(header)
     print("-" * len(header))
@@ -113,7 +115,7 @@ def main() -> int:
         print(f"{row['save']:<20}{row['version']:>5}{row['credits']:>14,}"
               f"{row['ships']:>7}{row['sitrep_b']:>9,}"
               f"{row['parse_s']:>7.1f}s{row['llm_s']:>7.1f}s"
-              f"{row['actions']:>9}{row['rejected']:>6}{row['skipped']:>6}"
+              f"{row['lines']:>7}{row['actions']:>9}{row['rejected']:>6}{row['skipped']:>6}"
               f"  {row['types']}")
 
     if rows:
@@ -122,7 +124,8 @@ def main() -> int:
         total_rejected = sum(r["rejected"] for r in rows)
         total_skipped = sum(r["skipped"] for r in rows)
         share = total_rejected / max(total_actions + total_rejected, 1) * 100
-        print(f"{len(rows)}/{len(saves)} saves processed. "
+        print(f"{len(rows)}/{len(saves)} saves processed, cap {planner.MAX_ACTIONS}. "
+              f"{sum(r['lines'] for r in rows)} lines proposed, "
               f"{total_actions} actions, {total_rejected} rejected ({share:.0f}%), "
               f"{total_skipped} of the actions skipped by the executor gates. "
               f"Largest sitrep: {max(r['sitrep_b'] for r in rows):,} bytes.")

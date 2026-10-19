@@ -346,3 +346,47 @@ The one empty answer left is an old hosted reasoning in a shape the parser
 does not read (a bold code and a dash, with sub-bullets). The 14 invented
 references are all call 2's, on lines the parser left: `UNKNOWN`, sector
 names, order names where a station belongs. `check_actions` refuses them.
+
+## More actions per cycle, and other models: 2026-10-19
+
+**The cap.** Call 1 has ended in at most four actions since the first day,
+with no reason written down. `X4_MAX_ACTIONS` makes it a setting (default
+4), and `evaluate.py` ran all 16 saves through the agent's own path
+(reasoning, parser, call 2, `check_actions`, executor gates) at 4 and at 8,
+on the local model:
+
+| | cap 4 | cap 8 |
+|---|---|---|
+| Lines proposed | 61 | 118 |
+| Valid actions | 67 | 67 |
+| Refused | 7 (9 %) | 46 (41 %) |
+| Skipped by the executor gates | 39 | 39 |
+
+Twice the lines, the same valid actions, five times the refusals. The cap
+stays at 4.
+
+**Other models, without an API key.** The same call-1 prompt for five saves
+(0.7 to 81 million credits, 6 to 29 ships) was answered by Claude Haiku,
+Sonnet and Opus running as subagents of a coding session, so with that
+session's own instructions around the prompt: an approximation of API use,
+not a measurement of it. Each answer then went through the same pipeline as
+the local model's:
+
+| | gemma4 | Haiku | Sonnet | Opus |
+|---|---|---|---|---|
+| Lines | 19 | 19 | 20 | 20 |
+| Valid actions | 31 | 26 | 28 | 20 |
+| Skipped by the executor gates | 21 | 18 | 20 | 10 |
+| Executable | 10 | 8 | 8 | 10 |
+| Expansions and purchases proposed | 0 | 4 | 7 | 4 |
+
+The executable count hardly moves, and the reasons are the executor, not
+the model: assignments to ships busy with a dock or a move ("already busy,
+not overriding", the most common skip for every model), storage modules the
+bridge cannot build (the Claude models' first action on the 73-hour save,
+which is 99 % full of solids), and purchases that need an exact ship macro
+the model has to guess. The reading differs: on the 73-hour save all three
+Claude models named the same four problems (solid storage, no budget at
+GKL-870, a fighter under fire in The Void, scouts on covered ground), where
+the local model reassigned eight freighters that were traders already and
+took the full store for container storage.

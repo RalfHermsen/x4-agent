@@ -47,6 +47,19 @@ OPENAI_URL = os.environ.get("X4_OPENAI_URL", "http://localhost:4000/v1")
 OPENAI_KEY = os.environ.get("X4_OPENAI_KEY", "")
 REASONING_EFFORT = os.environ.get("X4_REASONING_EFFORT", "medium")
 
+# How many actions call 1 may end in. Four since the first day, with no reason
+# written down; the cap is a setting so that a higher one can be measured on the
+# stored saves (evaluate.py) before a run uses it.
+MAX_ACTIONS = int(os.environ.get("X4_MAX_ACTIONS", "4"))
+_COUNT_WORDS = {1: "one", 2: "two", 3: "three", 4: "four", 5: "five", 6: "six",
+                7: "seven", 8: "eight", 9: "nine", 10: "ten", 12: "twelve"}
+
+
+def reason_system(max_actions: int | None = None) -> str:
+    n = MAX_ACTIONS if max_actions is None else max_actions
+    return REASON_SYSTEM.replace("{max_actions}", _COUNT_WORDS.get(n, str(n)))
+
+
 # The translation step may run on a different model from the reasoning step.
 # It only copies a list into a schema, and the local setup for that is measured
 # (docs/contracts.md); the reasoning step is where a bigger model might earn
@@ -56,7 +69,7 @@ EXTRACT_MODEL = os.environ.get("X4_EXTRACT_MODEL")
 REASON_SYSTEM = """You are the strategic adviser to a player in X4: Foundations.
 
 You are given guidelines and a situation report. Think out loud and arrive at at
-most four concrete actions.
+most {max_actions} concrete actions.
 
 - Only name ships, stations and wares that appear literally in the situation
   report. Never invent a code, a ware or a sector.
@@ -219,7 +232,7 @@ def reason(report: str, guidelines: str, model: str) -> tuple[str, float]:
     live game should be boring and repeatable, so the variance buys nothing.
     """
     return _chat(model, [
-        {"role": "system", "content": REASON_SYSTEM},
+        {"role": "system", "content": reason_system()},
         {"role": "user", "content": f"# GUIDELINES\n{guidelines}\n\n{report}"},
     ], schema=None, temperature=0.0)
 
