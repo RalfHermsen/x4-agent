@@ -97,6 +97,8 @@ declare [[ void SellPlayerShip(UniverseID shipid, UniverseID shipyardid); ]]
 -- make the menu's own declaration fail, and that would break the player's
 -- ship menu. Their functions are found once that menu has declared them.
 declare [[ int64_t GetBuildWarePrice(UniverseID containerid, const char* warename); ]]
+-- 3.6: copied from menu_ship_configuration.lua.
+declare [[ float GetContainerBuildPriceFactor(UniverseID containerid); ]]
 -- 4.9: copied from menu_ship_configuration.lua and menu_map.lua.
 declare [[ int64_t GetRepairPrice(UniverseID componenttorepairid, UniverseID containerid); ]]
 declare [[ uint32_t GetNumOrders(UniverseID controllableid); ]]
@@ -1120,15 +1122,20 @@ local function sell_ship(args)
     return true
 end
 
---- What a generated loadout costs at this wharf: every part at the wharf's
---- own build price, no discount, so the agent never pays less than the
---- ship menu would ask. Field names as UILoadout2 declares them.
+--- What a generated loadout costs at this wharf, priced the way the ship
+--- menu prices it (menu.insertWare) but without its discounts, so the agent
+--- never pays less than the menu would ask: equipment at the wharf's build
+--- price, nothing for a volatile ware, and software at the wharf's own ware
+--- price times its build price factor. Software at the build price had come
+--- out at about 25,000 Cr where the menu asks 168,849, and a Mercury cost
+--- 931,976 against the menu's 1,075,854 for the same parts (2026-10-19).
+--- Field names as UILoadout2 declares them.
 local function loadout_price(wharf, loadout)
     local total = 0
     local function add(macro, n)
         if macro and macro ~= "" then
             local ware = GetMacroData(macro, "ware")
-            if ware and ware ~= "" then
+            if ware and ware ~= "" and not GetWareData(ware, "volatile") then
                 total = total + tonumber(C.GetBuildWarePrice(wharf, ware)) * (n or 1)
             end
         end
@@ -1148,16 +1155,18 @@ local function loadout_price(wharf, loadout)
             add(ffi.string(loadout[field][i].macro), loadout[field][i].amount)
         end
     end
+    local factor = tonumber(C.GetContainerBuildPriceFactor(wharf))
+    local w64 = ConvertStringTo64Bit(tostring(wharf))
     for i = 0, (loadout.numsoftware or 0) - 1 do
         local ware = ffi.string(loadout.software[i].ware)
         if ware ~= "" then
-            total = total + tonumber(C.GetBuildWarePrice(wharf, ware))
+            total = total + factor * GetContainerWarePrice(w64, ware, false)
         end
     end
     if loadout.thruster.macro ~= nil then
         add(ffi.string(loadout.thruster.macro), 1)
     end
-    return total
+    return math.ceil(total)
 end
 
 --- "buyship WRF-001 argon ship_arg_s_scout_01_a_macro x4-agent-scout 300000"
