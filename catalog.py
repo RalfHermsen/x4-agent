@@ -55,6 +55,7 @@ MAX_OPTIONS = 4
 class Option:
     text: str
     command: str
+    before: list[str] = field(default_factory=list)   # sent first, in order
 
 
 @dataclass
@@ -101,9 +102,30 @@ def _through_gates(action: dict, state: dict) -> str | None:
     return commands[0]
 
 
-def _option(text: str, action: dict, state: dict) -> Option | None:
+def _option(text: str, action: dict, state: dict, clear: bool = False) -> Option | None:
+    """An option if the action passes the gates. With `clear`, a ship that is
+    carrying out an order of its own gets `clear` first, or the new order
+    queues behind it (see `_holding`)."""
     command = _through_gates(action, state)
-    return Option(text, command) if command else None
+    if not command:
+        return None
+    held = _holding(action.get("ship_ref"), state) if clear else None
+    return Option(text, command, [f"clear {action['ship_ref']}"] if held else [])
+
+
+def _holding(code: str | None, state: dict) -> str | None:
+    """The order a ship is carrying out that would hold up a new one.
+
+    A new order lands behind the running one, and a MoveWait without a timeout
+    never ends: VSR-185 and KGZ-352 came into the 73-hour save on one, and
+    every catalog choice for them did nothing. A paid repair is not cleared
+    (the money is gone once it is), nor a guarding order (it is the answer).
+    """
+    from types import SimpleNamespace
+    if not code:
+        return None
+    order = executor._busy_with(SimpleNamespace(ship_ref=code), state)
+    return None if order in ("Repair", *GUARDING) else order
 
 
 def _where(sector: str | None) -> str:
@@ -279,6 +301,27 @@ def storage_full(state: dict) -> list[Situation]:
     return out
 
 
+def _away_options(ship: dict, stations: list[dict], state: dict) -> list[Option]:
+    """Getting a ship out of danger: a fighter home as a defender, a scout
+    somewhere else. A fighter already in a station's defence group but held
+    by an order of its own gets that order cleared, so it follows its
+    assignment; the assignment itself is already in effect."""
+    code, kind = ship["code"], sitrep.ship_type(ship.get("macro"))
+    candidates = []
+    if _combat(ship):
+        candidates += [(f"bring {code} home: assign it to {s['code']} as defender",
+                        {"type": "assign_ship", "ship_ref": code, "station_id": s["code"], "role": "defend"})
+                       for s in stations]
+    elif "scout" in kind:
+        candidates.append((f"send {code} to explore somewhere else",
+                           {"type": "set_behaviour", "ship_ref": code, "behaviour": "explore"}))
+    options = [o for o in (_option(t, a, state, clear=True) for t, a in candidates) if o]
+    held = _holding(code, state)
+    if not options and held and _combat(ship) and (ship.get("assignment") or {}).get("group") is not None:
+        options.append(Option(f"clear {code}'s {held} so it follows its assignment", f"clear {code}"))
+    return options[:MAX_OPTIONS]
+
+
 def under_fire(state: dict) -> list[Situation]:
     """A ship attacked recently, as the report's UNDER ATTACK section lists it."""
     out = []
@@ -291,15 +334,7 @@ def under_fire(state: dict) -> list[Situation]:
         if _order(ship) in GUARDING:
             continue  # it is already defending; being shot at is its job
         code, kind = ship["code"], sitrep.ship_type(ship.get("macro"))
-        candidates = []
-        if _combat(ship):
-            candidates += [(f"bring {code} home: assign it to {s['code']} as defender",
-                            {"type": "assign_ship", "ship_ref": code, "station_id": s["code"], "role": "defend"})
-                           for s in stations]
-        elif "scout" in kind:
-            candidates.append((f"send {code} to explore somewhere else",
-                               {"type": "set_behaviour", "ship_ref": code, "behaviour": "explore"}))
-        options = [o for o in (_option(t, a, state) for t, a in candidates) if o]
+        options = _away_options(ship, stations, state)
         if options:
             sector = (ship.get("place") or {}).get("sector")
             out.append(Situation(f"fire:{code}",
@@ -320,15 +355,7 @@ def in_hostile_space(state: dict) -> list[Situation]:
         if sector not in danger or sector in home or _order(ship) in GUARDING:
             continue
         code, kind = ship["code"], sitrep.ship_type(ship.get("macro"))
-        candidates = []
-        if _combat(ship):
-            candidates += [(f"bring {code} home: assign it to {s['code']} as defender",
-                            {"type": "assign_ship", "ship_ref": code, "station_id": s["code"], "role": "defend"})
-                           for s in stations]
-        elif "scout" in kind:
-            candidates.append((f"send {code} to explore somewhere else",
-                               {"type": "set_behaviour", "ship_ref": code, "behaviour": "explore"}))
-        options = [o for o in (_option(t, a, state) for t, a in candidates) if o]
+        options = _away_options(ship, stations, state)
         if options:
             factions = ", ".join(sorted(danger[sector]["factions"]))
             out.append(Situation(f"danger:{code}",
@@ -345,7 +372,8 @@ def covered_ground(state: dict) -> list[Situation]:
         if not executor._exploring_nothing(ship, state):
             continue
         option = _option(f"send {ship['code']} to an unseen sector",
-                         {"type": "set_behaviour", "ship_ref": ship["code"], "behaviour": "explore"}, state)
+                         {"type": "set_behaviour", "ship_ref": ship["code"], "behaviour": "explore"}, state,
+                         clear=True)
         if option:
             out.append(Situation(f"explore:{ship['code']}",
                                  f"{ship['code']} is exploring the sector it is already in, which we "
@@ -478,8 +506,9 @@ def decide(found: list[Situation], analysis: str) -> tuple[list[str], list[str],
         if command.startswith("buyship") and any(c.startswith("buyship") for c in commands):
             notes.append(f"S{number}: one ship purchase per cycle, {command} not sent")
             continue
-        if command not in commands:
-            commands.append(command)
+        for c in situation.options[option - 1].before + [command]:
+            if c not in commands:
+                commands.append(c)
     counts = {"situations": len(found), "options": sum(len(s.options) for s in found),
               "chosen": chosen, "none": len(answered) - chosen,
               "unanswered": len(found) - len(answered), "unreadable": len(notes),

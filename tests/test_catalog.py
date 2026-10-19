@@ -204,3 +204,27 @@ def test_a_scout_we_just_sent_is_left_to_sweep(small_state):
     assert not any(s.key == "explore:ASO-629" for s in catalog.situations(state))
     state["logbook"] = [[now - 4000, "[x4-agent] ORDER: ASO-629 exploring Black Hole Sun IV"]]
     assert executor._exploring_nothing(ship, state)
+
+
+def test_a_scout_held_by_its_own_order_is_cleared_first(small_state):
+    state = copy.deepcopy(small_state)
+    ship = next(a for a in state["assets"] if a["code"] == "ASO-629")
+    ship["macro"] = "ship_par_s_scout_01_a_macro"
+    ship["orders"] = [{"order": "MoveWait", "default": False, "state": "started"},
+                      {"order": "Explore", "default": True}]
+    now = state["meta"]["playtime_s"]
+    ship["attack"] = {"method": "lowattentionattack", "time": now - 60}
+    found = {s.key: s for s in catalog.situations(state)}
+    option = found["fire:ASO-629"].options[0]
+    assert (option.before, option.command) == (["clear ASO-629"], "explore ASO-629")
+    commands, _, _ = catalog.decide([found["fire:ASO-629"]], "DECISIONS:\nS1: 1\n")
+    assert commands == ["clear ASO-629", "explore ASO-629"]
+
+
+def test_a_paid_repair_is_not_cleared(small_state):
+    state = copy.deepcopy(small_state)
+    ship = next(a for a in state["assets"] if a["code"] == "ASO-629")
+    ship["orders"] = [{"order": "Repair", "default": False, "state": "started"}]
+    assert catalog._holding("ASO-629", state) is None
+    ship["orders"] = [{"order": "MoveWait", "default": False, "state": "started"}]
+    assert catalog._holding("ASO-629", state) == "MoveWait"

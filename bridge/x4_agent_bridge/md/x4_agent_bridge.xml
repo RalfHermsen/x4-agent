@@ -531,6 +531,20 @@
         <!-- Vanilla mining routine, the counterpart of TradeRoutine. Same
              reasoning: parameters keep their defaults because a ware list
              cannot travel through the pipe. -->
+        <!-- Cancel every order the ship carries, running or queued. A new
+             order otherwise queues behind the running one, and some never
+             end: VSR-185 and KGZ-352 sat on a MoveWait without a timeout from
+             early in the save, and seven explore orders in a row for VSR-185
+             never started. The catalog sends this before an order for a ship
+             that is busy, as part of choosing to change its job.
+             cancel_all_orders as the game's own aiscripts use it. -->
+        <do_if value="event.param == 'clear %s'.[$agent_ship.idcode]">
+          <cancel_all_orders object="$agent_ship"/>
+          <write_to_logbook category="general"
+            text="'[x4-agent] ORDER: %s orders cleared'.[$agent_ship.idcode]"/>
+          <set_value name="$agent_handled" exact="1"/>
+        </do_if>
+
         <do_if value="event.param == 'automine %s'.[$agent_ship.idcode]">
           <create_order object="$agent_ship" id="'MiningRoutine'"/>
           <write_to_logbook category="general"
