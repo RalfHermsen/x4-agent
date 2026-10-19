@@ -151,7 +151,8 @@ def cycle(model: str | None = None, save: Path | None = None, force: bool = Fals
     elif model_ran:
         analysis, reason_s = planner.reason(
             report, planner.GUIDELINES.read_text(encoding="utf-8"), model)
-        plan, extract_s = planner.extract(analysis, report, model)
+        # The parser reads what it can; call 2 only gets the rest.
+        plan, extract_s = planner.translate(analysis, report, model)
         remembered["fingerprint"] = fingerprint
         remembered["last_model_run"] = time.time()
     else:

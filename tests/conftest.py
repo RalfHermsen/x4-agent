@@ -114,12 +114,16 @@ class FakePlanner:
     def extract(self, analysis, report, model):
         return PlannerResponse.model_validate(copy.deepcopy(self.plan)), 0.0
 
+    def translate(self, analysis, report, model):
+        return self.extract(analysis, report, model)
+
 
 @pytest.fixture
 def fake_planner(monkeypatch) -> FakePlanner:
     fake = FakePlanner()
     monkeypatch.setattr(planner, "reason", fake.reason)
     monkeypatch.setattr(planner, "extract", fake.extract)
+    monkeypatch.setattr(planner, "translate", fake.translate)
     return fake
 
 

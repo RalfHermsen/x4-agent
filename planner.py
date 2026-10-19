@@ -32,7 +32,7 @@ import httpx
 
 import executor
 import sitrep as sitrep_mod
-from save_parser import latest_save, parse_save
+from save_parser import SHIP_CLASSES, latest_save, parse_save
 from schemas import PlannerResponse
 
 # Point these at your own Ollama instance.
@@ -61,6 +61,10 @@ most four concrete actions.
 - Only name ships, stations and wares that appear literally in the situation
   report. Never invent a code, a ware or a sector.
 - Do not do arithmetic; the numbers in the report are already computed.
+- Prices are Python's: every cycle it sets each sell price just under the
+  cheapest supplier we can see. Do not propose prices; a proposed price is
+  refused. Spend the actions on ships, assignments, budgets, trade rules and
+  expansions.
 - For each action, state which ship or station it concerns and which guideline
   justifies it.
 - If there is nothing sensible to do, say so explicitly.
@@ -92,7 +96,8 @@ nothing more:
 - set_budget     : station code, level (low / mid / high)
 - set_trade_rule : station code, ware (or "all"), rule (own_faction_only /
                    open_market), side (buy / sell / both)
-- set_price      : station code, ware, side (buy/sell), price in credits
+- set_price      : station code, ware, side (buy/sell), price in credits; a price
+                   that names no side is the sell price
 - haul           : ware, from_station (a seller's code from the report), to_station
                    (our station), amount, repeat (true for a standing loop). The
                    ship and the price cap are worked out for you.
@@ -261,6 +266,61 @@ def extract(analysis: str, report: str, model: str) -> tuple[PlannerResponse, fl
     return PlannerResponse.model_validate_json(content), elapsed
 
 
+def translate(analysis: str, report: str, model: str) -> tuple[PlannerResponse, float]:
+    """Call 2 with the parser in front (action_lines.py).
+
+    Every numbered line the parser reads with certainty becomes its action
+    directly, and only the other lines go to call 2; when there are none, call
+    2 does not run at all. Replayed over 175 stored cycles (docs/contracts.md),
+    call 2 alone dropped every action in 5 answers, invented 22 references and
+    turned 87 sell prices into buy prices; the parser invented nothing and read
+    75 of those cycles completely.
+
+    Without an ACTIONS heading, or with unnumbered lines under it, call 2 gets
+    the whole analysis as before: a list the model forgot to number must not
+    silently cost a cycle.
+    """
+    import action_lines
+    import gamedata
+    from pydantic import ValidationError
+
+    lines = action_lines.numbered_lines(analysis)
+    goals = action_lines.goals_from(analysis)
+    summary = action_lines.summary_from(analysis)
+    if not lines:
+        if action_lines.says_none(analysis):
+            return PlannerResponse(assessment=summary or "No actions.",
+                                   updated_goals=goals, actions=[]), 0.0
+        return extract(analysis, report, model)
+
+    parsed = action_lines.parse_actions(analysis, report, set(gamedata.wares()))
+    actions, rest = [], []
+    for line, found in zip(lines, parsed):
+        why = f"read from the reasoning: {line.strip()[:160]}"
+        try:
+            read = PlannerResponse.model_validate({
+                "assessment": "", "updated_goals": [],
+                "actions": [{**a, "rationale": why} for a in found]}).actions
+        except ValidationError:
+            read = []
+        if read:
+            actions += read
+        else:
+            rest.append(line)
+
+    seconds, assessment = 0.0, summary
+    if rest:
+        part = f"{action_lines.ACTIONS_HEADING}:\n" + "\n".join(rest)
+        if goals:
+            part += "\n\nSTANDING GOALS\n" + "\n".join(f"- {g}" for g in goals)
+        plan, seconds = extract(part, report, model)
+        actions += plan.actions
+        goals = goals or plan.updated_goals
+        assessment = summary or plan.assessment
+    return PlannerResponse(assessment=assessment or "Read from the reasoning.",
+                           updated_goals=goals, actions=actions), seconds
+
+
 # --------------------------------------------------------------------------- #
 # semantic validation
 # --------------------------------------------------------------------------- #
@@ -271,6 +331,14 @@ def extract(analysis: str, report: str, model: str) -> tuple[PlannerResponse, fl
 # existed, and it was still impossible to execute.
 OWNED_FIELDS = ("ship_ref", "station_id", "fleet_id")
 KNOWN_FIELDS = ("target_id",)   # claiming and boarding are about other people's things
+# Prices are Python's (executor.repricing, every cycle). In the first measured
+# run the model raised prices to just under the best bid and Python cut them to
+# just under the cheapest rival, back and forth all night: 331 price commands
+# that cancelled out. The refusal goes back into the report, so the model
+# learns it instead of spending an action on it every cycle.
+PRICE_REFUSAL = ("prices are Python's: repricing sets every sell price each cycle, "
+                 "so a proposed price is refused; spend the action on ships, "
+                 "assignments, budgets, trade rules or expansions")
 
 
 def owned_refs(state: dict) -> set[str]:
@@ -295,9 +363,17 @@ def check_actions(plan: PlannerResponse, state: dict) -> tuple[list, list[tuple]
     before anything reaches the game.
     """
     owned, known = owned_refs(state), known_refs(state)
+    # "Assign a trader to sell refined metals" named no ship, and call 2 put
+    # the station's own code where the ship goes: `assign KYV-745 KYV-745
+    # trade` passed, because the station is ours (2026-10-19).
+    ships = {a["code"] for a in state["assets"]
+             if a.get("code") and a.get("cls") in SHIP_CLASSES}
     ok, rejected = [], []
 
     for action in plan.actions:
+        if action.type == "set_price":
+            rejected.append((action, PRICE_REFUSAL))
+            continue
         problems = []
         for field in OWNED_FIELDS:
             value = getattr(action, field, None)
@@ -311,6 +387,9 @@ def check_actions(plan: PlannerResponse, state: dict) -> tuple[list, list[tuple]
             value = getattr(action, field, None)
             if value and value not in known:
                 problems.append(f"{field}={value} does not exist")
+        ref = getattr(action, "ship_ref", None)
+        if ref and ref in owned and ref not in ships:
+            problems.append(f"ship_ref={ref} is not a ship; name the ship itself")
 
         if problems:
             rejected.append((action, "; ".join(problems)))

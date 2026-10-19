@@ -109,6 +109,8 @@ Overview):
 
 **Manual pricing (critical when you are away):**
 
+Sell prices are Python's every cycle (see below); propose none yourself.
+
 * **Auto Pricing OFF for end products**, otherwise the manager drops the price
   when storage fills. Set it by hand to average or about 5 percent below.
 * **Buy price for raw materials to MAX** under the "own faction" rule: it costs
@@ -160,17 +162,18 @@ Overview):
   is, and otherwise whatever pays best per cubic metre of hold. A trip carries
   space, not units, so a cargo worth 54 Cr per cubic metre beats one worth 9
   every time, with the same ships and the same fuel.
-* **Prices are corrected automatically every cycle, so do not spend a cycle on
-  them.** Python moves each sell price to just under the best bid we know, and
-  refuses to cut a price when only one buyer is known. Propose a price yourself
-  only when you disagree with that rule for a specific ware and can say why;
-  your decision wins where you make one.
-* **Price against the market, not against your warehouse.** A station manager
-  sets prices from how full its storage is, which is not the same thing as what
-  anyone will pay. The report gives our asking price beside the best bid we
-  actually know of. Above it, nothing sells however long you wait; below it, we
-  are giving stock away. Move the price to just under the best known bid, and
-  use `set_price` rather than hoping the manager works it out.
+* **Prices are Python's; do not propose them.** Every cycle Python sets each
+  sell price just under the cheapest supplier we can see, and never cuts a
+  price when only one buyer is known. A price you propose is refused: in the
+  first measured run the model and Python undid each other's prices all night.
+  Spend your actions on ships, assignments, budgets, trade rules and
+  expansions.
+* **Python prices against the market, not against the warehouse.** A station
+  manager sets prices from how full its storage is, which is not the same
+  thing as what anyone will pay; that is why Python overrides it. The report
+  shows our asking price beside the best bid we know, for reading: a ware
+  that does not sell at a fair price calls for a ship, a trade rule or a
+  buyer found by exploring, not for a price.
 * **A single low bid is not a market.** When only one station we know buys a
   ware, that is a statement about how little of the map we have seen, not about
   what the ware is worth. Selling an intermediate good like refined metals into

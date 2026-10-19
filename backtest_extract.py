@@ -12,7 +12,9 @@ them:
             and X4_OPENAI_KEY in the environment)
     parser  no model: fills the simple action types from the words of a line,
             and only with codes that appear in that cycle's situation report,
-            so an invented code cannot come out of it
+            so an invented code cannot come out of it (action_lines.py)
+    hybrid  what the agent runs since 2026-10-19: the parser first, call 2 on
+            the local model only for the lines the parser left
 
 Inputs are every stored pair of situation report and reasoning: the files in
 out/cmp-*/ and the model cycles in out/experiments/*/agent.log. Nothing is
@@ -22,6 +24,7 @@ Usage:
     python backtest_extract.py --translators parser
     python backtest_extract.py --translators hosted,parser --repeat 2
     python backtest_extract.py --translators local,hosted,parser --repeat 2
+    python backtest_extract.py --translators hybrid,parser --repeat 2
 
 Results go to out/backtest-extract/<stamp>/: results.json (every input and
 every answer) and summary.md.
@@ -40,13 +43,9 @@ import time
 from datetime import datetime
 from pathlib import Path
 
+from action_lines import CODE, numbered_lines, parse_actions, vocabulary
+
 REPO = Path(__file__).parent
-CODE = re.compile(r"\b[A-Z]{3}-\d{3}\b")
-LEVELS = {"low": "low", "mid": "mid", "medium": "mid", "high": "high"}
-ROLES = {"trade": "trade", "trader": "trade", "trading": "trade",
-         "mine": "mine", "miner": "mine", "mining": "mine",
-         "defend": "defend", "defence": "defend", "defense": "defend",
-         "buildstorage": "buildstorage"}
 # Fields that must hold a code from the report. A word there (MINER, N/A,
 # other) is the placeholder failure the log review counted.
 REF_FIELDS = ("ship_ref", "station_id", "from_station", "to_station")
@@ -108,148 +107,6 @@ def collect() -> list[dict]:
     return inputs
 
 
-# ---------------------------------------------------------------- the parser
-
-def numbered_lines(analysis: str) -> list[str]:
-    """The numbered lines under ACTIONS, as planner._decisions finds them."""
-    _, found, tail = analysis.partition("ACTIONS")
-    if not found:
-        return []
-    for marker in ("STANDING GOALS", "GOALS"):
-        tail = tail.split(marker)[0]
-    return [line for line in tail.splitlines() if re.match(r"^\s*\d+[.)]\s", line)]
-
-
-def vocabulary(report: str) -> tuple[set[str], set[str], set[str]]:
-    """Our stations, our ships, and every code the report mentions.
-
-    Stations are the lines under OWN STATIONS that start with a code. Ships
-    are the lines under FLEET that start with one; above the sitrep's detail
-    limit the fleet is listed by role, and then only its `examples:` lines and
-    the ATTENTION lines that start with a code (idle ships, failing ships)
-    name ships. A ship the report does not name is unknown here, and actions
-    for it are left to a model, which is the safe side.
-    """
-    own, ships, section = set(), set(), ""
-    attention = []
-    for line in report.splitlines():
-        if line.startswith("# "):
-            section = line
-            continue
-        start = re.match(r"([A-Z]{3}-\d{3})\b", line)
-        if section.startswith("# OWN STATIONS") and start:
-            own.add(start.group(1))
-        elif section.startswith("# FLEET"):
-            if start:
-                ships.add(start.group(1))
-            elif "examples:" in line:
-                ships.update(CODE.findall(line))
-        elif section.startswith("# ATTENTION") and start:
-            attention.append(start.group(1))
-    ships.update(code for code in attention if code not in own)
-    return own, ships, set(CODE.findall(report))
-
-
-def _clean(line: str) -> str:
-    """Drop the number, markup and the justification after the action."""
-    line = re.sub(r"^\s*\d+[.)]\s*", "", line).replace("`", "").replace("*", "")
-    for cut in (" (", " [", " Guideline", " guideline"):
-        if cut in line:
-            line = line[:line.index(cut)]
-    return line.strip()
-
-
-def _tokens(text: str, wares: set[str]) -> list[str]:
-    """Words and numbers in order; two words that make a ware id become one."""
-    raw = re.findall(r"[a-z]+|\d[\d,]*(?:\.\d+)?", text.lower())
-    out, i = [], 0
-    while i < len(raw):
-        pair = raw[i] + raw[i + 1] if i + 1 < len(raw) else ""
-        if pair in wares and raw[i].isalpha() and raw[i + 1].isalpha():
-            out.append(pair)
-            i += 2
-        else:
-            out.append(raw[i])
-            i += 1
-    return out
-
-
-def _prices(tokens: list[str], wares: set[str]) -> list[tuple[str, float]]:
-    """Each ware with the number that follows it, or nothing if any is unclear.
-
-    "microchips to 1198, refinedmetals to 204" is two prices. A number with
-    no ware before it, a ware without a number, or a second number after a
-    ware ("73, up from 54") makes the whole line a reading, not a parse.
-    """
-    pairs, pending = [], None
-    for token in tokens:
-        if token in wares:
-            if pending:
-                return []
-            pending = token
-        elif token[0].isdigit():
-            if not pending:
-                return []
-            pairs.append((pending, float(token.replace(",", ""))))
-            pending = None
-    return [] if pending else pairs
-
-
-def parse_line(line: str, own: set[str], ships: set[str], wares: set[str]) -> list[dict]:
-    """One numbered line to its actions, or [] when it is not certain.
-
-    Only the simple types, and only when every slot is filled unambiguously:
-    one of our stations and each ware with its own number for prices; a level
-    word for a budget (an amount is a judgement about levels, left to the
-    model); our ships and no station for a behaviour; our ships, one station
-    and one role word for an assignment. Anything else is [] and would go to
-    a model.
-    """
-    text = _clean(line)
-    low = text.lower()
-    found = list(dict.fromkeys(CODE.findall(text)))
-    stations = [c for c in found if c in own]
-    fleet = [c for c in found if c in ships]
-    if len(found) != len(stations) + len(fleet):
-        return []  # a code that is not ours: not a simple action
-    tokens = _tokens(CODE.sub(" ", text), wares)
-    words = set(tokens)
-
-    if "price" in words and len(stations) == 1 and not fleet:
-        side = "buy" if "buy" in words and "sell" not in words else "sell"
-        return [{"type": "set_price", "station_id": stations[0], "ware": ware,
-                 "side": side, "price": price} for ware, price in _prices(tokens, wares)]
-    if "budget" in words and len(stations) == 1 and not fleet:
-        levels = {LEVELS[w] for w in words if w in LEVELS}
-        if len(levels) == 1:
-            return [{"type": "set_budget", "station_id": stations[0], "level": levels.pop()}]
-        return []
-    if fleet and not stations:
-        behaviour = ("explore" if words & {"explore", "exploring"} else
-                     "autotrade" if "autotrade" in words or "auto trade" in low
-                     or "auto-trade" in low else
-                     "automine" if "automine" in words or "auto mine" in low
-                     or "auto-mine" in low else None)
-        if behaviour:
-            return [{"type": "set_behaviour", "ship_ref": ship, "behaviour": behaviour}
-                    for ship in fleet]
-    if "assign" in words and fleet and len(stations) == 1:
-        roles = {ROLES[w] for w in words if w in ROLES}
-        if "build storage" in low:
-            roles.add("buildstorage")
-        if len(roles) == 1:
-            role = roles.pop()
-            return [{"type": "assign_ship", "ship_ref": ship, "station_id": stations[0],
-                     "role": role} for ship in fleet]
-    return []
-
-
-def parse_actions(analysis: str, report: str, wares: set[str]) -> list[list[dict]]:
-    """One entry per numbered line: its actions, or [] where it is unsure."""
-    own, ships, _ = vocabulary(report)
-    return [parse_line(line, own, ships, wares) for line in numbered_lines(analysis)]
-
-
 # ---------------------------------------------------------------- the model calls
 
 def _plain(action) -> dict:
@@ -261,7 +118,7 @@ class DailyLimit(Exception):
     """The provider's tokens-per-day budget is spent: stop asking."""
 
 
-def run_model(item: dict, model: str, retries: int = 2) -> dict:
+def run_model(item: dict, model: str, retries: int = 2, translate: bool = False) -> dict:
     """One call 2 on one input. A rate limit per minute is waited out; a limit
     per day ends the run for that model, because every further call fails too
     and the key may be shared: the first full run spent a shared hosted key's
@@ -270,7 +127,8 @@ def run_model(item: dict, model: str, retries: int = 2) -> dict:
     import planner
     for attempt in range(retries + 1):
         try:
-            plan, seconds = planner.extract(item["analysis"], item["report"], model)
+            call = planner.translate if translate else planner.extract
+            plan, seconds = call(item["analysis"], item["report"], model)
             return {"actions": [_plain(a) for a in plan.actions], "seconds": round(seconds, 2)}
         except httpx.HTTPStatusError as exc:
             body = exc.response.text[:600]
@@ -369,7 +227,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--translators", default="parser",
-                        help="comma-separated: local, hosted, parser")
+                        help="comma-separated: local, hosted, parser, hybrid")
     parser.add_argument("--repeat", type=int, default=1, help="runs per model translator")
     parser.add_argument("--gap", type=float, default=3.0, help="seconds between hosted calls")
     parser.add_argument("--limit", type=int, default=0, help="only the first N inputs")
@@ -415,13 +273,14 @@ def main() -> int:
             answers["parser"] = [{"actions": [a for actions in parsed for a in actions],
                                   "unparsed": [l for l, a in zip(lines, parsed) if not a],
                                   "seconds": round(time.perf_counter() - start, 4)}]
-        for name, model in (("local", LOCAL_MODEL), ("hosted", HOSTED_MODEL)):
+        for name, model in (("local", LOCAL_MODEL), ("hosted", HOSTED_MODEL),
+                            ("hybrid", LOCAL_MODEL)):
             if name not in translators or name in stopped:
                 continue
             runs = []
             try:
                 for _ in range(args.repeat):
-                    runs.append(run_model(item, model))
+                    runs.append(run_model(item, model, translate=(name == "hybrid")))
                     if name == "hosted":
                         time.sleep(args.gap)
             except DailyLimit as exc:

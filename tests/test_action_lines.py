@@ -1,6 +1,6 @@
-"""The parser route of backtest_extract: lines from real cycles, no model."""
+"""action_lines: the parser in front of call 2, on lines from real cycles."""
 
-import backtest_extract as bx
+import action_lines as bx
 
 REPORT = """# SITUATION
 Playtime: 264846s. Capital: 50,000,000 Cr.

@@ -319,12 +319,13 @@ def price_gaps(stations: list[dict], known: list[dict]) -> list[str]:
             if ask > top * (1 + PRICE_GAP):
                 lines.append(f"  {station['code']} sell price for {ware} is {ask:.0f} Cr "
                              f"(stock {held}); the best bid we know is {top:.0f} Cr "
-                             f"from {who}, who wants {wanted}. Nothing will sell "
-                             f"until the price comes down.")
+                             f"from {who}, who wants {wanted}. Python cuts it once "
+                             f"two buyers are known.")
             elif ask < top * (1 - PRICE_GAP):
                 lines.append(f"  {station['code']} sell price for {ware} is {ask:.0f} Cr "
                              f"(stock {held}) while {who} pays {top:.0f} Cr for "
-                             f"{wanted}. We are underselling.")
+                             f"{wanted}. Python prices under the cheapest supplier "
+                             f"on purpose, to draw outside traders.")
     return lines
 
 
@@ -615,8 +616,8 @@ def build(state: dict, goals: list[str] | None = None,
     pricing = price_gaps(stations, known)
     if pricing:
         add("")
-        add("# PRICING (our sell price against the best bid we know). "
-            "Every line here is the sell side:")
+        add("# PRICING (our sell price against the best bid we know). Python sets "
+            "these every cycle; they are for reading, not for proposing:")
         for line in pricing:
             add(line)
 
