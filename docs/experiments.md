@@ -179,6 +179,12 @@ What would change the next measurement, in order of what the logs point at:
 3. Then two or three pairs of runs, not one, so a single pirate attack does
    not decide the comparison.
 
+Done on 2026-10-19, before any new run: pricing is Python's alone (a price
+the model proposes is refused with the reason, and the prompt, the
+guidelines and the report's pricing section say so), and the parser now
+reads the numbered actions before call 2 does (`docs/contracts.md`). In one
+offline cycle on the same baseline the model proposed no price at all.
+
 ### The advise-mode fix
 
 Seen on the in-game panel during the first, dropped advise run: `sent:` for

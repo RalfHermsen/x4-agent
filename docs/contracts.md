@@ -325,3 +325,24 @@ certainty, and call 2 only for the rest, told to read a price without a side
 as a sell price when the station makes the ware. That removes the empty
 answers and the flipped sides on the lines the parser takes, and leaves
 call 2 a quarter of the lines (169 of 681).
+
+### Parser first, built and replayed the same day
+
+`planner.translate` now puts the parser in front of call 2: every line it
+reads with certainty becomes its action, only the other lines go to call 2,
+and when there are none call 2 does not run. Replayed over the same 175
+cycles, twice:
+
+| | call 2 alone | parser first, then call 2 |
+|---|---|---|
+| Answers with lines but no action | 5 | 1 |
+| Invented references | 22 | 14 |
+| Prices given back as read | 347 of 441 | 441 of 441 |
+| Identical on a second run | 151 of 175 | 159 of 175 |
+| Cycles with no model call | 0 | 75 |
+| Model time over all cycles | 1,059 s | 483 s |
+
+The one empty answer left is an old hosted reasoning in a shape the parser
+does not read (a bold code and a dash, with sub-bullets). The 14 invented
+references are all call 2's, on lines the parser left: `UNKNOWN`, sector
+names, order names where a station belongs. `check_actions` refuses them.

@@ -140,3 +140,12 @@ Proven again with the payment: 10,159 Cr for FWR-392, hull full one save
 later, and a purchase above its cap refused. Not yet: the bought ship was
 not built within 100 game minutes (the wharf started nothing), and the
 haul's two orders left the queue without running.
+
+Later that morning, the first two changes the measurement asked for, both
+offline: the parser now reads the numbered actions before call 2 does
+(`action_lines.py`, `planner.translate`), which over the 175 stored cycles
+cut the empty answers from 5 to 1 and the model time by half and flipped no
+price; and prices are Python's alone, with a refused price explained in the
+next report. An offline cycle on the 50M baseline proposed no price at all.
+It also showed call 2 putting a station where a ship goes; that is refused
+now too.
