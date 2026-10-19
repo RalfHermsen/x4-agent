@@ -257,7 +257,15 @@ def _plain(action) -> dict:
     return {k: v for k, v in data.items() if v not in (None, [], "")}
 
 
-def run_model(item: dict, model: str, retries: int = 3) -> dict:
+class DailyLimit(Exception):
+    """The provider's tokens-per-day budget is spent: stop asking."""
+
+
+def run_model(item: dict, model: str, retries: int = 2) -> dict:
+    """One call 2 on one input. A rate limit per minute is waited out; a limit
+    per day ends the run for that model, because every further call fails too
+    and the key may be shared: the first full run spent a shared hosted key's
+    whole daily budget (200,000 tokens on the free tier) retrying."""
     import httpx
     import planner
     for attempt in range(retries + 1):
@@ -265,6 +273,9 @@ def run_model(item: dict, model: str, retries: int = 3) -> dict:
             plan, seconds = planner.extract(item["analysis"], item["report"], model)
             return {"actions": [_plain(a) for a in plan.actions], "seconds": round(seconds, 2)}
         except httpx.HTTPStatusError as exc:
+            body = exc.response.text[:600]
+            if exc.response.status_code == 429 and ("per day" in body or "TPD" in body):
+                raise DailyLimit(body) from exc
             if exc.response.status_code == 429 and attempt < retries:
                 time.sleep(30 * (attempt + 1))
                 continue
@@ -304,6 +315,8 @@ def summarise(results: list[dict], translators: list[str]) -> str:
     stats = {}
     for name in translators:
         runs = [r["answers"].get(name, []) for r in results]
+        if not any(runs):
+            continue
         first = [run[0] for run in runs if run]
         ok = [a for a in first if "actions" in a]
         lines = sum(len(r["lines"]) for r, run in zip(results, runs) if run and "actions" in run[0])
@@ -330,6 +343,9 @@ def summarise(results: list[dict], translators: list[str]) -> str:
             "median seconds per call": f"{statistics.median(seconds):.2f}" if seconds else "n/a",
             "errors": len(first) - len(ok),
         }
+    translators = [t for t in translators if t in stats]
+    rows[0] = "| | " + " | ".join(translators) + " |"
+    rows[1] = "|---|" + "---|" * len(translators)
     for label in next(iter(stats.values())):
         row(label, [stats[t][label] for t in translators])
 
@@ -339,7 +355,7 @@ def summarise(results: list[dict], translators: list[str]) -> str:
             hits = total = 0
             for r in results:
                 parsed = [a for a in (r["answers"]["parser"][0]["actions"]) if a["type"] == "set_price"]
-                model = r["answers"].get(name, [{}])[0].get("actions")
+                model = (r["answers"].get(name) or [{}])[0].get("actions")
                 if model is None:
                     continue
                 total += len(parsed)
@@ -372,6 +388,23 @@ def main() -> int:
     print(f"{len(inputs)} inputs, translators {translators}, results in {out_dir}", flush=True)
 
     results = []
+    stopped: set[str] = set()
+
+    def write(final: bool) -> None:
+        # After every input, so a run cut short still leaves what it measured.
+        for r in results:
+            r["codes"] = set(r["codes"])
+        summary = summarise(results, translators) if results else ""
+        for r in results:
+            r["codes"] = sorted(r["codes"])
+        (out_dir / "results.json").write_text(json.dumps(results, indent=1), encoding="utf-8")
+        note = "" if final else "\n(partial)"
+        if stopped:
+            note += f"\nstopped at a daily limit: {', '.join(sorted(stopped))}"
+        (out_dir / "summary.md").write_text(summary + note + "\n", encoding="utf-8")
+        if final:
+            print("\n" + summary + note)
+
     for number, item in enumerate(inputs, 1):
         own, ships, codes = vocabulary(item["report"])
         lines = numbered_lines(item["analysis"])
@@ -383,27 +416,27 @@ def main() -> int:
                                   "unparsed": [l for l, a in zip(lines, parsed) if not a],
                                   "seconds": round(time.perf_counter() - start, 4)}]
         for name, model in (("local", LOCAL_MODEL), ("hosted", HOSTED_MODEL)):
-            if name not in translators:
+            if name not in translators or name in stopped:
                 continue
-            answers[name] = []
-            for _ in range(args.repeat):
-                answers[name].append(run_model(item, model))
-                if name == "hosted":
-                    time.sleep(args.gap)
+            runs = []
+            try:
+                for _ in range(args.repeat):
+                    runs.append(run_model(item, model))
+                    if name == "hosted":
+                        time.sleep(args.gap)
+            except DailyLimit as exc:
+                stopped.add(name)
+                print(f"{name}: daily limit reached, no more calls: {str(exc)[:160]}", flush=True)
+            if runs:
+                answers[name] = runs
         results.append({"source": item["source"], "lines": lines, "codes": sorted(codes),
                         "analysis": item["analysis"], "answers": answers})
         brief = ", ".join(f"{n}: {len(a[0].get('actions', []))}" if "actions" in a[0]
                           else f"{n}: {a[0].get('error')}" for n, a in answers.items())
         print(f"[{number}/{len(inputs)}] {item['source']}: {len(lines)} lines; {brief}", flush=True)
+        write(final=False)
 
-    for r in results:
-        r["codes"] = set(r["codes"])
-    summary = summarise(results, translators)
-    for r in results:
-        r["codes"] = sorted(r["codes"])
-    (out_dir / "results.json").write_text(json.dumps(results, indent=1), encoding="utf-8")
-    (out_dir / "summary.md").write_text(summary + "\n", encoding="utf-8")
-    print("\n" + summary)
+    write(final=True)
     return 0
 
 
