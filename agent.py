@@ -17,6 +17,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import copy
 import hashlib
 import json
 import math
@@ -102,8 +103,15 @@ def _fingerprint(state: dict, failures: list[str], goals: list[str],
                         .encode()).hexdigest()
 
 
-def cycle(model: str | None = None, save: Path | None = None, force: bool = False) -> dict:
-    """Run one full cycle. Returns everything the caller might want to log."""
+def cycle(model: str | None = None, save: Path | None = None, force: bool = False,
+          sends: bool = True) -> dict:
+    """Run one full cycle. Returns everything the caller might want to log.
+
+    `sends` says whether the caller will send the commands. The host passes
+    False in advise mode; then the cycle plans as usual but remembers nothing
+    of what it would have done (memory.DID_KEYS), and the panel says "would
+    send" instead of "sent".
+    """
     model = model or planner.DEFAULT_MODEL
     target = save or latest_save()
 
@@ -113,6 +121,7 @@ def cycle(model: str | None = None, save: Path | None = None, force: bool = Fals
     # commands it sent actually changed anything. Both go into the report, so
     # the model plans with continuity and can see its own failures.
     remembered = memory.load()
+    before = copy.deepcopy(remembered)
     failures = memory.check(remembered, state)
     failures += memory.check_fleet(remembered, state, sitrep_mod.ship_type)
     failures += memory.track_expansions(remembered, state)
@@ -239,10 +248,16 @@ def cycle(model: str | None = None, save: Path | None = None, force: bool = Fals
         # A silent cycle proposed nothing, so it refused nothing; recording
         # that would wipe what the model was last told.
         memory.record_refusals(remembered, rejected + skipped)
+    if not sends:
+        for key in memory.DID_KEYS:
+            if key in before:
+                remembered[key] = before[key]
+            else:
+                remembered.pop(key, None)
     memory.save(remembered)
 
     return {
-        "panel": panel_lines(remembered, commands, failures),
+        "panel": panel_lines(remembered, commands, failures, sent=sends),
         "save": target,
         "sitrep": report,
         "analysis": analysis,
@@ -260,10 +275,12 @@ def cycle(model: str | None = None, save: Path | None = None, force: bool = Fals
     }
 
 
-def panel_lines(remembered: dict, commands: list[str], failures: list[str]) -> list[str]:
+def panel_lines(remembered: dict, commands: list[str], failures: list[str],
+                sent: bool = True) -> list[str]:
     """What the in-game panel shows after a cycle (3.9): at most 30 lines."""
+    label = "sent" if sent else "would send"
     lines = [f"goal: {g}" for g in remembered.get("goals", [])[:3]]
-    lines += [f"sent: {c}" for c in commands[:12]]
+    lines += [f"{label}: {c}" for c in commands[:12]]
     lines += [f"note: {f}" for f in failures[:12]]
     return [line[:120] for line in lines][:30]
 

@@ -54,6 +54,14 @@ _EMPTY = {"goals": [], "pending": [], "applied": {}, "fleet": {},
           "purchases": {}, "blueprint_factions": [], "logbook_seen": -1.0,
           "feeders": {}, "standing": {}, "ledger": {}, "reserved": []}
 
+# What the agent did, as opposed to what it saw or decided. In advise mode
+# nothing is sent, so a cycle there must leave these as they were: recording
+# an unsent command as pending made the next cycle report it as failed, and a
+# purchase job or an expansion started on paper would stall the same way.
+# Observations (fleet, logbook, ledger, reservations) and the model's own
+# goals and refusals are kept in both modes.
+DID_KEYS = ("pending", "applied", "funded", "expansions", "purchases", "feeders", "standing")
+
 
 # The path is looked up at call time rather than bound as a default, so a test
 # can point STORE at a temp file. Bound at import, every test that ran a cycle

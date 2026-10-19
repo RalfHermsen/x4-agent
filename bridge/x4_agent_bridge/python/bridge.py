@@ -171,7 +171,8 @@ def run_cycle(pipe, force: bool = False) -> None:
         return
 
     try:
-        result = agent.cycle(force=force)
+        # Advise mode sends nothing, and the cycle must not remember sending.
+        result = agent.cycle(force=force, sends=(MODE == "execute"))
     except Exception as exc:  # noqa: BLE001 - a failed cycle must not kill the loop
         print(f"[x4-agent] cycle failed: {type(exc).__name__}: {exc}")
         return

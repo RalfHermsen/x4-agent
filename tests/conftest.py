@@ -128,8 +128,8 @@ def run_cycle(fake_planner, small_save, small_state, monkeypatch):
     """agent.cycle() on the small save, without parsing it again."""
     import agent
 
-    def _run(state: dict | None = None):
+    def _run(state: dict | None = None, sends: bool = True):
         monkeypatch.setattr(agent, "parse_save",
                             lambda _path: copy.deepcopy(state or small_state))
-        return agent.cycle(save=small_save)
+        return agent.cycle(save=small_save, sends=sends)
     return _run
