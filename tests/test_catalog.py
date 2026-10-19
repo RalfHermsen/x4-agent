@@ -147,3 +147,39 @@ def test_one_ship_purchase_per_cycle():
     commands, notes, _ = catalog.decide(found, "DECISIONS:\nS1: 1\nS2: 1\n")
     assert commands == ["buyship A freighter"]
     assert any("one ship purchase per cycle" in n for n in notes)
+
+
+def test_resends_that_change_nothing_are_not_offered(small_state):
+    import executor
+    from schemas import PlannerResponse
+    state = copy.deepcopy(small_state)
+    station = next(a for a in state["assets"] if a["code"] == "KYV-745")
+    ship = next(a for a in state["assets"] if a["code"] == "ASO-629")
+    station.setdefault("assignment", {})["groups"] = {3: "defence"}
+    ship["assignment"] = {"group": 3}
+    state["assets"].append({"cls": "buildstorage", "station": "KYV-745", "code": "BST-001",
+                            "build": {"queued": 0, "in_progress": 1}})
+
+    def sent(action):
+        plan = PlannerResponse.model_validate({"assessment": "", "updated_goals": [],
+                                               "actions": [{**action, "rationale": "t"}]})
+        commands, skipped = executor.to_commands(plan.actions, state, allow_busy=True)
+        return commands, [reason for _, reason in skipped]
+
+    assert sent({"type": "assign_ship", "ship_ref": "ASO-629", "station_id": "KYV-745",
+                 "role": "defend"}) == ([], ["already in effect, not re-sent"])
+    assert sent({"type": "assign_ship", "ship_ref": "ASO-629", "station_id": "KYV-745",
+                 "role": "trade"})[0] == ["assign ASO-629 KYV-745 trade"]
+    # The small save has no expansion blueprints, so the gate itself is asked.
+    from types import SimpleNamespace
+    expand = SimpleNamespace(station_id="KYV-745")
+    assert executor._expansion_planned(expand, state)
+    state["assets"][-1]["build"] = {"queued": 0, "in_progress": 0}
+    assert not executor._expansion_planned(expand, state)
+
+
+def test_a_station_without_modules_gets_no_budget_situation(small_state):
+    state = copy.deepcopy(small_state)
+    station = next(a for a in state["assets"] if a["code"] == "KYV-745")
+    station["modules"] = []
+    assert not any(s.key == "budget:KYV-745" for s in catalog.no_budget(state))

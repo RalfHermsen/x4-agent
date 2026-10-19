@@ -208,14 +208,21 @@ def idle_ships(state: dict) -> list[Situation]:
 
 
 def no_budget(state: dict) -> list[Situation]:
-    """A station manager without an operating budget opens no purchase orders."""
+    """A station manager without an operating budget opens no purchase orders.
+
+    Only stations with modules: on GKL-870, with none built yet, the budget
+    command had no effect and drew no answer, and the model sent it five
+    cycles running. Its build is funded by Python (`executor.funding`).
+    """
     out = []
     for st in _stations(state):
         acct = st.get("account") or {}
         if acct and int(acct.get("min", 0) or 0):
             continue
         modules = len(st.get("modules") or [])
-        what = (f"{modules} modules" if modules else "no modules built yet, so nothing to buy for")
+        if not modules:
+            continue
+        what = f"{modules} modules"
         options = [o for o in (_option(f"set the budget of {st['code']} to {level}",
                                        {"type": "set_budget", "station_id": st["code"], "level": level},
                                        state) for level in ("low", "mid", "high")) if o]

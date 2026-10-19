@@ -891,9 +891,51 @@ def _exploring_nothing(ship: dict) -> bool:
     return bool(target) and target == (ship.get("place") or {}).get("sector")
 
 
+# A station's subordinate group names for each role a ship can be assigned.
+STATION_GROUPS = {"mine": "mining", "trade": "trade", "defend": "defence",
+                  "buildstorage": "tradeforbuildstorage"}
+
+
+def _expansion_planned(action, state: dict) -> bool:
+    """True while the station's build storage has a build queued or running.
+
+    The bridge refuses a second expansion then ("already has an expansion
+    planned, leaving it alone"), and without this the agent asked again every
+    cycle: four times in the first fifteen minutes of a run.
+    """
+    return any((a.get("build") or {}).get("queued") or (a.get("build") or {}).get("in_progress")
+               for a in state.get("assets", [])
+               if a.get("cls") == "buildstorage" and a.get("station") == action.station_id)
+
+
+def _assigned_already(action, state: dict) -> bool:
+    """True when the ship already sits in that station's group for that role.
+
+    The save gives a subordinate only its group number, not its commander
+    (save_parser._assignment). A number that means the same role on another
+    station of ours too could be either, and then this says no.
+    """
+    wanted = STATION_GROUPS.get(getattr(action, "role", ""))
+    assets = {a.get("code"): a for a in state.get("assets", [])}
+    ship, station = assets.get(action.ship_ref) or {}, assets.get(action.station_id) or {}
+    group = (ship.get("assignment") or {}).get("group")
+    if not wanted or group is None:
+        return False
+    def role_of(a: dict):
+        return ((a.get("assignment") or {}).get("groups") or {}).get(group)
+    if role_of(station) != wanted:
+        return False
+    return not any(role_of(a) == wanted for code, a in assets.items()
+                   if code != action.station_id and a.get("cls") == "station")
+
+
 def _already_done(action, key, state: dict) -> bool:
     if key == ("set_budget", None):
         return _budget_already_set(action, state)
+    if key == ("expand_station", None) and state is not None:
+        return _expansion_planned(action, state)
+    if key == ("assign_ship", None) and state is not None:
+        return _assigned_already(action, state)
     wanted = SATISFIED_BY_ORDER.get(key)
     if not wanted or state is None:
         return False
