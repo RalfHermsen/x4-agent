@@ -359,7 +359,8 @@ MAX_REFUSED = 10
 
 def build(state: dict, goals: list[str] | None = None,
           failures: list[str] | None = None,
-          refused: list[dict] | None = None) -> str:
+          refused: list[dict] | None = None,
+          situations: list[str] | None = None) -> str:
     meta, player = state["meta"], state["player"]
     assets = state["assets"]
     ships = [a for a in assets if a["cls"] in SHIP_CLASSES]
@@ -726,6 +727,9 @@ def build(state: dict, goals: list[str] | None = None,
     if not idle and not shortages and not failing:
         add("Nothing.")
 
+    # The action catalog (catalog.py), when the agent runs with it: last, so the
+    # model reads the situation first and decides with it in view.
+    lines += situations or []
     return "\n".join(lines)
 
 

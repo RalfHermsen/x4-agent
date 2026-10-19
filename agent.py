@@ -26,6 +26,8 @@ import sys
 import time
 from pathlib import Path
 
+import action_lines
+import catalog
 import executor
 import memory
 import planner
@@ -45,6 +47,9 @@ MAX_QUIET = float(os.environ.get("X4_AGENT_MAX_QUIET", "1800"))
 # action in the running game must not depend on talking a model into
 # proposing it. After the list runs out, cycles plan nothing.
 SCRIPT = os.environ.get("X4_AGENT_SCRIPT")
+# The action catalog (catalog.py, tasks/plan-catalog-2026-10.md): the model
+# decides between prepared options instead of writing actions. Off unless set.
+CATALOG = os.environ.get("X4_CATALOG") == "1"
 
 
 def _scripted(remembered: dict) -> PlannerResponse:
@@ -129,9 +134,11 @@ def cycle(model: str | None = None, save: Path | None = None, force: bool = Fals
     failures += executor.transport_shortage(state)
     job_commands, job_lines = purchases.advance(remembered, state)
     failures += job_lines
+    found = catalog.situations(state) if CATALOG else []
     report = sitrep_mod.build(state, goals=remembered.get("goals"),
                               failures=failures,
-                              refused=remembered.get("refused"))
+                              refused=remembered.get("refused"),
+                              situations=catalog.render(found))
 
     # Skip the model when nothing it would look at has changed. The arithmetic
     # below (repricing, fleet focus) still runs: it is cheap, and prices move.
@@ -148,6 +155,16 @@ def cycle(model: str | None = None, save: Path | None = None, force: bool = Fals
         model_ran, quiet_reason = True, None
         analysis, reason_s, extract_s = "scripted planner", 0.0, 0.0
         plan = _scripted(remembered)
+    elif model_ran and CATALOG:
+        analysis, reason_s = planner.reason(
+            report, planner.GUIDELINES.read_text(encoding="utf-8"), model, catalog=True)
+        chosen, notes, _ = catalog.decide(found, analysis)
+        failures += notes
+        plan = PlannerResponse(assessment=action_lines.summary_from(analysis) or "Decided.",
+                               updated_goals=action_lines.goals_from(analysis), actions=[])
+        extract_s = 0.0
+        remembered["fingerprint"] = fingerprint
+        remembered["last_model_run"] = time.time()
     elif model_ran:
         analysis, reason_s = planner.reason(
             report, planner.GUIDELINES.read_text(encoding="utf-8"), model)
@@ -163,6 +180,8 @@ def cycle(model: str | None = None, save: Path | None = None, force: bool = Fals
     jobs = [a for a in ok if a.type in executor.JOB_ACTIONS]
     ok = [a for a in ok if a.type not in executor.JOB_ACTIONS]
     commands, skipped = executor.to_commands(ok, state)
+    # Options chosen from the catalog were checked when they were offered.
+    commands += [c for c in (chosen if CATALOG and model_ran and not SCRIPT else []) if c not in commands]
     for action in jobs:
         if action.type == "sell_ship":
             first, reason = executor.plan_sale(action, state)

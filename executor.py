@@ -907,7 +907,8 @@ def _already_done(action, key, state: dict) -> bool:
     return True
 
 
-def to_commands(actions: list, state: dict | None = None) -> tuple[list[str], list[tuple]]:
+def to_commands(actions: list, state: dict | None = None,
+                allow_busy: bool = False) -> tuple[list[str], list[tuple]]:
     """Split actions into sendable commands and skipped ones with a reason.
 
     Pass `state` to suppress orders the game is already carrying out. This is
@@ -929,7 +930,9 @@ def to_commands(actions: list, state: dict | None = None) -> tuple[list[str], li
                 skipped.append((action, out_of_band))
                 continue
 
-        busy = _busy_with(action, state) if state else None
+        # The catalog lifts this gate for its own options (catalog.py): there the
+        # ship's current order is shown, and changing it is the decision.
+        busy = _busy_with(action, state) if state and not allow_busy else None
         if busy and not _already_done(action, key, state):
             skipped.append((action, f"already busy with {busy}, not overriding"))
             continue

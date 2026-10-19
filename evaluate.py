@@ -24,7 +24,10 @@ import time
 import traceback
 from pathlib import Path
 
+import os
+
 import action_lines
+import catalog
 import executor
 import planner
 import sitrep as sitrep_mod
@@ -54,10 +57,25 @@ def evaluate(save: Path, model: str, guidelines: str, out_dir: Path | None) -> d
     row["ships"] = len([a for a in state["assets"] if a["cls"] in SHIP_CLASSES])
     row["parse_s"] = time.perf_counter() - start
 
-    report = sitrep_mod.build(state)
+    use_catalog = os.environ.get("X4_CATALOG") == "1"
+    found = catalog.situations(state) if use_catalog else []
+    report = sitrep_mod.build(state, situations=catalog.render(found))
     row["sitrep_b"] = len(report.encode("utf-8"))
 
-    analysis, reason_s = planner.reason(report, guidelines, model)
+    analysis, reason_s = planner.reason(report, guidelines, model, catalog=use_catalog)
+    if use_catalog:
+        commands, notes, counts = catalog.decide(found, analysis)
+        row.update({"llm_s": reason_s, "lines": counts["situations"], "actions": counts["chosen"],
+                    "rejected": counts["unreadable"], "skipped": 0,
+                    "types": ",".join(sorted({c.split()[0] for c in commands})) or "-",
+                    "catalog": counts})
+        if out_dir:
+            out_dir.mkdir(parents=True, exist_ok=True)
+            text = (f"### {save.name}\n\n{report}\n\n# REASONING\n{analysis}\n\n# CHOSEN\n"
+                    + "\n".join(f"    {c}" for c in commands) + "\n\n# NOTES\n" + "\n".join(notes)
+                    + f"\n\n# COUNTS\n{counts}\n")
+            (out_dir / f"{save.name.split(chr(46))[0]}.txt").write_text(text, encoding="utf-8")
+        return row
     plan, extract_s = planner.translate(analysis, report, model)
     ok, rejected = planner.check_actions(plan, state)
     # The executor's gates are the last filter before the game, and in a live

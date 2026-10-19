@@ -211,3 +211,48 @@ def parse_actions(analysis: str, report: str, wares: set[str]) -> list[list[dict
     """One entry per numbered line: its actions, or [] where it is unsure."""
     own, ships, _ = vocabulary(report)
     return [parse_line(line, own, ships, wares) for line in numbered_lines(analysis)]
+
+
+# ---------------------------------------------------------------- catalog answers
+
+DECISIONS_HEADING = "DECISIONS"
+OTHER_HEADING = "OTHER"
+_DECISION = re.compile(r"^\s*[*`-]*\s*S(\d+)\s*[:.)=-]+\s*[*`]*\s*(none|\d+)\b[*`]*\s*(.*)$", re.I)
+
+
+def _section(analysis: str, heading: str, ends: tuple[str, ...]) -> str | None:
+    _, found, tail = analysis.partition(heading)
+    if not found:
+        return None
+    for marker in ends:
+        tail = tail.split(marker)[0]
+    return tail
+
+
+def decisions(analysis: str) -> tuple[list[tuple[int, int | None, str]], list[str]]:
+    """The answers under DECISIONS: (situation, option or None, reason), and the
+    lines there that could not be read."""
+    section = _section(analysis, DECISIONS_HEADING, (OTHER_HEADING,) + GOAL_MARKERS)
+    if section is None:
+        return [], []
+    answers, unreadable = [], []
+    for line in section.splitlines():
+        text = line.strip().strip("*").strip()
+        if not text or text.strip(":") == "":
+            continue
+        match = _DECISION.match(line)
+        if match:
+            option = None if match.group(2).lower() == "none" else int(match.group(2))
+            answers.append((int(match.group(1)), option, match.group(3).strip(" -:")))
+        else:
+            unreadable.append(text[:120])
+    return answers, unreadable
+
+
+def other_lines(analysis: str) -> list[str]:
+    """Ideas the options did not cover: advice, never carried out."""
+    section = _section(analysis, OTHER_HEADING, GOAL_MARKERS)
+    if section is None:
+        return []
+    return [line.strip(" -*") for line in section.splitlines()
+            if line.strip(" -*:") and line.strip(" -*").lower() not in ("none", "nothing")]

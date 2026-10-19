@@ -55,9 +55,25 @@ _COUNT_WORDS = {1: "one", 2: "two", 3: "three", 4: "four", 5: "five", 6: "six",
                 7: "seven", 8: "eight", 9: "nine", 10: "ten", 12: "twelve"}
 
 
-def reason_system(max_actions: int | None = None) -> str:
+CATALOG_ANSWER = """The report ends in SITUATIONS, each with numbered options that can be carried
+out exactly as written. Decide every situation under the heading DECISIONS,
+one line each: "S2: 1" takes option 1 of situation 2, "S2: none" takes none,
+followed by a short reason. Choose none when no option is worth it. Ideas the
+options do not cover go under the heading OTHER, one per line; they are kept
+as advice and not carried out."""
+_ACTIONS_ANSWER = """Write the actions as a numbered list under the heading ACTIONS, one line each,
+and number them from 1. If there is nothing to do, write "ACTIONS: none"."""
+
+
+def reason_system(max_actions: int | None = None, catalog: bool = False) -> str:
     n = MAX_ACTIONS if max_actions is None else max_actions
-    return REASON_SYSTEM.replace("{max_actions}", _COUNT_WORDS.get(n, str(n)))
+    text = REASON_SYSTEM.replace("{max_actions}", _COUNT_WORDS.get(n, str(n)))
+    if catalog:
+        # The catalog asks for decisions, not for actions to be thought up.
+        text = text.replace(f"Think out loud and arrive at at\nmost {_COUNT_WORDS.get(n, str(n))} concrete actions.",
+                            "Think out loud, then decide every situation the report lists.")
+        text = text.replace(_ACTIONS_ANSWER, CATALOG_ANSWER)
+    return text
 
 
 # The translation step may run on a different model from the reasoning step.
@@ -223,7 +239,7 @@ def _chat_openai(model: str, messages: list[dict], schema: dict | None,
     return content, time.perf_counter() - start
 
 
-def reason(report: str, guidelines: str, model: str) -> tuple[str, float]:
+def reason(report: str, guidelines: str, model: str, catalog: bool = False) -> tuple[str, float]:
     """Call 1: reason freely, no schema.
 
     Temperature 0 here too. Sampling made the agent act only sometimes: on an
@@ -232,7 +248,7 @@ def reason(report: str, guidelines: str, model: str) -> tuple[str, float]:
     live game should be boring and repeatable, so the variance buys nothing.
     """
     return _chat(model, [
-        {"role": "system", "content": reason_system()},
+        {"role": "system", "content": reason_system(catalog=catalog)},
         {"role": "user", "content": f"# GUIDELINES\n{guidelines}\n\n{report}"},
     ], schema=None, temperature=0.0)
 

@@ -106,7 +106,7 @@ class FakePlanner:
         self.reports: list[str] = []
         self.calls = 0
 
-    def reason(self, report, guidelines, model):
+    def reason(self, report, guidelines, model, catalog=False):
         self.reports.append(report)
         self.calls += 1
         return self.analysis, 0.0
