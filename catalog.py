@@ -46,6 +46,8 @@ MAX_SITUATIONS = 10            # per report, risk first
 MAX_DANGER = 4                 # of which at most this many about ships at risk
 SHIP_CAP = 3_000_000           # the most one bought M ship may cost
 CAPITAL_FLOOR = 5_000_000      # below this after the reserve, money is not idle
+PURCHASE_GAP = 3600            # game seconds between two ship purchases
+BOUGHT = "[x4-agent lua] ORDER: bought"   # the purchase verb's logbook line
 MAX_OPTIONS = 4
 
 
@@ -119,6 +121,14 @@ def _spare(state: dict) -> float:
     return (state.get("player", {}).get("money") or 0) * (1 - RESERVE)
 
 
+def _bought_recently(state: dict) -> bool:
+    """A ship bought within the last PURCHASE_GAP game seconds, by the purchase
+    verb's own logbook line in the save."""
+    now = state.get("meta", {}).get("playtime_s", 0.0)
+    return any(text and text.startswith(BOUGHT) and now - t < PURCHASE_GAP
+               for t, text in state.get("logbook", []))
+
+
 def _buy_options(state: dict, roles: tuple[tuple[str, str], ...]) -> list[Option]:
     """Ships to buy at the two nearest wharfs we know that build M ships.
 
@@ -126,11 +136,15 @@ def _buy_options(state: dict, roles: tuple[tuple[str, str], ...]) -> list[Option
     "ship_{race}_m_miner_solid_01_a_macro"). Only a wharf's own race's ship,
     only with a known route, and nothing below the capital floor. The price
     is the wharf's; the cap is a ceiling, and the buy verb refuses above it.
+
+    At most one purchase per game hour. The first catalog run in the game
+    offered the same freighter every cycle and the model took it every
+    cycle: two ships in six minutes, on course for forty in two hours.
     """
     import gamedata
     from purchases import _graph, jumps
     spare = _spare(state)
-    if spare < CAPITAL_FLOOR:
+    if spare < CAPITAL_FLOOR or _bought_recently(state):
         return []
     home = next((a for a in _stations(state) if a.get("modules")), None)
     if not home:
@@ -335,7 +349,14 @@ def covered_ground(state: dict) -> list[Situation]:
 
 def idle_capital(state: dict) -> list[Situation]:
     """Money above the reserve that nothing is using: concrete ships to buy,
-    a freighter or a solid miner of the wharf's own race, nearest wharf first."""
+    a freighter or a solid miner of the wharf's own race, nearest wharf first.
+
+    Not while a ship of ours waits for work the catalog can give it: the
+    ships we have go to work before more are bought, a bought one included,
+    since it arrives without orders.
+    """
+    if idle_ships(state):
+        return []
     options = _buy_options(state, (("container freighter", "ship_{race}_m_trans_container_01_a_macro"),
                                    ("solid miner", "ship_{race}_m_miner_solid_01_a_macro")))
     if not options:
@@ -443,6 +464,9 @@ def decide(found: list[Situation], analysis: str) -> tuple[list[str], list[str],
             continue
         chosen += 1
         command = situation.options[option - 1].command
+        if command.startswith("buyship") and any(c.startswith("buyship") for c in commands):
+            notes.append(f"S{number}: one ship purchase per cycle, {command} not sent")
+            continue
         if command not in commands:
             commands.append(command)
     counts = {"situations": len(found), "options": sum(len(s.options) for s in found),

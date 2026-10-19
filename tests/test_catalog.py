@@ -113,3 +113,37 @@ def test_the_same_purchase_chosen_twice_is_sent_once():
              Situation("b", "second", [Option("y", "buyship A")])]
     commands, _, counts = catalog.decide(found, "DECISIONS:\nS1: 1\nS2: 1\n")
     assert commands == ["buyship A"] and counts["chosen"] == 2 and counts["none"] == 0
+
+
+def test_a_purchase_in_the_last_game_hour_holds_the_next(small_state):
+    state = copy.deepcopy(small_state)
+    now = state["meta"]["playtime_s"]
+    assert not catalog._bought_recently(state)
+    state["logbook"] = [[now - 600, catalog.BOUGHT + " ship_arg_m_trans_container_01_a_macro at X"]]
+    assert catalog._bought_recently(state)
+    state["player"]["money"] = 50_000_000
+    assert catalog._buy_options(state, (("container freighter", "ship_{race}_m_trans_container_01_a_macro"),)) == []
+    state["logbook"] = [[now - 4000, catalog.BOUGHT + " ship_arg_m_trans_container_01_a_macro at X"]]
+    assert not catalog._bought_recently(state)
+
+
+def test_idle_capital_waits_while_a_ship_waits_for_work(small_state):
+    state = copy.deepcopy(small_state)
+    state["player"]["money"] = 50_000_000
+    home = next(a for a in state["assets"] if a["code"] == "KYV-745")
+    state["known_stations"].append({"code": "YRD-001", "owner": "argon", "builds": ["m"],
+                                    "place": dict(home["place"])})
+    assert catalog.idle_ships(state)          # ASO-629 has no orders
+    assert catalog.idle_capital(state) == []
+    ship = next(a for a in state["assets"] if a["code"] == "ASO-629")
+    ship["orders"] = [{"order": "TradeRoutine", "default": False}]
+    assert not catalog.idle_ships(state)
+    assert catalog.idle_capital(state)        # with everyone at work, it is offered
+
+
+def test_one_ship_purchase_per_cycle():
+    found = [Situation("a", "money", [Option("x", "buyship A freighter")]),
+             Situation("b", "short", [Option("y", "buyship A miner")])]
+    commands, notes, _ = catalog.decide(found, "DECISIONS:\nS1: 1\nS2: 1\n")
+    assert commands == ["buyship A freighter"]
+    assert any("one ship purchase per cycle" in n for n in notes)
