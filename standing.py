@@ -165,11 +165,16 @@ def patrols(state: dict, data: dict) -> list[str]:
 
 
 def find_builds(state: dict, data: dict) -> list[str]:
-    """4.15: our own construction vessel serves our builds when one is waiting."""
-    waiting = any(bs.get("cls") == "buildstorage" and ((bs.get("build") or {}).get("queued")
-                                                       or (bs.get("build") or {}).get("in_progress"))
-                  and not (bs.get("build") or {}).get("builders")
-                  for bs in state.get("assets", []))
+    """4.15: our own construction vessel serves our builds when one is waiting.
+
+    It is sent to the waiting build's station with `deploy`, a DeployToStation
+    order as the map menu gives it. FindBuildTasks, which this used first, is
+    called non-functional on the Egosoft wiki, and no run ever proved it.
+    """
+    waiting = [bs["station"] for bs in state.get("assets", [])
+               if bs.get("cls") == "buildstorage" and bs.get("station")
+               and ((bs.get("build") or {}).get("queued") or (bs.get("build") or {}).get("in_progress"))
+               and not (bs.get("build") or {}).get("builders")]
     if not waiting:
         return []
     sent = _done(data, "findbuilds")
@@ -177,7 +182,7 @@ def find_builds(state: dict, data: dict) -> list[str]:
         if (sitrep.ship_type(ship.get("macro")) == "construction vessel"
                 and ship.get("owner") == "player" and ship.get("code") not in sent):
             _mark(data, "findbuilds", ship["code"])
-            return [f"findbuilds {ship['code']}"]
+            return [f"deploy {ship['code']} {waiting[0]}"]
     return []
 
 

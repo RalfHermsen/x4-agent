@@ -1093,6 +1093,35 @@ local function hire_builder(args)
     return true
 end
 
+--- "deploy BLD-001 KYV-745" -> a construction vessel of ours builds at our
+--- station: the map menu's selectCV for a vessel of ours, which is the hire
+--- above without a fee. Not when it is busy on another build of ours.
+local function deploy_builder(args)
+    local shipcode, stationcode = args[1], args[2]
+    if not (shipcode and stationcode) then
+        return refuse("deploy needs: deploy <OUR BUILDER> <OUR STATION>")
+    end
+    local builder = player_ships()[shipcode]
+    local station = player_stations()[stationcode]
+    if not builder then return refuse("deploy: no ship of ours with id code " .. shipcode) end
+    if not station then return refuse("deploy: no station of ours with id code " .. stationcode) end
+    if C.IsBuilderBusy(builder) then
+        return refuse("deploy: " .. shipcode .. " is busy with another build")
+    end
+    if not C.IsOrderSelectableFor("DeployToStation", builder) then
+        return refuse("deploy: " .. shipcode .. " cannot take a DeployToStation order")
+    end
+    C.RemoveAllOrders(builder)
+    local index = C.CreateDeployToStationOrder(builder)
+    if index > 0 then
+        SetOrderParam(ConvertStringToLuaID(tostring(builder)), index, 1, nil,
+                      ConvertStringToLuaID(tostring(station)))
+        C.EnableOrder(builder, index)
+    end
+    log(string.format("ORDER: %s deploys to %s, order %d", shipcode, stationcode, index))
+    return true
+end
+
 --- "sellship ASO-629 WRF-001 argon" -> sell a ship of ours at that shipyard,
 --- for what the game says it is worth there. The map menu's sell dialog:
 --- the ship must be sellable and the yard able to build it; the value is
@@ -1351,6 +1380,7 @@ local BARE_HANDLERS = {
     patrol = patrol,
     findbuilds = find_builds,
     hire = hire_builder,
+    deploy = deploy_builder,
     panel = panel,
     sellship = sell_ship,
     buyship = buy_ship,
@@ -1441,7 +1471,7 @@ local function init()
     end
     _G.__X4AGENT_COMMAND_HANDLER = X4Agent.onCommand
     RegisterEvent("X4Agent.Command", X4Agent.onCommand)
-    log("ready (chunk " .. CHUNK .. "), handling: price, tradeware, traderule, avoid hostile, signals, respond, savegame, blueprint, docked, dockat, release, licence, command, haul, loop, limit, turrets, revisit, satellite, resupply, ledger, repair, patrol, findbuilds, hire, panel, sellship, buyship")
+    log("ready (chunk " .. CHUNK .. "), handling: price, tradeware, traderule, avoid hostile, signals, respond, savegame, blueprint, docked, dockat, release, licence, command, haul, loop, limit, turrets, revisit, satellite, resupply, ledger, repair, patrol, findbuilds, hire, deploy, panel, sellship, buyship")
 end
 
 -- Initialise straight away, and do NOT hand this to Register_OnLoad_Init.

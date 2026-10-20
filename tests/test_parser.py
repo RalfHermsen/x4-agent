@@ -60,6 +60,17 @@ def test_builders_read_from_build_tasks():
     assert _builders(elem) == ["[0x2e1acd44]"]
 
 
+def test_a_player_build_naming_its_own_storage_has_no_builder():
+    from lxml import etree
+
+    from save_parser import _builders
+    elem = etree.fromstring(
+        '<component id="[0x2b231]"><buildtasks><inprogress>'
+        '<build id="[0xe53]" type="expand" builder="[0x2b231]"/>'
+        '</inprogress></buildtasks></component>')
+    assert _builders(elem) == []
+
+
 def test_build_storage_linked_to_its_station(small_state, large_state):
     for state in (small_state, large_state):
         stations = {a["code"]: a for a in _stations(state)}

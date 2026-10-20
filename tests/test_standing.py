@@ -83,7 +83,7 @@ def test_own_builder_finds_a_waiting_build(small_state):
     _add_ship(state, "BLD-001", "ship_arg_xl_builder_01_a_macro", owner="player")
     bs = next(a for a in state["assets"] if a["code"] == "XQL-000")
     bs["build"] = {"queued": 1, "in_progress": 0, "builders": [], "processor": {}}
-    assert standing.find_builds(state, {}) == ["findbuilds BLD-001"]
+    assert standing.find_builds(state, {}) == ["deploy BLD-001 KYV-745"]
     bs["build"]["builders"] = ["[0x1]"]
     assert standing.find_builds(state, {}) == []
 

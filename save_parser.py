@@ -519,13 +519,17 @@ def _builders(elem) -> list[str]:
     """Construction vessels working for this build storage, by component id.
 
     Every queued or running build names its vessel as builder="[0x..]". Seen on
-    an NPC build in a 9.00 save; a player build is assumed to look the same,
-    since it is the same element.
+    an NPC build in a 9.00 save. A player expansion waiting for a vessel names
+    the build storage itself there (XQL-000 for KYV-745 in the 73-hour save):
+    read as a vessel, it made the build look served, so no builder was ever
+    hired and the expansion sat at step 1 of 10 through every run of
+    2026-10-19/20. The build storage's own id is not a builder.
     """
     out = []
+    own = elem.get("id")
     for build in elem.iterfind("buildtasks/*/build"):
         builder = build.get("builder")
-        if builder and builder != "[0x0]" and builder not in out:
+        if builder and builder != "[0x0]" and builder != own and builder not in out:
             out.append(builder)
     return out
 
