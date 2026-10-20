@@ -129,6 +129,50 @@ advise runs, and if they beat 2.4's execute run.
 | 5.3 | done | `catalog.py` behind `X4_CATALOG=1`; tests green; options checked when offered |
 | 5.4 | done | executable actions 28 to 63 on the 16 saves, nothing refused or skipped; every model's choices carried out (`docs/contracts.md`) |
 | 5.5 | done, rule not met | both execute runs below their advise runs (1.53 against 1.79 and 1.73 against 1.88 million per game hour, bought ships at cost); execution clean, purchases do not pay within a run (`docs/experiments.md`). Purchase price proven first: a Mercury at TXT-319 1,104,280 Cr against the menu's 1,075,854, the rest being the menu's software discount |
+| 5.6 | done offline | `idle_capital` gone; miners only with room, freighters only for piled-up products with none free; an idle ship holds a purchase of its own kind. Over the 16 saves and the end saves of four execute runs: no solid miner offered, no purchase on the 73-hour saves, the liquid miner for QDA-703 still offered; no violation |
+| 5.7 | built, runs to do | `X4_RULES_ONLY=1`; recorded in `run.json` |
+
+## After 5.5: purchases only for a need, and a rules-only arm
+
+Measured in five execute runs (`docs/experiments.md`): the advise runs earn
+1.79 to 1.88 million per game hour, every execute run less, and every time
+because of purchases: 8 to 10 ships per run, in two runs six solid miners
+bought while the solid store was 99 % full. "Money unused" offered a ship
+whatever the station needed, and the brake only counted idle ships the
+catalog had work for.
+
+### 5.6 Purchases only for a need the save shows
+
+* No purchase for money alone: `idle_capital` leaves the catalog.
+* A miner only for a station short of what that kind mines
+  (`mined_shortage`), and only when the station's store for that ware's
+  transport type has room (below `executor.FULL`).
+* A freighter only when products pile up (`storage_full`, products in a store
+  at 90 % or more) and no freighter of ours is free to assign.
+* Any ship of ours with no orders and no commander holds every purchase,
+  whether or not the catalog has work for it. The game hour between two
+  purchases and one purchase per cycle stay.
+
+Done when:
+
+* unit tests for each rule: fires when it should, stays quiet when it
+  should not;
+* over the 16 saves and the end saves of the five execute runs: no solid
+  miner offered while a solid store is at 90 % or more, no purchase offered
+  while a ship of ours is idle, and the liquid miner for QDA-703's methane
+  still offered (save_003 to save_005);
+* every offered option still passes the gates (5.3's eval).
+
+### 5.7 Three arms instead of two
+
+`X4_RULES_ONLY=1`: the cycle runs every Python rule (prices, fleet focus,
+funding, hiring builders, repairs, the standing rules) and never the model.
+Then one run of each arm on the 73-hour baseline, then a second set:
+advise (the game alone), rules only, rules with the catalog.
+
+Done when written up against each other per game hour, with what was bought
+and built. The model is worth its place if rules with the catalog beat rules
+only; Python's rules are worth theirs if rules only beat advise.
 
 ## Order of work, and what needs a person
 

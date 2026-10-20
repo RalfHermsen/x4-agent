@@ -188,6 +188,7 @@ def main() -> int:
         "until_blueprint": args.until_blueprint, "commit": commit,
         "baseline_file": str(args.baseline_file) if args.baseline_file else None,
         "seta": args.seta, "catalog": os.environ.get("X4_CATALOG") == "1",
+        "rules_only": os.environ.get("X4_RULES_ONLY") == "1",
         "started": datetime.now().isoformat(timespec="seconds")}, indent=2), encoding="utf-8")
 
     if launch_game.running():

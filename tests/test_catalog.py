@@ -127,18 +127,60 @@ def test_a_purchase_in_the_last_game_hour_holds_the_next(small_state):
     assert not catalog._bought_recently(state)
 
 
-def test_idle_capital_waits_while_a_ship_waits_for_work(small_state):
-    state = copy.deepcopy(small_state)
+def _with_a_yard_and_money(state):
     state["player"]["money"] = 50_000_000
     home = next(a for a in state["assets"] if a["code"] == "KYV-745")
     state["known_stations"].append({"code": "YRD-001", "owner": "argon", "builds": ["m"],
                                     "place": dict(home["place"])})
-    assert catalog.idle_ships(state)          # ASO-629 has no orders
-    assert catalog.idle_capital(state) == []
     ship = next(a for a in state["assets"] if a["code"] == "ASO-629")
     ship["orders"] = [{"order": "TradeRoutine", "default": False}]
-    assert not catalog.idle_ships(state)
-    assert catalog.idle_capital(state)        # with everyone at work, it is offered
+    return home
+
+
+def test_an_idle_ship_holds_a_purchase_of_its_own_kind(small_state):
+    state = copy.deepcopy(small_state)
+    _with_a_yard_and_money(state)
+    freighter = (("container freighter", "ship_{race}_m_trans_container_01_a_macro"),)
+    miner = (("liquid miner", "ship_{race}_m_miner_liquid_01_a_macro"),)
+    assert catalog._buy_options(state, freighter)
+    ship = next(a for a in state["assets"] if a["code"] == "ASO-629")   # a container freighter
+    ship["orders"] = []
+    assert catalog._idle_ship(state, "container freighter") == "ASO-629"
+    assert catalog._buy_options(state, freighter) == []
+    assert catalog._buy_options(state, miner)                            # not its kind
+
+
+def test_no_purchase_for_money_alone(small_state):
+    state = copy.deepcopy(small_state)
+    _with_a_yard_and_money(state)
+    assert not any(s.key == "capital" or any(o.command.startswith("buyship") for o in s.options)
+                   for s in catalog.situations(state))
+
+
+def test_a_miner_is_bought_only_with_room_for_what_it_brings(small_state, monkeypatch):
+    state = copy.deepcopy(small_state)
+    home = _with_a_yard_and_money(state)
+    home["offers"].append({"ware": "methane", "side": "buy", "desired": 10000, "amount": 10000})
+    home.setdefault("cargo", {})["methane"] = 100
+    monkeypatch.setattr(catalog.executor, "storage_fill", lambda st, table: {"liquid": 0.5})
+    short = next(s for s in catalog.situations(state) if s.key == "short:KYV-745:methane")
+    assert any("liquid_01_a_macro" in o.command for o in short.options)
+    monkeypatch.setattr(catalog.executor, "storage_fill", lambda st, table: {"liquid": 0.95})
+    assert not any(s.key == "short:KYV-745:methane" for s in catalog.situations(state))
+
+
+def test_a_freighter_is_bought_when_products_pile_up_and_none_is_free(small_state, monkeypatch):
+    state = copy.deepcopy(small_state)
+    home = _with_a_yard_and_money(state)
+    home["offers"].append({"ware": "energycells", "side": "sell", "amount": 5000, "price": 16})
+    home.setdefault("cargo", {})["energycells"] = 50000
+    monkeypatch.setattr(catalog.executor, "storage_fill", lambda st, table: {"container": 0.95})
+    for a in state["assets"]:
+        if catalog.sitrep.ship_type(a.get("macro")) in catalog.executor.FREIGHTERS:
+            a["assignment"] = {"group": 1}
+    full = next(s for s in catalog.situations(state) if s.key == "storage:KYV-745:container")
+    assert any("trans_container_01_a_macro" in o.command for o in full.options)
+
 
 
 def test_one_ship_purchase_per_cycle():
@@ -228,3 +270,11 @@ def test_a_paid_repair_is_not_cleared(small_state):
     assert catalog._holding("ASO-629", state) is None
     ship["orders"] = [{"order": "MoveWait", "default": False, "state": "started"}]
     assert catalog._holding("ASO-629", state) == "MoveWait"
+
+
+def test_rules_only_never_asks_the_model_and_still_acts(run_cycle, fake_planner, monkeypatch):
+    monkeypatch.setattr(agent, "RULES_ONLY", True)
+    monkeypatch.setattr(agent.executor, "repricing", lambda state: ["price KYV-745 energycells sell 15"])
+    result = run_cycle()
+    assert fake_planner.calls == 0
+    assert "price KYV-745 energycells sell 15" in result["commands"]

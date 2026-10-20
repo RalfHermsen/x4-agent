@@ -151,6 +151,29 @@ def _bought_recently(state: dict) -> bool:
                for t, text in state.get("logbook", []))
 
 
+def _idle_ship(state: dict, kind: str | None = None) -> str | None:
+    """A ship of ours with no orders and no commander, of `kind` if given.
+
+    An idle ship holds the purchase of another of its kind, whether or not
+    the catalog has work for it: the brake used to count only idle ships with
+    options, so six solid miners with nothing to mine did not stop the next
+    one being bought. Only its own kind: an idle scout does nothing about a
+    methane shortage, and holding the liquid miner for it took the one
+    purchase the 16 saves need off the table.
+    """
+    return next((s["code"] for s in _ships(state) if sitrep.role_of(s) == "IDLE"
+                 and (s.get("assignment") or {}).get("group") is None
+                 and (kind is None or sitrep.ship_type(s.get("macro")) == kind)), None)
+
+
+def _room(station: dict, ware: str) -> bool:
+    """The station's store for this ware's transport type is below FULL."""
+    import gamedata
+    table = gamedata.wares()
+    transport = (table.get(ware) or {}).get("transport")
+    return executor.storage_fill(station, table).get(transport, 0.0) < executor.FULL
+
+
 def _buy_options(state: dict, roles: tuple[tuple[str, str], ...]) -> list[Option]:
     """Ships to buy at the two nearest wharfs we know that build M ships.
 
@@ -161,12 +184,19 @@ def _buy_options(state: dict, roles: tuple[tuple[str, str], ...]) -> list[Option
 
     At most one purchase per game hour. The first catalog run in the game
     offered the same freighter every cycle and the model took it every
-    cycle: two ships in six minutes, on course for forty in two hours.
+    cycle: two ships in six minutes, on course for forty in two hours. And
+    no ship of a kind of which one of ours is idle (`_idle_ship`). Only the
+    entries that show a need call this (5.6): a shortage of a mined ware,
+    products piling up with no freighter free.
     """
     import gamedata
     from purchases import _graph, jumps
     spare = _spare(state)
     if spare < CAPITAL_FLOOR or _bought_recently(state):
+        return []
+    roles = tuple((role, pattern) for role, pattern in roles
+                  if not _idle_ship(state, sitrep.ship_type(pattern.format(race="arg"))))
+    if not roles:
         return []
     home = next((a for a in _stations(state) if a.get("modules")), None)
     if not home:
@@ -285,6 +315,7 @@ def storage_full(state: dict) -> list[Situation]:
                 if consumer:
                     candidates.append((f"expand {st['code']} with {consumer} production, which uses {ware}",
                                        {"type": "expand_station", "station_id": st["code"], "ware": consumer}))
+            assigns = 0
             if products:
                 hulls = executor.CARRIES.get(transport, ())
                 for ship in ships:
@@ -293,7 +324,12 @@ def storage_full(state: dict) -> list[Situation]:
                         candidates.append((f"assign {ship['code']} to {st['code']} as trader",
                                            {"type": "assign_ship", "ship_ref": ship["code"],
                                             "station_id": st["code"], "role": "trade"}))
+                        assigns += 1
             options = [o for o in (_option(t, a, state) for t, a in candidates) if o]
+            if products and not assigns and transport == "container":
+                # No freighter of ours is free for the products: one bought.
+                options += _buy_options(state, (("container freighter",
+                                                 "ship_{race}_m_trans_container_01_a_macro"),))[:2]
             text = (f"{st['code']} {transport} storage is {share * 100:.0f} % full "
                     f"({', '.join(wares[:4]) or 'unknown wares'}). The agent cannot build storage modules yet.")
             if options:
@@ -381,24 +417,6 @@ def covered_ground(state: dict) -> list[Situation]:
     return out
 
 
-def idle_capital(state: dict) -> list[Situation]:
-    """Money above the reserve that nothing is using: concrete ships to buy,
-    a freighter or a solid miner of the wharf's own race, nearest wharf first.
-
-    Not while a ship of ours waits for work the catalog can give it: the
-    ships we have go to work before more are bought, a bought one included,
-    since it arrives without orders.
-    """
-    if idle_ships(state):
-        return []
-    options = _buy_options(state, (("container freighter", "ship_{race}_m_trans_container_01_a_macro"),
-                                   ("solid miner", "ship_{race}_m_miner_solid_01_a_macro")))
-    if not options:
-        return []
-    return [Situation("capital", f"{_spare(state):,.0f} Cr above the reserve is not being used.",
-                      options[:MAX_OPTIONS])]
-
-
 def mined_shortage(state: dict) -> list[Situation]:
     """A station low on a ware that is mined, not bought: miners are the answer.
 
@@ -429,7 +447,9 @@ def mined_shortage(state: dict) -> list[Situation]:
                                            {"type": "assign_ship", "ship_ref": s["code"],
                                             "station_id": code, "role": "mine"}, state)
                                    for s in free) if o]
-            buys = _buy_options(state, ((f"{kind} miner", f"ship_{{race}}_m_miner_{kind}_01_a_macro"),))
+            # A miner bought only with room for what it brings (5.6).
+            buys = (_buy_options(state, ((f"{kind} miner", f"ship_{{race}}_m_miner_{kind}_01_a_macro"),))
+                    if _room(st, ware) else [])
             options = (assigns[:2] + buys[:2])[:MAX_OPTIONS]
             if options:
                 out.append(Situation(
@@ -440,9 +460,10 @@ def mined_shortage(state: dict) -> list[Situation]:
     return out
 
 
-# Risk first, then what blocks production, then money, then idle hands.
+# Risk first, then what blocks production, then idle hands. Money alone is
+# not a situation (5.6): a purchase belongs to the need it answers.
 ENTRIES = (under_fire, in_hostile_space, storage_full, mined_shortage, no_budget,
-           idle_capital, idle_ships, covered_ground)
+           idle_ships, covered_ground)
 DANGER = (under_fire, in_hostile_space)
 
 

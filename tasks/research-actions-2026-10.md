@@ -123,7 +123,7 @@ keeps it out of the catalog; or what is still missing.
 | A build waiting for a vessel | processor `vessel_required` with no builder | hire a builder | 2.2 | Python hires a builder (`standing.hire_builders`) |
 | A ship under fire or damaged | logbook ATTACKED lines, hull below 70 % | bring it home, repair, defenders | S3, S8, 4.8, 4.9 | `catalog.under_fire`, `catalog.in_hostile_space`; repairs below 70 % hull are Python's |
 | A trader keeps dying in a sector | DESTROYED lines in one sector | blacklist the sector; escape as the pirate response | S3, S8 | not yet: the `avoid hostile` verb is built, unproven; the bridge's logbook lines are parsed, losses per sector are not counted |
-| Idle capital | player money above the reserve | ships at known wharfs, a blueprint, an expansion | S5, guidelines phases | `catalog.idle_capital` |
+| Idle capital | player money above the reserve | ships at known wharfs, a blueprint, an expansion | S5, guidelines phases | not a situation by itself since 5.6: a ship is bought only for a need (`catalog.mined_shortage`, `catalog.storage_full`) |
 | A ware the market lacks | known buy offers with no known seller | produce it, or Fill Shortages with a trader | S7 | not yet: the report says "NO station we know sells it"; no entry |
 | A market already flooded | many sellers at low prices | do not add production of it | S5, S7 | not yet: a judgement on known sell offers, no entry |
 | Scouts on covered ground | explorer in an explored sector | send to unseen sectors, satellites | S1, 4.4, 4.5 | `catalog.covered_ground`; satellites are Python's |

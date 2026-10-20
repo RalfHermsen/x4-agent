@@ -50,6 +50,9 @@ SCRIPT = os.environ.get("X4_AGENT_SCRIPT")
 # The action catalog (catalog.py, tasks/plan-catalog-2026-10.md): the model
 # decides between prepared options instead of writing actions. Off unless set.
 CATALOG = os.environ.get("X4_CATALOG") == "1"
+# The rules-only arm of a measurement (plan-catalog 5.7): every Python rule
+# runs, the model is never asked. What it adds is then what the model adds.
+RULES_ONLY = os.environ.get("X4_RULES_ONLY") == "1"
 
 
 def _scripted(remembered: dict) -> PlannerResponse:
@@ -150,6 +153,8 @@ def cycle(model: str | None = None, save: Path | None = None, force: bool = Fals
         model_ran = False
         quiet_reason = (f"nothing the planner looks at changed; last model run "
                         f"{quiet_for:.0f}s ago, forced after {MAX_QUIET:.0f}s")
+    if RULES_ONLY:
+        model_ran, quiet_reason = False, "rules only: the model is not asked (X4_RULES_ONLY)"
 
     if SCRIPT:
         model_ran, quiet_reason = True, None
