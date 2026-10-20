@@ -177,3 +177,14 @@ def test_no_repair_where_the_ship_cannot_dock(small_state):
     state["known_stations"] = [{"code": "BIG-001", "owner": "argon", "builds": ["l", "xl"],
                                 "place": {"sector": sector}, "offers": []}]
     assert standing.repairs(state, {}) == []
+
+
+def test_a_build_that_is_building_gets_no_second_builder(small_state):
+    state = copy.deepcopy(small_state)
+    _add_ship(state, "BLD-001", "ship_arg_xl_builder_01_a_macro", owner="player")
+    bs = next(a for a in state["assets"] if a["code"] == "XQL-000")
+    bs["build"] = {"queued": 0, "in_progress": 1, "builders": [],
+                   "processor": {"state": "building", "vessel_required": True, "step": 4, "steps": 10}}
+    assert standing.find_builds(state, {}) == []
+    bs["build"]["processor"]["state"] = "awaitconstructionvessel_build"
+    assert standing.find_builds(state, {}) == ["deploy BLD-001 KYV-745"]

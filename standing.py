@@ -174,7 +174,7 @@ def find_builds(state: dict, data: dict) -> list[str]:
     waiting = [bs["station"] for bs in state.get("assets", [])
                if bs.get("cls") == "buildstorage" and bs.get("station")
                and ((bs.get("build") or {}).get("queued") or (bs.get("build") or {}).get("in_progress"))
-               and not (bs.get("build") or {}).get("builders")]
+               and not _served(bs.get("build") or {})]
     if not waiting:
         return []
     sent = _done(data, "findbuilds")
@@ -184,6 +184,17 @@ def find_builds(state: dict, data: dict) -> list[str]:
             _mark(data, "findbuilds", ship["code"])
             return [f"deploy {ship['code']} {waiting[0]}"]
     return []
+
+
+def _served(build: dict) -> bool:
+    """A vessel is on the build: named as its builder, or the build is running.
+
+    A player build names its build storage, not its vessel, even while the
+    vessel builds (save_parser._builders), so `builders` stays empty then; the
+    processor's state is what shows it. Seen in the builder proof of
+    2026-10-20: "building", step 4 and 8 of 10, builders [].
+    """
+    return bool(build.get("builders")) or (build.get("processor") or {}).get("state") == "building"
 
 
 # A build may wait this long, in game seconds, for a vessel before we hire one.
@@ -214,7 +225,7 @@ def hire_builders(state: dict, data: dict) -> list[str]:
             continue
         build = bs.get("build") or {}
         code = bs["station"]
-        if not (build.get("queued") or build.get("in_progress")) or build.get("builders"):
+        if not (build.get("queued") or build.get("in_progress")) or _served(build):
             waiting.pop(code, None)
             hired.pop(code, None)
             continue
