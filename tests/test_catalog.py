@@ -278,3 +278,11 @@ def test_rules_only_never_asks_the_model_and_still_acts(run_cycle, fake_planner,
     result = run_cycle()
     assert fake_planner.calls == 0
     assert "price KYV-745 energycells sell 15" in result["commands"]
+
+
+def test_no_pricing_leaves_the_prices_to_the_game(run_cycle, monkeypatch):
+    monkeypatch.setattr(agent, "RULES_ONLY", True)
+    monkeypatch.setattr(agent, "NO_PRICING", True)
+    monkeypatch.setattr(agent.executor, "repricing", lambda state: ["price KYV-745 energycells sell 15"])
+    result = run_cycle()
+    assert not any(c.startswith("price ") for c in result["commands"])

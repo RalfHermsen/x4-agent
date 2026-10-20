@@ -53,6 +53,11 @@ CATALOG = os.environ.get("X4_CATALOG") == "1"
 # The rules-only arm of a measurement (plan-catalog 5.7): every Python rule
 # runs, the model is never asked. What it adds is then what the model adds.
 RULES_ONLY = os.environ.get("X4_RULES_ONLY") == "1"
+# Leaves the station prices to the game's own managers. The rules-only run of
+# 2026-10-20 earned 1.37 million per game hour against 1.77 to 1.88 for the
+# game alone, bought nothing, and changed a price 214 times, about as often
+# up as down; this arm measures whether the prices are the difference.
+NO_PRICING = os.environ.get("X4_NO_PRICING") == "1"
 
 
 def _scripted(remembered: dict) -> PlannerResponse:
@@ -237,7 +242,7 @@ def cycle(model: str | None = None, save: Path | None = None, force: bool = Fals
     failures += exhausted
 
     priced = {c.rsplit(" ", 1)[0] for c in commands if c.startswith("price ")}
-    commands += [c for c in executor.repricing(state)
+    commands += [c for c in ([] if NO_PRICING else executor.repricing(state))
                  if c.rsplit(" ", 1)[0] not in priced]
 
     # A ship on an errand belongs to its job until released: nothing else may
