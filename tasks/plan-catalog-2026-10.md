@@ -128,7 +128,7 @@ advise runs, and if they beat 2.4's execute run.
 | 5.2 | done | detectors over the 16 saves; on the 73-hour save the four problems plus idle capital |
 | 5.3 | done | `catalog.py` behind `X4_CATALOG=1`; tests green; options checked when offered |
 | 5.4 | done | executable actions 28 to 63 on the 16 saves, nothing refused or skipped; every model's choices carried out (`docs/contracts.md`) |
-| 5.5 | running | needs the game to itself. The purchase price was proven first, since the catalog offers purchases: a Mercury at TXT-319 on the 73-hour save now costs 1,104,280 Cr against the menu's 1,075,854 (931,976 before the fix); hull and equipment match the menu within 0.1 %, and the rest is the menu's discount on software, which the verb leaves out on purpose |
+| 5.5 | done, rule not met | both execute runs below their advise runs (1.53 against 1.79 and 1.73 against 1.88 million per game hour, bought ships at cost); execution clean, purchases do not pay within a run (`docs/experiments.md`). Purchase price proven first: a Mercury at TXT-319 1,104,280 Cr against the menu's 1,075,854, the rest being the menu's software discount |
 
 ## Order of work, and what needs a person
 

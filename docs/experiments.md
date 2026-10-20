@@ -195,3 +195,98 @@ the host passes `sends=False` in advise mode: the cycle plans as before but
 keeps nothing of what it would have done, and the panel says `would send`.
 The advise run above predates the fix; it changed that run's advice, not
 its game.
+
+## 2026-10-19/20: the action catalog, two pairs of runs (5.5)
+
+The same question as 2.4, with the action catalog on (`X4_CATALOG=1`,
+`tasks/plan-catalog-2026-10.md`): Python puts situations with ready options
+in the report, the model picks one option or none per situation, and only
+those choices plus Python's own rules are sent. Same baseline
+(`baseline_73h_50m`), same length (120 wall-clock minutes), SETA, the local
+model, execute first in each pair. The plan's rule: the catalog is worth
+keeping if the execute runs beat their advise runs, and beat 2.4's execute
+run.
+
+### Stopped and restarted on the way
+
+The first execute run was stopped five times in its first minutes, each time
+for a fault the logs showed within a few cycles, fixed with tests, and
+started again from the baseline:
+
+| Seen | Fix |
+|---|---|
+| a ship bought every cycle (two in six minutes, on course for forty) | at most one purchase per game hour, none while a ship waits for work (`e396702`) |
+| an expansion asked for while one was planned, an assignment already held, a budget for a station with no modules: re-sent every cycle, without effect | the executor's "already in effect" gate knows all three (`1159b2c`) |
+| four answers to one situation (`S1: 1` to `S1: 4`), all sent: every miner left its station | one answer per situation, a second is reported (`d26b22c`) |
+| a scout re-sent every cycle or two: on arrival it sweeps the sector it is in, which looked like covered ground; and `automine` left a miner in its station's mining group | a scout gets a game hour after our explore order; the automine option is gone (`5927fc0`) |
+
+Two more things went wrong around the runs, not in the agent. Stopping a run
+from outside left its experiment process alive, and the first of those
+finished its own two hours in the middle of the run then going, saved that
+game into its own folder and started the next run, which refused because the
+game was running; that folder is marked invalid and the stale processes were
+stopped by hand. And the game window was minimized for 24 minutes during the
+first execute run; X4 stands still then, so that run has fewer game hours,
+and runs now restore the window themselves (`e7ad897`).
+
+Between the pairs one more fault: VSR-185 and KGZ-352 came into the baseline
+on a MoveWait without a timeout, and every order for them queued behind it,
+seven explore orders in a row for VSR-185 among them. A new verb, `clear SHIP`,
+cancels a ship's orders, and a catalog choice for a ship held by an order of
+its own sends it first (`b5623a2`, proven in the game on the baseline before
+the second pair). So the pairs differ in code: the first ran `5927fc0`, the
+second `b5623a2`.
+
+### Results
+
+| | Execute 1 | Advise 1 | Execute 2 | Advise 2 | 2.4 execute | 2.4 advise |
+|---|---|---|---|---|---|---|
+| Game hours | 8.83 | 10.87 | 11.12 | 11.26 | 11.41 | 10.92 |
+| Credits gained | 5,078,716 | 19,421,126 | 10,199,125 | 21,223,015 | 19,251,850 | 19,322,351 |
+| Paid for ships | 8,412,636 (8) | 0 | 9,058,083 (9) | 0 | 0 | 0 |
+| Per game hour, credits | 0.58 M | 1.79 M | 0.92 M | 1.88 M | 1.69 M | 1.77 M |
+| Per game hour, ships at cost | 1.53 M | 1.79 M | 1.73 M | 1.88 M | 1.69 M | 1.77 M |
+| Ships lost | none | JEP-977 | GWH-145 | KGZ-352 | JUN-174 | none |
+| Idle at the end | 2 | 0 | 7 | 0 | | |
+| Failed cycles | 0 of 55 | 0 of 64 | 0 of 45 | 0 of 59 | | |
+
+"Ships at cost" counts every bought ship at the price paid, which flatters
+the execute runs: seven of execute 2's nine ships ended the run idle.
+
+**The rule is not met.** Both execute runs earned less than their advise
+runs, also with the bought ships counted at full price: 15 % less in the
+first pair, 8 % less in the second. The second execute run is above 2.4's
+execute run only when its ships are counted at cost.
+
+What the logs say:
+
+* **The execution works.** No failed cycle in four runs, every chosen option
+  carried out, and the faults that remained were found in minutes and
+  fixed. The catalog solved what it was built for: the model's choices
+  reach the game.
+* **The decisions with weight are purchases, and they do not pay within a
+  run.** Eight and nine ships of about a million each. In execute 2 the
+  model bought six solid miners while KYV-745's solid store was 99 % full;
+  they had nothing to mine and sat idle. That is the catalog's fault as much
+  as the model's: "money unused" offers a solid miner whatever the stores
+  say, and the purchase brake counts only idle ships the catalog has work
+  for, so miners without work did not hold the next purchase.
+* **Little else is left to decide.** With the re-sends gone, many cycles show
+  no situation at all: the expansion is waiting for a construction vessel,
+  storage modules have no verb, and taking miners off a full station needs
+  a verb that releases them.
+* **One decision saved a ship.** KGZ-352, stuck in Xenon space since the
+  baseline, was cleared and brought home in execute 2 and survived; in both
+  advise runs the game alone left it there, and in advise 2 it was
+  destroyed. The scout GWH-145 was lost in execute 2 on an explore order.
+
+What would change the next measurement:
+
+1. Buy only for a need the save shows: a miner of the kind a station is
+   short of, with room to store it; a freighter when products pile up. No
+   purchase for "money unused" alone, and every idle ship holds the next
+   purchase.
+2. The verbs the catalog keeps missing: storage modules, and releasing a
+   ship from its station.
+3. Longer runs, or a ledger of what each bought ship earns, before ships are
+   judged at cost.
