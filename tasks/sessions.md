@@ -149,3 +149,24 @@ price; and prices are Python's alone, with a refused price explained in the
 next report. An offline cycle on the 50M baseline proposed no price at all.
 It also showed call 2 putting a station where a ship goes; that is refused
 now too.
+
+## 2026-10-19 evening to 2026-10-20 morning: the action catalog, built and measured
+
+The plan `tasks/plan-catalog-2026-10.md`, all five items. 5.1 and 5.2: every
+player order and every bridge verb on a row, and the situations an empire
+manager meets, each with what detects it. 5.3: `catalog.py`, situations with
+options checked against the executor's gates when offered. 5.4: offline, 63
+executable actions against 28, nothing refused, the same for the local model
+and three Claude models; a first entry taken from the model's own free ideas
+(a station short of a mined ware). The purchase verb now prices software as
+the ship menu does, proven in the game before any run used it.
+
+5.5, overnight: two pairs of two-hour runs. The first execute run was
+stopped five times in its first minutes for faults the logs showed within a
+few cycles, each fixed and the run started again; between the pairs a sixth,
+ships held by a MoveWait without an end, answered by a new verb `clear`
+proven in the game. Result: both execute runs below their advise runs, by
+15 and 8 % per game hour with the bought ships counted at cost. The
+execution was clean; the decisions with weight were purchases, which did not
+pay within a run, six of them solid miners for a full store.
+(`docs/experiments.md`.)
