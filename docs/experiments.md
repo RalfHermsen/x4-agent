@@ -290,3 +290,16 @@ What would change the next measurement:
    ship from its station.
 3. Longer runs, or a ledger of what each bought ship earns, before ships are
    judged at cost.
+
+### Afterwards: why nothing could grow
+
+In all four runs, and in 2.4's, KYV-745's expansion sat at step 1 of 10,
+waiting for a construction vessel, from the first game hour to the last. A
+player expansion names its build storage as the build's builder, the parser
+read that as a vessel, and the rule that hires one never fired (`0bca33f`).
+Proven the next morning on the same baseline, both ways: a hired NPC builder
+(50,000 Cr) and a bought one (14.7 to 17.4 M, then `deploy`) each got the
+expansion building within half a game hour. So every run so far measured a
+station that could not expand, which is the main way an X4 station makes more
+money; the comparison above holds for that station, not for the agent's
+ceiling.
