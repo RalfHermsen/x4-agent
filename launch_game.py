@@ -35,6 +35,7 @@ import urllib.request
 APP_ID = "392160"
 MCP = os.environ.get("X4_MCP_URL", "http://127.0.0.1:7779")
 PROGRESS_EVERY = 15
+START_WAIT = 60        # seconds for an X4 process to appear after asking Steam
 
 
 def _health() -> bool:
@@ -113,8 +114,19 @@ def launch(timeout: float) -> int:
         print("[launch] X4 is running but X4Mcp does not answer; see "
               "x4native/x4native.log in the X4 profile folder")
         return 2
-    os.startfile(f"steam://rungameid/{APP_ID}")  # noqa: S606 - fixed URL, no input
-    print("[launch] start requested through Steam")
+    # Steam can ignore a start that comes right after the game exited: on
+    # 2026-10-21 a run started one second after the previous run's game had
+    # closed, no X4 process ever appeared, and the run failed after 180 s.
+    # So: ask, give the process a minute to show, and ask again if it does not.
+    for attempt in range(3):
+        os.startfile(f"steam://rungameid/{APP_ID}")  # noqa: S606 - fixed URL, no input
+        print("[launch] start requested through Steam"
+              + (f" (again, attempt {attempt + 1})" if attempt else ""))
+        if wait("an X4 process", running, START_WAIT):
+            break
+    else:
+        print("[launch] Steam started no X4 process after three requests")
+        return 1
     if not wait("X4Mcp to answer", _health, timeout):
         print("[launch] if X4 is running, the extension did not load: read "
               "x4native/x4native.log in the X4 profile folder")
