@@ -131,11 +131,19 @@ def ledger(state: dict, data: dict) -> list[str]:
 
 
 def once(state: dict, data: dict) -> list[str]:
-    """4.10, 4.12, 4.13: settings that are set once and then left alone."""
+    """4.10, 4.12, 4.13, 6.5: settings that are set once and then left alone.
+
+    6.5: traders and miners keep out of sectors of factions hostile to us. One
+    to three ships were lost per run of 2026-10-20/21, freighters to pirates
+    and Xenon among them.
+    """
     out = []
     if "resupply" not in _done(data, "once"):
         out.append("resupply medium")
         _mark(data, "once", "resupply")
+    if "avoid" not in _done(data, "once"):
+        out.append("avoid hostile on")
+        _mark(data, "once", "avoid")
     for signal, response in (("foundabandonedship", "claim"), ("foundlockbox", "collect")):
         if signal not in _done(data, "once"):
             out.append(f"respond {signal} {response}")

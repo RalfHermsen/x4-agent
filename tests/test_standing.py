@@ -64,7 +64,7 @@ def test_ledger_every_tenth_cycle():
 def test_once_settings_go_out_once(small_state):
     data = {}
     first = standing.once(small_state, data)
-    assert first == ["resupply medium", "respond foundabandonedship claim",
+    assert first == ["resupply medium", "avoid hostile on", "respond foundabandonedship claim",
                      "respond foundlockbox collect", "turrets KYV-745 attackenemies"]
     assert standing.once(small_state, data) == []
 
