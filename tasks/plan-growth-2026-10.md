@@ -137,7 +137,7 @@ pay back.
 | 6.1 | snapshots of the long runs being taken hourly; analysis after the series |
 | 6.2 | built on branch `growth-2026-10`, tests green; ranked offline on the baseline and a rules-only end save; proof in the game to do |
 | 6.3 | to do (needs the game) |
-| 6.4 | to do: first sign is demand without sales, 505,000 energy cells asked for while 208,000 sat unsold |
+| 6.4 | first finding: the station offers only a sliver of its stock in every arm (energy cells 157,754 held and 328 offered at the baseline, 159,128 and 1,502 in an advise run, 208,846 and 79 after rules only); the game's manager keeps the rest as a buffer for its own production, and Python's sell limits are small (2,000 to 15,000). So the rules-only stock gain is mostly a larger buffer after the expansion, one-off; whether income per hour grows is the long runs' question (6.1) |
 | 6.5 | built on the branch (civilian ships only, set once); proof in the game to do |
 | 6.6 | built on the branch (Teladi L stores, offered first when a store is full); proof in the game to do |
 | 6.7 | to do: the position test runs during the rules-only long run, when the model is not in use |
