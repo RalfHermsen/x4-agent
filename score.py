@@ -23,6 +23,29 @@ import sitrep
 from save_parser import SHIP_CLASSES, documents_dir, parse_save
 
 
+def _holdings(assets: list[dict]) -> tuple[int, int, int]:
+    """Money on our stations' and build storages' accounts, and their stock at
+    the game's minimum and average ware prices (libraries/wares.xml).
+
+    Player money alone misjudged every run in which a station grew: the
+    finished expansion gave KYV-745 room, the store filled by a third, and
+    the game drew the station's budget from the player. A rules-only run
+    showed 1.37 million per game hour in credits and 2.07 with its stock at
+    minimum prices, against 1.82 for the game alone (2026-10-21).
+    """
+    import gamedata
+    wares = gamedata.wares()
+    accounts = low = mid = 0
+    for a in assets:
+        if a.get("cls") not in ("station", "buildstorage"):
+            continue
+        accounts += int(float((a.get("account") or {}).get("amount") or 0))
+        for ware, n in (a.get("cargo") or {}).items():
+            low += n * (wares.get(ware) or {}).get("minprice", 0)
+            mid += n * (wares.get(ware) or {}).get("avgprice", 0)
+    return accounts, int(low), int(mid)
+
+
 def score(state: dict) -> dict:
     meta, player = state["meta"], state["player"]
     assets = state["assets"]
@@ -32,10 +55,17 @@ def score(state: dict) -> dict:
     stations = [a for a in assets if a["cls"] == "station"]
     storages = [a for a in assets if a["cls"] == "buildstorage"]
     now = meta.get("playtime_s") or 0
+    accounts, stock_min, stock_avg = _holdings(assets)
     return {
         "save": meta.get("save_name"),
         "game_hours": round(now / 3600, 2),
         "credits": player.get("money") or 0,
+        "accounts": accounts,
+        "stock_min": stock_min,
+        "stock_avg": stock_avg,
+        # What the empire holds in money and wares, the wares at the price the
+        # game never goes below. Ships and modules are not in it.
+        "net_worth": (player.get("money") or 0) + accounts + stock_min,
         "stations": len(stations),
         "modules": sum(len(s.get("modules") or []) for s in stations),
         "ships": len(working),
@@ -48,8 +78,8 @@ def score(state: dict) -> dict:
     }
 
 
-ROWS = ("game_hours", "credits", "stations", "modules", "ships", "idle",
-        "failing", "builds")
+ROWS = ("game_hours", "credits", "accounts", "stock_min", "stock_avg", "net_worth",
+        "stations", "modules", "ships", "idle", "failing", "builds")
 
 
 def render(card: dict) -> str:

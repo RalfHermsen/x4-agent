@@ -29,3 +29,15 @@ def test_compare_lists_ships_gone(small_state):
     text = score.compare(before, score.score(after_state))
     assert "ships gone (1): TJL-171" in text
     assert "+50,000" in text
+
+
+def test_net_worth_counts_accounts_and_stock(small_state):
+    import copy
+    state = copy.deepcopy(small_state)
+    station = next(a for a in state["assets"] if a["code"] == "KYV-745")
+    station["account"] = {"amount": "1000"}
+    station["cargo"] = {"energycells": 100}
+    card = score.score(state)
+    assert card["accounts"] >= 1000
+    assert card["stock_min"] > 0 and card["stock_avg"] >= card["stock_min"]
+    assert card["net_worth"] == card["credits"] + card["accounts"] + card["stock_min"]
