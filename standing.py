@@ -337,8 +337,11 @@ def scouts(state: dict, data: dict) -> list[str]:
            if sitrep.role_of(s) == "IDLE" and (s.get("assignment") or {}).get("group") is None]
     now = state.get("meta", {}).get("playtime_s") or 0
     if len(ours) < most and now - st.get("scout_bought_at", -1e9) > SCOUT_DELIVERY:
+        # A wharf's M build module builds S ships too; the parser marks such a
+        # wharf "m" only, so asking for "s" found no wharf and no lost scout
+        # was replaced in the catalog runs c3 and c4.
         options = catalog._buy_options(state, (("scout", "ship_{race}_s_scout_01_a_macro"),),
-                                       size="s", gap=False)
+                                       size="m", gap=False)
         if options:
             st["scout_bought_at"] = now
             out.append(options[0].command)
