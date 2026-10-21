@@ -351,3 +351,15 @@ def test_a_ware_we_already_hold_more_of_than_anyone_wants_is_not_offered(small_s
     assert "energycells" in dict(catalog.expansion_margins(state))
     station["cargo"] = {"energycells": 6000}
     assert "energycells" not in dict(catalog.expansion_margins(state))
+
+
+def test_a_full_store_is_offered_a_larger_store_first(small_state, monkeypatch):
+    state = copy.deepcopy(small_state)
+    station = next(a for a in state["assets"] if a["code"] == "KYV-745")
+    station["cargo"] = {"ore": 90000}
+    monkeypatch.setattr(catalog.executor, "storage_fill", lambda st, table: {"solid": 0.99})
+    monkeypatch.setattr(catalog, "_through_gates",
+                        lambda action, state: (f"expand {action['station_id']} {action['ware']}"
+                                               if action.get("type") == "expand_station" else None))
+    full = next(s for s in catalog.situations(state) if s.key == "storage:KYV-745:solid")
+    assert full.options[0].command == "expand KYV-745 storage_solid"

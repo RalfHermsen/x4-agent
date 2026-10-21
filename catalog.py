@@ -294,8 +294,8 @@ def storage_full(state: dict) -> list[Situation]:
     """A store at 90 % or more: what is in it decides what helps.
 
     Products piling up need more traders; mined inputs piling up need
-    production that uses them. Storage modules would help both, and the
-    bridge cannot build them yet. Taking miners off the station is not
+    production that uses them. A larger store helps both and is offered
+    first (6.6, a Teladi L module). Taking miners off the station is not
     offered: `automine` queues a mining order but leaves the ship in the
     station's mining group, so it went on delivering to the full store
     (POS-705, twice, in the first catalog run). That needs a verb that
@@ -316,6 +316,10 @@ def storage_full(state: dict) -> list[Situation]:
             products = [w for w in wares if w in sells]
             inputs = [w for w in wares if w not in sells]
             candidates = []
+            if f"storage_{transport}" in executor.EXPANSION_MODULES:
+                candidates.append((f"expand {st['code']} with a large {transport} store",
+                                   {"type": "expand_station", "station_id": st["code"],
+                                    "ware": f"storage_{transport}"}))
             for ware in inputs:
                 consumer = CONSUMER_OF.get(ware)
                 if consumer:
@@ -337,7 +341,7 @@ def storage_full(state: dict) -> list[Situation]:
                 options += _buy_options(state, (("container freighter",
                                                  "ship_{race}_m_trans_container_01_a_macro"),))[:2]
             text = (f"{st['code']} {transport} storage is {share * 100:.0f} % full "
-                    f"({', '.join(wares[:4]) or 'unknown wares'}). The agent cannot build storage modules yet.")
+                    f"({', '.join(wares[:4]) or 'unknown wares'}).")
             if options:
                 out.append(Situation(f"storage:{st['code']}:{transport}", text, options[:MAX_OPTIONS]))
     return out
@@ -473,7 +477,7 @@ def expansion_margins(state: dict) -> list[tuple[str, float]]:
             held[w] = held.get(w, 0) + n
     out = []
     for ware, (macro, _) in executor.EXPANSION_MODULES.items():
-        if ware.startswith("habitation"):
+        if ware.startswith(("habitation", "storage_")):
             continue
         recipes = (table.get(ware) or {}).get("recipes") or {}
         race = RECIPE_RACE.get(macro.split("_")[1])

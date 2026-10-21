@@ -363,6 +363,17 @@
           <set_value name="$agent_module" exact="macro.prod_tel_sunriseflowers_macro"/>
         </do_if>
 
+        <!-- 6.6: a large store of the kind that is full. $agent_ware is the
+             module's own ware, as for habitats. -->
+        <do_if value="event.param == 'expand %s storage_solid'.[$agent_station.idcode]">
+          <set_value name="$agent_ware" exact="ware.module_tel_stor_solid_l_01"/>
+          <set_value name="$agent_module" exact="macro.storage_tel_l_solid_01_macro"/>
+        </do_if>
+        <do_if value="event.param == 'expand %s storage_container'.[$agent_station.idcode]">
+          <set_value name="$agent_ware" exact="ware.module_tel_stor_container_l_01"/>
+          <set_value name="$agent_module" exact="macro.storage_tel_l_container_01_macro"/>
+        </do_if>
+
         <!-- 3.7: a small habitat, of the race Python chose from the station's
              own modules. $agent_ware is the module's own ware, so the logbook
              line names it. -->

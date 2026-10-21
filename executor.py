@@ -73,6 +73,10 @@ EXPANSION_MODULES = {
     "medicalsupplies": ("prod_tel_medicalsupplies_macro", False),
     "nostropoil": ("prod_tel_nostropoil_macro", False),
     "sunriseflowers": ("prod_tel_sunriseflowers_macro", False),
+    # 6.6: a large store of the kind that is full (Teladi, whose blueprints
+    # are held). Liquid storage is left out: no blueprint for it.
+    "storage_solid": ("storage_tel_l_solid_01_macro", False),
+    "storage_container": ("storage_tel_l_container_01_macro", False),
     # 3.7: a small habitat of the race the station is built from. The model
     # asks for "habitation"; Python picks the race (habitation_race below).
     "habitation_arg": ("hab_arg_s_01_macro", False),
