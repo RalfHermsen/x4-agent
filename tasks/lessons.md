@@ -250,6 +250,15 @@ results are written after each input. The same sum rules the hosted route
 out for unattended runs on that tier: at 25 cycles an hour the budget lasts
 under two hours.
 
+**L21. Score what the empire holds, not what the player's wallet shows.** Ten
+runs were judged by player money. When a station grew, its store filled and
+the game drew the station's budget from the player, so the run that did most
+looked worst: 1.37 million per game hour against 1.82 for the game alone,
+and 2.07 against 1.82 once the stations' accounts and stock were counted.
+Before believing that a change costs money, look for where the money went:
+an account, a store, a ship. A metric that cannot see an investment always
+favours doing nothing.
+
 ## About working on this
 
 **L15. A log line must say whether it worked, not what happened.** "sending:
