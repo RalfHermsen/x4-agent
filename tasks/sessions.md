@@ -183,7 +183,7 @@ the stations' accounts, stock and modules showed the opposite, and the
 scorecard now does (`net_worth`). Result over 13 runs: the game alone 1.81
 to 1.82 million per game hour, Python's rules 1.95 to 2.12, rules with the
 catalog 2.11 and 2.05. Faults found and fixed along the way: a Steam Cloud
-dialog that blocked launches (the player's choice, then cloud sync off), a
+dialog that blocked launches (the player answered it; it did not come back), a
 defender cleared in combat, a scout re-sent before the logbook showed its
 order, a fighter sent exploring. Scouts now explore and a lost one is
 replaced at once, the player's decision.
