@@ -170,3 +170,20 @@ proven in the game. Result: both execute runs below their advise runs, by
 execution was clean; the decisions with weight were purchases, which did not
 pay within a run, six of them solid miners for a full store.
 (`docs/experiments.md`.)
+
+## 2026-10-20/21: builders, an honest scorecard, three arms
+
+The expansion of KYV-745 had waited for a construction vessel through every
+run: the parser read the build storage itself as the build's builder, so no
+builder was hired. Fixed, and both ways proven in the game: hiring one for
+50,000 Cr and buying one and sending it with a new `deploy`. Purchases were
+then limited to a need the save shows (5.6), and a rules-only arm was added
+(5.7). The first rules-only run looked like a loss in player money; counting
+the stations' accounts, stock and modules showed the opposite, and the
+scorecard now does (`net_worth`). Result over 13 runs: the game alone 1.81
+to 1.82 million per game hour, Python's rules 1.95 to 2.12, rules with the
+catalog 2.11 and 2.05. Faults found and fixed along the way: a Steam Cloud
+dialog that blocked launches (the player's choice, then cloud sync off), a
+defender cleared in combat, a scout re-sent before the logbook showed its
+order, a fighter sent exploring. Scouts now explore and a lost one is
+replaced at once, the player's decision.
