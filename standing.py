@@ -311,8 +311,37 @@ def seminars(state: dict, data: dict) -> list[str]:
     return out
 
 
+def scouts(state: dict, data: dict) -> list[str]:
+    """Scouts explore, and a scout lost doing it is replaced at once.
+
+    The player's decision, 2026-10-21: losing scouts while exploring hostile sectors is part of
+    exploring; when one is lost, order a new one straight away. So the number
+    of scouts is kept at the most we have had: one short, one is bought (S, at
+    the nearest wharf, outside the game hour between purchases, one at a
+    time); a scout with no orders is sent exploring.
+    """
+    import catalog
+    ours = [s for s in catalog._ships(state) if sitrep.ship_type(s.get("macro")) == "scout"]
+    st = data.setdefault("standing", {})
+    most = max(st.get("scouts_most", 0), len(ours))
+    st["scouts_most"] = most
+    out = [f"explore {s['code']}" for s in ours
+           if sitrep.role_of(s) == "IDLE" and (s.get("assignment") or {}).get("group") is None]
+    now = state.get("meta", {}).get("playtime_s") or 0
+    if len(ours) < most and now - st.get("scout_bought_at", -1e9) > SCOUT_DELIVERY:
+        options = catalog._buy_options(state, (("scout", "ship_{race}_s_scout_01_a_macro"),),
+                                       size="s", gap=False)
+        if options:
+            st["scout_bought_at"] = now
+            out.append(options[0].command)
+    return out
+
+
+# Game seconds a bought scout gets to arrive before another is bought.
+SCOUT_DELIVERY = 1800
+
 RULES = (sell_limits, revisit, satellites, ledger, once, patrols, find_builds, hire_builders,
-         repairs, seminars)
+         repairs, seminars, scouts)
 
 
 def commands(state: dict, data: dict) -> list[str]:

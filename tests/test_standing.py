@@ -188,3 +188,30 @@ def test_a_build_that_is_building_gets_no_second_builder(small_state):
     assert standing.find_builds(state, {}) == []
     bs["build"]["processor"]["state"] = "awaitconstructionvessel_build"
     assert standing.find_builds(state, {}) == ["deploy BLD-001 KYV-745"]
+
+
+def test_a_lost_scout_is_replaced_at_once(small_state):
+    import copy
+    import catalog
+    state = copy.deepcopy(small_state)
+    state["player"]["money"] = 50_000_000
+    home = _station(state)
+    state["known_stations"].append({"code": "YRD-001", "owner": "argon", "builds": ["s", "m"],
+                                    "place": dict(home["place"])})
+    _add_ship(state, "SCT-001", "ship_arg_s_scout_01_a_macro", owner="player")
+    scout = next(a for a in state["assets"] if a["code"] == "SCT-001")
+    scout["orders"] = [{"order": "Explore", "default": True, "state": "started"}]
+    data = {}
+    assert standing.scouts(state, data) == []                 # one scout, the most so far
+    state["assets"].remove(scout)                             # lost exploring
+    commands = standing.scouts(state, data)
+    assert len(commands) == 1 and commands[0].startswith("buyship YRD-001 argon ship_arg_s_scout_01_a_macro")
+    assert standing.scouts(state, data) == []                 # one at a time while it comes
+
+
+def test_an_idle_scout_is_sent_exploring(small_state):
+    import copy
+    state = copy.deepcopy(small_state)
+    _add_ship(state, "SCT-002", "ship_arg_s_scout_01_a_macro", owner="player")
+    next(a for a in state["assets"] if a["code"] == "SCT-002")["orders"] = []
+    assert "explore SCT-002" in standing.scouts(state, {})

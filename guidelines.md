@@ -219,11 +219,11 @@ For trade and miner fleets. Combat doctrine is in section 9.
 
 ---
 
-* **Exploring the unsurveyed costs ships.** Five scouts were lost in one
-  afternoon, and every one of them died in a sector nobody had been to; the
-  only survivor was the ship that stayed where it was. A sector is unknown
-  because nothing safe goes there. Send a scout out when the map is worth more
-  than the ship, say so in the reasoning, and expect to lose some.
+* **Exploring the unsurveyed costs ships, and that is accepted.** Five scouts
+  were lost in one afternoon, every one in a sector nobody had been to: a
+  sector is unknown because nothing safe goes there. Losing scouts that way is
+  part of exploring. Python replaces a lost scout at once and sends idle
+  scouts exploring; fighters are not sent, they defend.
 * **Send scouts exploring, not freighters.** The report names each ship's type.
   A container freighter can carry out an Explore order and will do it badly and
   expensively, while the cargo hold it was bought for sits empty. Use scouts and

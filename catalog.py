@@ -178,8 +178,9 @@ def _room(station: dict, ware: str) -> bool:
     return executor.storage_fill(station, table).get(transport, 0.0) < executor.FULL
 
 
-def _buy_options(state: dict, roles: tuple[tuple[str, str], ...]) -> list[Option]:
-    """Ships to buy at the two nearest wharfs we know that build M ships.
+def _buy_options(state: dict, roles: tuple[tuple[str, str], ...], size: str = "m",
+                 gap: bool = True) -> list[Option]:
+    """Ships to buy at the two nearest wharfs we know that build ships of `size`.
 
     `roles` pairs a description with a macro pattern ("solid miner",
     "ship_{race}_m_miner_solid_01_a_macro"). Only a wharf's own race's ship,
@@ -196,7 +197,7 @@ def _buy_options(state: dict, roles: tuple[tuple[str, str], ...]) -> list[Option
     import gamedata
     from purchases import _graph, jumps
     spare = _spare(state)
-    if spare < CAPITAL_FLOOR or _bought_recently(state):
+    if spare < CAPITAL_FLOOR or (gap and _bought_recently(state)):
         return []
     roles = tuple((role, pattern) for role, pattern in roles
                   if not _idle_ship(state, sitrep.ship_type(pattern.format(race="arg"))))
@@ -208,7 +209,7 @@ def _buy_options(state: dict, roles: tuple[tuple[str, str], ...]) -> list[Option
     graph, ships = _graph(), gamedata.ships()
     sector = (home.get("place") or {}).get("sector")
     yards = sorted((k for k in state.get("known_stations", [])
-                    if "m" in (k.get("builds") or []) and RACE.get(k.get("owner"))
+                    if size in (k.get("builds") or []) and RACE.get(k.get("owner"))
                     and jumps(graph, sector, (k.get("place") or {}).get("sector")) < UNKNOWN_ROUTE),
                    key=lambda k: jumps(graph, sector, (k.get("place") or {}).get("sector")))
     cap = int(min(SHIP_CAP, spare))
@@ -220,8 +221,9 @@ def _buy_options(state: dict, roles: tuple[tuple[str, str], ...]) -> list[Option
             macro = pattern.format(race=race)
             if macro in ships:
                 options.append(Option(
-                    f"buy an M {role} at {yard['code']} ({yard['owner']}, {hops} jumps), at most {cap:,} Cr",
-                    f"buyship {yard['code']} {yard['owner']} {macro} x4-agent-m {cap}"))
+                    f"buy an {size.upper()} {role} at {yard['code']} ({yard['owner']}, {hops} jumps), "
+                    f"at most {cap:,} Cr",
+                    f"buyship {yard['code']} {yard['owner']} {macro} x4-agent-{size} {cap}"))
     return options
 
 
