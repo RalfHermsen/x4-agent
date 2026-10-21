@@ -41,6 +41,10 @@ RACE = {"argon": "arg", "antigone": "arg", "hatikvah": "arg",
         "terran": "ter", "pioneers": "ter"}
 # Orders that already are the answer to a threat: a ship on them stays.
 GUARDING = {"ProtectStation", "ProtectPosition", "ProtectShip", "Patrol"}
+# Orders of a ship answering an attack itself (ids from the game's aiscripts).
+# The first catalog run with 5.6 offered "clear CVT-715's Attack" for a
+# defender fighting in our home sector, and it was taken six times.
+FIGHTING = {"Attack", "AttackInRange", "Attack_Player", "PlayerAttack", "Flee"}
 UNKNOWN_ROUTE = 99             # what purchases.jumps returns without a path
 MAX_SITUATIONS = 10            # per report, risk first
 MAX_DANGER = 4                 # of which at most this many about ships at risk
@@ -125,7 +129,7 @@ def _holding(code: str | None, state: dict) -> str | None:
     if not code:
         return None
     order = executor._busy_with(SimpleNamespace(ship_ref=code), state)
-    return None if order in ("Repair", *GUARDING) else order
+    return None if order in ("Repair", *GUARDING, *FIGHTING) else order
 
 
 def _where(sector: str | None) -> str:
@@ -367,8 +371,8 @@ def under_fire(state: dict) -> list[Situation]:
         hit = ship.get("attack") or {}
         if not hit or hit.get("method") in sitrep.HARMLESS_ATTACKS or now - hit["time"] > sitrep.ATTACK_MEMORY:
             continue
-        if _order(ship) in GUARDING:
-            continue  # it is already defending; being shot at is its job
+        if _order(ship) in GUARDING | FIGHTING:
+            continue  # it is defending, fighting back or fleeing already
         code, kind = ship["code"], sitrep.ship_type(ship.get("macro"))
         options = _away_options(ship, stations, state)
         if options:

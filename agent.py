@@ -142,6 +142,10 @@ def cycle(model: str | None = None, save: Path | None = None, force: bool = Fals
     failures += executor.transport_shortage(state)
     job_commands, job_lines = purchases.advance(remembered, state)
     failures += job_lines
+    # When each explore order went out, in game time: the bridge's logbook line
+    # appears only once the game has carried it out, and a save taken before
+    # that showed the scout on seen ground again (executor._exploring_nothing).
+    state["sent_at"] = remembered.get("sent_at", {})
     found = catalog.situations(state) if CATALOG else []
     report = sitrep_mod.build(state, goals=remembered.get("goals"),
                               failures=failures,
@@ -272,6 +276,10 @@ def cycle(model: str | None = None, save: Path | None = None, force: bool = Fals
 
     remembered["goals"] = plan.updated_goals or remembered.get("goals", [])
     memory.record(remembered, commands)
+    sent_at = remembered.setdefault("sent_at", {})
+    for c in commands:
+        if c.startswith("explore "):
+            sent_at[c] = state.get("meta", {}).get("playtime_s", 0.0)
     memory.start_expansions(remembered, commands, state,
                             lambda ware: executor.EXPANSION_MODULES.get(ware, ("?", False))[0])
     if model_ran:

@@ -286,3 +286,24 @@ def test_no_pricing_leaves_the_prices_to_the_game(run_cycle, monkeypatch):
     monkeypatch.setattr(agent.executor, "repricing", lambda state: ["price KYV-745 energycells sell 15"])
     result = run_cycle()
     assert not any(c.startswith("price ") for c in result["commands"])
+
+
+def test_a_ship_fighting_back_is_left_alone(small_state):
+    state = copy.deepcopy(small_state)
+    ship = next(a for a in state["assets"] if a["code"] == "ASO-629")
+    ship["macro"] = "ship_par_s_fighter_01_a_macro"
+    ship["assignment"] = {"group": 3}
+    ship["orders"] = [{"order": "Attack", "default": False, "state": "started"}]
+    ship["attack"] = {"method": "lowattentionattack", "time": state["meta"]["playtime_s"] - 30}
+    assert catalog._holding("ASO-629", state) is None
+    assert not any(s.key == "fire:ASO-629" for s in catalog.situations(state))
+
+
+def test_an_explore_order_we_sent_counts_before_the_logbook_shows_it(small_state):
+    import executor
+    state = copy.deepcopy(small_state)
+    ship = next(a for a in state["assets"] if a["code"] == "ASO-629")
+    ship["orders"] = [{"order": "Explore", "target_sector": ship["place"]["sector"], "default": False}]
+    assert executor._exploring_nothing(ship, state)
+    state["sent_at"] = {"explore ASO-629": state["meta"]["playtime_s"] - 300}
+    assert not executor._exploring_nothing(ship, state)

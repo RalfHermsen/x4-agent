@@ -60,7 +60,8 @@ _EMPTY = {"goals": [], "pending": [], "applied": {}, "fleet": {},
 # purchase job or an expansion started on paper would stall the same way.
 # Observations (fleet, logbook, ledger, reservations) and the model's own
 # goals and refusals are kept in both modes.
-DID_KEYS = ("pending", "applied", "funded", "expansions", "purchases", "feeders", "standing")
+DID_KEYS = ("pending", "applied", "funded", "expansions", "purchases", "feeders", "standing",
+            "sent_at")
 
 
 # The path is looked up at call time rather than bound as a default, so a test

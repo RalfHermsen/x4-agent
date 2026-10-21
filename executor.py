@@ -904,6 +904,9 @@ def _exploring_nothing(ship: dict, state: dict | None = None) -> bool:
         if any(text and text.startswith(sent) and now - t < EXPLORE_GAP
                for t, text in state.get("logbook", [])):
             return False
+        sent_at = (state.get("sent_at") or {}).get(f"explore {ship.get('code')}")
+        if sent_at is not None and now - sent_at < EXPLORE_GAP:
+            return False
     return True
 
 
