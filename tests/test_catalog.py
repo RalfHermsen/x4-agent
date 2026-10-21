@@ -318,3 +318,36 @@ def test_a_fighter_on_covered_ground_is_offered_home(small_state):
     found = {s.key: s for s in catalog.situations(state)}
     commands = [o.command for o in found["explore:ASO-629"].options]
     assert commands and all(c.startswith("assign ASO-629") and c.endswith("defend") for c in commands)
+
+
+def test_expansions_are_ranked_by_margin_at_known_prices(small_state):
+    state = copy.deepcopy(small_state)
+    state["known_stations"] = [{"code": "BUY-001", "owner": "argon", "place": {},
+                                    "offers": [{"ware": "microchips", "side": "buy", "price": 1000, "amount": 500},
+                                               {"ware": "energycells", "side": "buy", "price": 16, "amount": 500},
+                                               {"ware": "siliconwafers", "side": "buy", "price": 300, "amount": 500}]}]
+    margins = dict(catalog.expansion_margins(state))
+    # 72 chips at 1000 against 50 cells at 16 and 200 wafers at 300, every 600 s
+    assert round(margins["microchips"]) == round((72 * 1000 - 50 * 16 - 200 * 300) * 6)
+    assert "spices" not in margins          # nobody we know buys spices here
+
+
+def test_a_station_that_could_grow_is_offered_its_best_expansions(small_state, monkeypatch):
+    state = copy.deepcopy(small_state)
+    monkeypatch.setattr(catalog, "expansion_margins", lambda state: [("microchips", 40000.0), ("water", -5.0)])
+    monkeypatch.setattr(catalog, "_through_gates",
+                        lambda action, state: (f"expand {action['station_id']} {action['ware']}"
+                                               if action.get("type") == "expand_station" else None))
+    grow = next(s for s in catalog.situations(state) if s.key == "grow:KYV-745")
+    assert [o.command for o in grow.options] == ["expand KYV-745 microchips"]
+
+
+def test_a_ware_we_already_hold_more_of_than_anyone_wants_is_not_offered(small_state):
+    state = copy.deepcopy(small_state)
+    state["known_stations"] = [{"code": "BUY-001", "owner": "argon", "place": {},
+                                "offers": [{"ware": "energycells", "side": "buy", "price": 20, "amount": 5000}]}]
+    station = next(a for a in state["assets"] if a["code"] == "KYV-745")
+    station["cargo"] = {"energycells": 1000}
+    assert "energycells" in dict(catalog.expansion_margins(state))
+    station["cargo"] = {"energycells": 6000}
+    assert "energycells" not in dict(catalog.expansion_margins(state))

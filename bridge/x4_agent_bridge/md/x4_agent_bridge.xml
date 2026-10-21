@@ -337,6 +337,31 @@
           <set_value name="$agent_module" exact="macro.prod_gen_siliconwafers_macro"/>
           <set_value name="$agent_solidinput" exact="true"/>
         </do_if>
+        <!-- 6.2: the other production wares a blueprint is held for. -->
+        <do_if value="event.param == 'expand %s microchips'.[$agent_station.idcode]">
+          <set_value name="$agent_ware" exact="ware.microchips"/>
+          <set_value name="$agent_module" exact="macro.prod_gen_microchips_macro"/>
+        </do_if>
+        <do_if value="event.param == 'expand %s smartchips'.[$agent_station.idcode]">
+          <set_value name="$agent_ware" exact="ware.smartchips"/>
+          <set_value name="$agent_module" exact="macro.prod_gen_smartchips_macro"/>
+        </do_if>
+        <do_if value="event.param == 'expand %s spices'.[$agent_station.idcode]">
+          <set_value name="$agent_ware" exact="ware.spices"/>
+          <set_value name="$agent_module" exact="macro.prod_gen_spices_macro"/>
+        </do_if>
+        <do_if value="event.param == 'expand %s medicalsupplies'.[$agent_station.idcode]">
+          <set_value name="$agent_ware" exact="ware.medicalsupplies"/>
+          <set_value name="$agent_module" exact="macro.prod_tel_medicalsupplies_macro"/>
+        </do_if>
+        <do_if value="event.param == 'expand %s nostropoil'.[$agent_station.idcode]">
+          <set_value name="$agent_ware" exact="ware.nostropoil"/>
+          <set_value name="$agent_module" exact="macro.prod_tel_nostropoil_macro"/>
+        </do_if>
+        <do_if value="event.param == 'expand %s sunriseflowers'.[$agent_station.idcode]">
+          <set_value name="$agent_ware" exact="ware.sunriseflowers"/>
+          <set_value name="$agent_module" exact="macro.prod_tel_sunriseflowers_macro"/>
+        </do_if>
 
         <!-- 3.7: a small habitat, of the race Python chose from the station's
              own modules. $agent_ware is the module's own ware, so the logbook
