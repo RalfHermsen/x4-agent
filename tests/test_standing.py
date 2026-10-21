@@ -215,3 +215,17 @@ def test_an_idle_scout_is_sent_exploring(small_state):
     _add_ship(state, "SCT-002", "ship_arg_s_scout_01_a_macro", owner="player")
     next(a for a in state["assets"] if a["code"] == "SCT-002")["orders"] = []
     assert "explore SCT-002" in standing.scouts(state, {})
+
+
+def test_grow_expands_with_the_top_ranked_ware(small_state, monkeypatch):
+    import copy
+    import catalog
+    state = copy.deepcopy(small_state)
+    state["player"]["money"] = 50_000_000
+    monkeypatch.setattr(catalog, "expansion_margins", lambda state: [("microchips", 40000.0), ("water", 9000.0)])
+    monkeypatch.setattr(catalog, "_through_gates",
+                        lambda action, state: (None if action["ware"] == "microchips"
+                                               else f"expand {action['station_id']} {action['ware']}"))
+    assert standing.grow(state, {}) == ["expand KYV-745 water"]   # the first that passes its gates
+    state["player"]["money"] = 1_000_000
+    assert standing.grow(state, {}) == []                          # below the capital floor

@@ -348,11 +348,39 @@ def scouts(state: dict, data: dict) -> list[str]:
     return out
 
 
+def grow(state: dict, data: dict) -> list[str]:
+    """6.2 and 6.7: a station with modules and no build running is expanded
+    with the ware that pays most at the prices and demand we know.
+
+    The choice is Python's, from the top of the ranking: given the same
+    options in reverse order, the model took the same option in 1 of 16
+    choices and the same position in 9 (docs/contracts.md). Only with money
+    above the capital floor, one expansion at a time per station (the gate
+    refuses a second while one is planned), and through every gate a proposal
+    goes through. A builder is hired by `hire_builders` when the build needs one.
+    """
+    import catalog
+    if catalog._spare(state) < catalog.CAPITAL_FLOOR:
+        return []
+    margins = [w for w, m in catalog.expansion_margins(state) if m > 0]
+    out = []
+    for st in state.get("assets", []):
+        if st.get("cls") != "station" or not st.get("modules") or not st.get("code"):
+            continue
+        for ware in margins:
+            command = catalog._through_gates({"type": "expand_station", "station_id": st["code"],
+                                              "ware": ware}, state)
+            if command:
+                out.append(command)
+                break
+    return out
+
+
 # Game seconds a bought scout gets to arrive before another is bought.
 SCOUT_DELIVERY = 1800
 
 RULES = (sell_limits, revisit, satellites, ledger, once, patrols, find_builds, hire_builders,
-         repairs, seminars, scouts)
+         repairs, seminars, scouts, grow)
 
 
 def commands(state: dict, data: dict) -> list[str]:
