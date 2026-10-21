@@ -353,6 +353,17 @@ def test_a_ware_we_already_hold_more_of_than_anyone_wants_is_not_offered(small_s
     assert "energycells" not in dict(catalog.expansion_margins(state))
 
 
+def test_a_ware_piling_up_for_ten_module_hours_is_not_expanded(small_state):
+    state = copy.deepcopy(small_state)
+    state["known_stations"] = [{"code": "BUY-001", "owner": "argon", "place": {},
+                                "offers": [{"ware": "energycells", "side": "buy", "price": 20, "amount": 10_000_000}]}]
+    station = next(a for a in state["assets"] if a["code"] == "KYV-745")
+    station["cargo"] = {"energycells": 50_000}          # under ten hours of 10,500 an hour
+    assert "energycells" in dict(catalog.expansion_margins(state))
+    station["cargo"] = {"energycells": 120_000}         # over ten hours
+    assert "energycells" not in dict(catalog.expansion_margins(state))
+
+
 def test_a_full_store_is_offered_a_larger_store_first(small_state, monkeypatch):
     state = copy.deepcopy(small_state)
     station = next(a for a in state["assets"] if a["code"] == "KYV-745")

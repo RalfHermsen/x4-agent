@@ -440,6 +440,7 @@ def covered_ground(state: dict) -> list[Situation]:
 
 
 RECIPE_RACE = {"tel": "teladi", "arg": "argon", "par": "paranid", "spl": "split", "ter": "terran"}
+HELD_HOURS = 10    # stock of a ware, in hours of one module's output, above which it is not expanded
 
 
 def _best_buy(state: dict, ware: str) -> float | None:
@@ -484,6 +485,11 @@ def expansion_margins(state: dict) -> list[tuple[str, float]]:
         recipe = recipes.get(race) or recipes.get("default") or next(iter(recipes.values()), None)
         sell = _best_buy(state, ware)
         if not recipe or not sell or not recipe.get("time") or held.get(ware, 0) >= _demand(state, ware):
+            continue
+        # Ten hours of one module's output already in store: the station is not
+        # selling what it makes, and one more module adds to the pile. KYV-745
+        # held 208,000 energy cells, twenty hours of a module, and offered 79.
+        if held.get(ware, 0) >= HELD_HOURS * recipe["amount"] * 3600 / recipe["time"]:
             continue
         cost = sum(n * (_best_buy(state, w) or (table.get(w) or {}).get("minprice", 0))
                    for w, n in (recipe.get("inputs") or {}).items())
