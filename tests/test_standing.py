@@ -196,7 +196,7 @@ def test_a_lost_scout_is_replaced_at_once(small_state):
     state = copy.deepcopy(small_state)
     state["player"]["money"] = 50_000_000
     home = _station(state)
-    state["known_stations"].append({"code": "YRD-001", "owner": "argon", "builds": ["s", "m"],
+    state["known_stations"].append({"code": "YRD-001", "owner": "argon", "builds": ["m"],
                                     "place": dict(home["place"])})
     _add_ship(state, "SCT-001", "ship_arg_s_scout_01_a_macro", owner="player")
     scout = next(a for a in state["assets"] if a["code"] == "SCT-001")
