@@ -134,10 +134,10 @@ pay back.
 
 | Item | State |
 |---|---|
-| 6.1 | to do |
-| 6.2 | to do |
-| 6.3 | to do |
-| 6.4 | to do |
-| 6.5 | to do |
-| 6.6 | to do |
-| 6.7 | to do |
+| 6.1 | snapshots of the long runs being taken hourly; analysis after the series |
+| 6.2 | built on branch `growth-2026-10`, tests green; ranked offline on the baseline and a rules-only end save; proof in the game to do |
+| 6.3 | to do (needs the game) |
+| 6.4 | to do: first sign is demand without sales, 505,000 energy cells asked for while 208,000 sat unsold |
+| 6.5 | built on the branch (civilian ships only, set once); proof in the game to do |
+| 6.6 | built on the branch (Teladi L stores, offered first when a store is full); proof in the game to do |
+| 6.7 | to do: the position test runs during the rules-only long run, when the model is not in use |
