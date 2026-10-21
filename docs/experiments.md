@@ -303,3 +303,50 @@ expansion building within half a game hour. So every run so far measured a
 station that could not expand, which is the main way an X4 station makes more
 money; the comparison above holds for that station, not for the agent's
 ceiling.
+
+## 2026-10-21: counted again, with what the stations hold
+
+The scorecard counted player money only. In X4 a station keeps its own
+account and its own stock, and when it grows the game draws its budget from
+the player: once KYV-745's expansion was built (the builder fix above), its
+store grew by about a third and filled, and the money that bought or mined
+into it left the player's account. Since `c5e36d2` the scorecard also counts
+the stations' and build storages' accounts and their stock at the game's
+minimum ware prices (`net_worth`), and shows the stock at average prices
+beside it. Every finished run, scored again from its end save:
+
+| Run | Arm | Game hours | Credits per game hour | Net worth per game hour | With bought ships at cost | Stock change (min prices) | Modules | Ships lost |
+|---|---|---|---|---|---|---|---|---|
+| 2.4 execute | free planner | 11.41 | 1.69 M | 1.79 M | 1.79 M | +0.16 M | +0 | 1 |
+| 2.4 advise | game alone | 10.92 | 1.77 M | 1.82 M | 1.82 M | +0.42 M | +0 | 0 |
+| e1 | catalog | 8.83 | 0.58 M | 0.67 M | 1.62 M | +0.31 M | +0 | 0 |
+| a1 | game alone | 10.87 | 1.79 M | 1.82 M | 1.82 M | +0.41 M | +0 | 1 |
+| e2 | catalog | 11.12 | 0.92 M | 1.02 M | 1.83 M | +0.52 M | +0 | 1 |
+| a2 | game alone | 11.26 | 1.88 M | 1.81 M | 1.81 M | +0.43 M | +0 | 1 |
+| e3 | catalog, builder fixed | 11.50 | 0.65 M | 1.08 M | 1.97 M | +3.25 M | +2 | 2 |
+| a3 | game alone | 11.40 | 1.86 M | 1.82 M | 1.82 M | +0.43 M | +0 | 0 |
+| r1 | rules only | 11.41 | 1.37 M | 2.07 M | 2.07 M | +8.00 M | +1 | 1 |
+| n1 | rules only, no repricing | 11.32 | 1.19 M | 2.01 M | 2.01 M | +8.22 M | +1 | 2 |
+
+**The game alone is very steady**: five runs at 1.81 to 1.82 million per game
+hour in net worth. Its credits per hour varied more (1.77 to 1.88) because
+money moved between the player and the station.
+
+**Python's rules beat it** once the station can grow: 2.07 and 2.01 million,
+11 to 14 % more, in two runs. The difference is stock: the expansion gave the
+store room, and the station filled it. Repricing makes little difference
+(2.07 with, 2.01 without).
+
+**The catalog runs stay below the rules-only runs**: e3, with the builder
+fixed, reaches 1.97 million only with its ten bought ships counted at what
+they cost, five of them idle at the end.
+
+What this does not settle:
+
+* Part of the rules-only gain is one-off: new storage fills once. A longer
+  run shows how much of it continues.
+* Stock is valued at the game's minimum prices; ore and ice have few buyers
+  near KYV-745, so even that may be generous for them. New modules and lost
+  ships are in no column.
+* The purchase rules of 5.6 came after e3; the catalog with them is what the
+  next two runs of the series measure.
