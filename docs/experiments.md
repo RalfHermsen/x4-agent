@@ -350,3 +350,49 @@ What this does not settle:
   ships are in no column.
 * The purchase rules of 5.6 came after e3; the catalog with them is what the
   next two runs of the series measure.
+
+## 2026-10-21: three arms (5.7)
+
+The same baseline, two hours each at six times speed, scored with the
+scorecard of `2d7a911`: player money, the stations' and build storages'
+accounts, their stock and their modules, all at the game's minimum prices.
+Ships are not in it; bought ships appear in the last column at what they
+cost. The advise arm was not run again: advise sends nothing, so code
+changes do not change its game, and five runs of it were on hand.
+
+| Run | Arm | Game hours | Net worth per game hour | With bought ships | Modules | Ships lost |
+|---|---|---|---|---|---|---|
+| 2.4 advise, a1, a2, a3 | the game alone | 10.9 to 11.4 | 1.81 to 1.82 M | | +0 | 0 or 1 |
+| r1 | rules only | 11.41 | 2.12 M | 2.12 M | +1 | 1 |
+| n1 | rules only, no repricing | 11.32 | 2.07 M | 2.07 M | +1 | 2 |
+| r2 | rules only | 11.09 | 1.95 M | 1.95 M | +1 | 1 |
+| c1 | rules and catalog, purchases only for a need | 11.32 | 2.11 M | 2.11 M | +2 | 2 |
+| c2 | the same, two fixes later | 11.46 | 2.05 M | 2.05 M | +2 | 3 |
+| e3 | rules and catalog, before 5.6 | 11.50 | 1.15 M | 2.04 M | +2 | 2 |
+
+The plan's rules:
+
+* **Python's rules are worth their place:** all three rules-only runs beat
+  all five runs of the game alone, by 7 to 17 %. Most of it comes from the
+  builder fix: the waiting expansion was built, the station had room, and
+  its store filled. Repricing makes no measurable difference (2.07 without,
+  2.12 and 1.95 with).
+* **The model is not yet shown to be worth its place:** rules with the
+  catalog average 2.08 against 2.05 for rules only, inside the spread of
+  the rules-only runs. With the purchases of 5.6 it no longer loses; what it
+  adds is one more expansion per run, and it lost the two ships it sent
+  exploring, a scout and a fighter, in both catalog runs.
+
+Changed during the series, each between runs: a purchase is answered only
+for a need (5.6, before r1); a ship fighting back or fleeing is not cleared,
+and an explore order counts from when it was sent (before c2, after the
+catalog cleared a defender in combat six times in c1); after the series,
+scouts explore and a lost scout is replaced at once, which is the player's
+decision, and a fighter on covered ground is offered home as a defender.
+
+What would tell more:
+
+* Longer runs. Part of the rules-only gain is new storage filling once, and
+  an expansion pays off over more than eleven game hours.
+* More catalog runs with the code as it now stands, so that two is not the
+  whole sample.

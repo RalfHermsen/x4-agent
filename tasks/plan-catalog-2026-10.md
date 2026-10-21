@@ -130,7 +130,7 @@ advise runs, and if they beat 2.4's execute run.
 | 5.4 | done | executable actions 28 to 63 on the 16 saves, nothing refused or skipped; every model's choices carried out (`docs/contracts.md`) |
 | 5.5 | done, rule not met | both execute runs below their advise runs (1.53 against 1.79 and 1.73 against 1.88 million per game hour, bought ships at cost); execution clean, purchases do not pay within a run (`docs/experiments.md`). Purchase price proven first: a Mercury at TXT-319 1,104,280 Cr against the menu's 1,075,854, the rest being the menu's software discount |
 | 5.6 | done offline | `idle_capital` gone; miners only with room, freighters only for piled-up products with none free; an idle ship holds a purchase of its own kind. Over the 16 saves and the end saves of four execute runs: no solid miner offered, no purchase on the 73-hour saves, the liquid miner for QDA-703 still offered; no violation |
-| 5.7 | running | rules only 2.07 M per game hour in net worth, rules only without repricing 2.01, the game alone 1.81 to 1.82 (`docs/experiments.md`, counted again with the stations' accounts and stock); a second rules-only run and two catalog runs with 5.6 to come |
+| 5.7 | done | rules only beat the game alone in all three runs (1.95 to 2.12 against 1.81 to 1.82 million per game hour in net worth); rules with the catalog 2.11 and 2.05, not distinguishable from rules only (`docs/experiments.md`) |
 
 ## After 5.5: purchases only for a need, and a rules-only arm
 
