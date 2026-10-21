@@ -46,6 +46,16 @@ def _holdings(assets: list[dict]) -> tuple[int, int, int]:
     return accounts, int(low), int(mid)
 
 
+def _modules_value(stations: list[dict]) -> int:
+    """Our stations' modules at the minimum price of their module wares: what
+    an expansion added, which the cards before 2026-10-21 counted only as a
+    number of modules."""
+    import gamedata
+    wares, modules = gamedata.wares(), gamedata.modules()
+    return int(sum((wares.get((modules.get(m) or {}).get("ware") or "") or {}).get("minprice", 0)
+                   for s in stations for m in (s.get("modules") or [])))
+
+
 def score(state: dict) -> dict:
     meta, player = state["meta"], state["player"]
     assets = state["assets"]
@@ -56,6 +66,7 @@ def score(state: dict) -> dict:
     storages = [a for a in assets if a["cls"] == "buildstorage"]
     now = meta.get("playtime_s") or 0
     accounts, stock_min, stock_avg = _holdings(assets)
+    modules_value = _modules_value(stations)
     return {
         "save": meta.get("save_name"),
         "game_hours": round(now / 3600, 2),
@@ -63,9 +74,10 @@ def score(state: dict) -> dict:
         "accounts": accounts,
         "stock_min": stock_min,
         "stock_avg": stock_avg,
-        # What the empire holds in money and wares, the wares at the price the
-        # game never goes below. Ships and modules are not in it.
-        "net_worth": (player.get("money") or 0) + accounts + stock_min,
+        "modules_value": modules_value,
+        # What the empire holds in money, wares and modules, at the prices the
+        # game never goes below. Ships are not in it.
+        "net_worth": (player.get("money") or 0) + accounts + stock_min + modules_value,
         "stations": len(stations),
         "modules": sum(len(s.get("modules") or []) for s in stations),
         "ships": len(working),
@@ -78,7 +90,7 @@ def score(state: dict) -> dict:
     }
 
 
-ROWS = ("game_hours", "credits", "accounts", "stock_min", "stock_avg", "net_worth",
+ROWS = ("game_hours", "credits", "accounts", "stock_min", "stock_avg", "modules_value", "net_worth",
         "stations", "modules", "ships", "idle", "failing", "builds")
 
 

@@ -40,4 +40,5 @@ def test_net_worth_counts_accounts_and_stock(small_state):
     card = score.score(state)
     assert card["accounts"] >= 1000
     assert card["stock_min"] > 0 and card["stock_avg"] >= card["stock_min"]
-    assert card["net_worth"] == card["credits"] + card["accounts"] + card["stock_min"]
+    assert card["net_worth"] == (card["credits"] + card["accounts"] + card["stock_min"]
+                                 + card["modules_value"])

@@ -307,3 +307,14 @@ def test_an_explore_order_we_sent_counts_before_the_logbook_shows_it(small_state
     assert executor._exploring_nothing(ship, state)
     state["sent_at"] = {"explore ASO-629": state["meta"]["playtime_s"] - 300}
     assert not executor._exploring_nothing(ship, state)
+
+
+def test_a_fighter_on_covered_ground_is_offered_home(small_state):
+    state = copy.deepcopy(small_state)
+    ship = next(a for a in state["assets"] if a["code"] == "ASO-629")
+    ship["macro"] = "ship_par_s_fighter_01_a_macro"
+    ship["assignment"] = {}
+    ship["orders"] = [{"order": "Explore", "target_sector": ship["place"]["sector"], "default": True}]
+    found = {s.key: s for s in catalog.situations(state)}
+    commands = [o.command for o in found["explore:ASO-629"].options]
+    assert commands and all(c.startswith("assign ASO-629") and c.endswith("defend") for c in commands)

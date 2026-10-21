@@ -406,18 +406,30 @@ def in_hostile_space(state: dict) -> list[Situation]:
 
 
 def covered_ground(state: dict) -> list[Situation]:
-    """An explorer sweeping the sector it is already in finds nothing new."""
+    """An explorer sweeping the sector it is already in finds nothing new.
+
+    A fighter is offered home as a defender, not more exploring: KGZ-352,
+    left on its old Explore default once its MoveWait was cleared, was sent
+    into unknown space six times and lost in both catalog runs of 2026-10-21.
+    """
     out = []
+    stations = [s for s in _stations(state) if s.get("modules")]
     for ship in _ships(state):
         if not executor._exploring_nothing(ship, state):
             continue
-        option = _option(f"send {ship['code']} to an unseen sector",
-                         {"type": "set_behaviour", "ship_ref": ship["code"], "behaviour": "explore"}, state,
-                         clear=True)
-        if option:
-            out.append(Situation(f"explore:{ship['code']}",
-                                 f"{ship['code']} is exploring the sector it is already in, which we "
-                                 f"have seen; it finds nothing new there.", [option]))
+        code = ship["code"]
+        if _combat(ship):
+            candidates = [(f"bring {code} home: assign it to {s['code']} as defender",
+                           {"type": "assign_ship", "ship_ref": code, "station_id": s["code"], "role": "defend"})
+                          for s in stations]
+        else:
+            candidates = [(f"send {code} to an unseen sector",
+                           {"type": "set_behaviour", "ship_ref": code, "behaviour": "explore"})]
+        options = [o for o in (_option(t, a, state, clear=True) for t, a in candidates) if o]
+        if options:
+            out.append(Situation(f"explore:{code}",
+                                 f"{code} is exploring the sector it is already in, which we "
+                                 f"have seen; it finds nothing new there.", options[:MAX_OPTIONS]))
     return out
 
 
