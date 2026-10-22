@@ -42,3 +42,15 @@ def test_net_worth_counts_accounts_and_stock(small_state):
     assert card["stock_min"] > 0 and card["stock_avg"] >= card["stock_min"]
     assert card["net_worth"] == (card["credits"] + card["accounts"] + card["stock_min"]
                                  + card["modules_value"])
+
+
+def test_stock_counts_as_sellable_only_up_to_known_demand(small_state):
+    import copy
+    state = copy.deepcopy(small_state)
+    station = next(a for a in state["assets"] if a["code"] == "KYV-745")
+    station["cargo"] = {"energycells": 1000}
+    state["known_stations"] = [{"code": "BUY-001", "offers": [{"ware": "energycells", "side": "buy", "amount": 300}]}]
+    card = score.score(state)
+    one = card["stock_min"] // 1000
+    assert card["stock_sellable"] == 300 * one
+    assert card["net_sellable"] == card["credits"] + card["accounts"] + card["stock_sellable"] + card["modules_value"]

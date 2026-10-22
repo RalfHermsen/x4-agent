@@ -46,6 +46,30 @@ def _holdings(assets: list[dict]) -> tuple[int, int, int]:
     return accounts, int(low), int(mid)
 
 
+def _sellable_stock(assets: list[dict], known: list[dict]) -> int:
+    """Our stock at minimum prices, each ware counted only up to what the
+    stations we know ask to buy (plan 6.1: stock nobody buys is not worth).
+
+    The warm rules-only run turned 37,000 silicon into wafers and sold them:
+    credits rose by 18 % while net worth at minimum prices fell, because
+    silicon counted at 111 Cr a unit with only 11,600 asked for.
+    """
+    import gamedata
+    wares = gamedata.wares()
+    demand: dict[str, int] = {}
+    for k in known:
+        for o in k.get("offers", []):
+            if o.get("side") == "buy":
+                demand[o.get("ware")] = demand.get(o.get("ware"), 0) + int(o.get("amount") or 0)
+    held: dict[str, int] = {}
+    for a in assets:
+        if a.get("cls") in ("station", "buildstorage"):
+            for w, n in (a.get("cargo") or {}).items():
+                held[w] = held.get(w, 0) + n
+    return int(sum(min(n, demand.get(w, 0)) * (wares.get(w) or {}).get("minprice", 0)
+                   for w, n in held.items()))
+
+
 def _modules_value(stations: list[dict]) -> int:
     """Our stations' modules at the minimum price of their module wares: what
     an expansion added, which the cards before 2026-10-21 counted only as a
@@ -67,6 +91,7 @@ def score(state: dict) -> dict:
     now = meta.get("playtime_s") or 0
     accounts, stock_min, stock_avg = _holdings(assets)
     modules_value = _modules_value(stations)
+    stock_sellable = _sellable_stock(assets, state.get("known_stations", []))
     return {
         "save": meta.get("save_name"),
         "game_hours": round(now / 3600, 2),
@@ -75,6 +100,9 @@ def score(state: dict) -> dict:
         "stock_min": stock_min,
         "stock_avg": stock_avg,
         "modules_value": modules_value,
+        "stock_sellable": stock_sellable,
+        # Net worth with stock counted only up to what known buyers ask for.
+        "net_sellable": (player.get("money") or 0) + accounts + stock_sellable + modules_value,
         # What the empire holds in money, wares and modules, at the prices the
         # game never goes below. Ships are not in it.
         "net_worth": (player.get("money") or 0) + accounts + stock_min + modules_value,
@@ -90,7 +118,8 @@ def score(state: dict) -> dict:
     }
 
 
-ROWS = ("game_hours", "credits", "accounts", "stock_min", "stock_avg", "modules_value", "net_worth",
+ROWS = ("game_hours", "credits", "accounts", "stock_min", "stock_avg", "stock_sellable", "modules_value",
+        "net_worth", "net_sellable",
         "stations", "modules", "ships", "idle", "failing", "builds")
 
 
