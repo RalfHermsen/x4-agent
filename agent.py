@@ -63,8 +63,9 @@ NO_PRICING = os.environ.get("X4_NO_PRICING") == "1"
 # name ("sell_limits", "grow", ...). Over 33 game hours rules only earned 1.61
 # million per game hour in the last third against 1.82 for the game alone, and
 # these switches find which rule costs it.
-# Off by default since 6.8: from a grown station each cost about 0.22 million
-# credits per game hour (docs/experiments.md). X4_RULES_ON turns one back on.
+# Off by default since 6.8: measured from a grown station, neither earned more
+# than the managers' own prices and limits (docs/experiments.md); off is the
+# simpler choice. X4_RULES_ON turns one back on.
 DEFAULT_OFF = frozenset({"sell_limits", "pricing"})
 
 

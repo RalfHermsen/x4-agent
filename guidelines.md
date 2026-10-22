@@ -157,10 +157,9 @@ Sell prices are the station managers' own (see below); propose none yourself.
   space, not units, so a cargo worth 54 Cr per cubic metre beats one worth 9
   every time, with the same ships and the same fuel.
 * **Prices are the station managers'; do not propose them.** Python used to
-  set each sell price under the cheapest supplier, and measured from a grown
-  station that cost about 0.22 million credits per game hour against the
-  managers' own prices; so did keeping stock back with sell limits. A price
-  you propose is refused. The report shows our asking price beside the best
+  set each sell price under the cheapest supplier and hold stock back with
+  sell limits; measured from a grown station, neither earned more than the
+  managers' own prices, so both are off. A price you propose is refused. The report shows our asking price beside the best
   bid we know, for reading: a ware that does not sell calls for a ship, a
   trade rule or a buyer found by exploring, not for a price. Spend your
   actions on ships, assignments, budgets, trade rules and expansions.
