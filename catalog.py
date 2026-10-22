@@ -497,16 +497,32 @@ def expansion_margins(state: dict) -> list[tuple[str, float]]:
     return sorted(out, key=lambda pair: -pair[1])
 
 
+def first_module_ok(ware: str) -> bool:
+    """A ware an empty station can make: inputs only that are mined, or energy
+    cells, which every market sells and its budget buys. Its first module has
+    nothing next to it to feed it otherwise (6.3)."""
+    import gamedata
+    recipe = ((gamedata.wares().get(ware) or {}).get("recipes") or {}).get("default") or {}
+    allowed = set().union(*executor.MINABLE.values()) | {"energycells"}
+    return all(w in allowed for w in (recipe.get("inputs") or {}))
+
+
+def _growth_wares(st: dict, margins: list[str]) -> list[str]:
+    """The ranked wares for this station: all of them, or for a station with no
+    modules yet only those its first module can make alone."""
+    return margins if st.get("modules") else [w for w in margins if first_module_ok(w)]
+
+
 def could_grow(state: dict) -> list[Situation]:
     """A station with modules and no build running: the three expansions that
     pay most at the prices we know, each through the gates (blueprint, a
     build already planned). A builder is hired by Python when one is needed."""
-    margins = [(w, m) for w, m in expansion_margins(state) if m > 0]
+    ranked = [(w, m) for w, m in expansion_margins(state) if m > 0]
     out = []
     for st in _stations(state):
-        if not st.get("modules"):
-            continue
         code = st["code"]
+        allowed = set(_growth_wares(st, [w for w, _ in ranked]))
+        margins = [(w, m) for w, m in ranked if w in allowed]
         options = []
         for ware, margin in margins:
             option = _option(f"expand {code} with {ware} production, about {margin / 1000:,.0f}k Cr "

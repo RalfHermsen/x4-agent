@@ -370,9 +370,12 @@ def grow(state: dict, data: dict) -> list[str]:
     margins = [w for w, m in catalog.expansion_margins(state) if m > 0]
     out = []
     for st in state.get("assets", []):
-        if st.get("cls") != "station" or not st.get("modules") or not st.get("code"):
+        if st.get("cls") != "station" or not st.get("code"):
             continue
-        for ware in margins:
+        # A station with no modules yet (GKL-870) starts with a ware its first
+        # module can make alone (6.3); the bridge finds such stations since
+        # checkoperational="false".
+        for ware in catalog._growth_wares(st, margins):
             command = catalog._through_gates({"type": "expand_station", "station_id": st["code"],
                                               "ware": ware}, state)
             if command:

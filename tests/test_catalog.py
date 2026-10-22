@@ -374,3 +374,14 @@ def test_a_full_store_is_offered_a_larger_store_first(small_state, monkeypatch):
                                                if action.get("type") == "expand_station" else None))
     full = next(s for s in catalog.situations(state) if s.key == "storage:KYV-745:solid")
     assert full.options[0].command == "expand KYV-745 storage_solid"
+
+
+def test_an_empty_station_starts_with_a_ware_it_can_make_alone(small_state, monkeypatch):
+    state = copy.deepcopy(small_state)
+    station = next(a for a in state["assets"] if a["code"] == "KYV-745")
+    assert catalog.first_module_ok("energycells") and catalog.first_module_ok("water")
+    assert not catalog.first_module_ok("microchips")
+    station["modules"] = []
+    assert catalog._growth_wares(station, ["microchips", "water"]) == ["water"]
+    station["modules"] = ["prod_gen_water_macro"]
+    assert catalog._growth_wares(station, ["microchips", "water"]) == ["microchips", "water"]
