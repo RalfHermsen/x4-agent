@@ -396,3 +396,38 @@ What would tell more:
   an expansion pays off over more than eleven game hours.
 * More catalog runs with the code as it now stands, so that two is not the
   whole sample.
+
+## 2026-10-21/22: three long runs, 33 game hours each (6.1)
+
+The same baseline, six hours of wall time at six times speed, one run per
+arm, with a copy of the save every hour so that the rate over the last third
+can be read apart from the whole run. Net worth as in 5.7 (player money,
+accounts, stock and modules at minimum prices).
+
+| Net worth per game hour | The game alone | Rules only | Rules and catalog |
+|---|---|---|---|
+| Whole run | 1.83 M | 1.84 M | 1.98 M |
+| Last third | 1.82 M | 1.61 M | 2.04 M |
+| Credits per game hour, last third | 1.77 M | 1.71 M | 2.03 M |
+| Stock change, whole run | +0.4 M | +8.0 M, all in the first five game hours | +6.0 M |
+| Modules | +0 | +1 | +2 |
+| Ships lost | 4 | 2 | 2 (and three lost scouts replaced) |
+
+* **The game alone is steady:** 1.82 to 1.83 million per game hour throughout.
+* **Rules only:** the lead of the two-hour runs was the one-off fill of the
+  larger store after the expansion finished; once full, the station earned
+  less per hour than the game alone (1.61 against 1.82 over the last third).
+  Which rule costs that is item 6.8 of `tasks/plan-growth-2026-10.md`.
+* **Rules and catalog:** the only arm with more income per hour at the end,
+  12 % over the game alone in the last third, in credits and not in stock.
+  The difference from rules only is a second expansion, refined metals,
+  which eats the ore that filled the solid store; the rules alone only
+  finish the expansion the save already had planned. The model chose it
+  from `storage_full`'s options, and the position test (`docs/contracts.md`)
+  says its choices follow the order more than the content: what paid is the
+  option, an expansion that uses what piles up, more than the choosing.
+
+One run per arm; the direction is clear, the size is not yet. The rule
+that follows is Python's: expand with what uses the stock that piles up
+(the branch's `grow` ranks by margin and demand), and measure it against
+these three.
