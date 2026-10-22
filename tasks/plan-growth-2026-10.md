@@ -149,10 +149,10 @@ pay back.
 | Item | State |
 |---|---|
 | 6.1 | done: over 33 game hours, net worth per game hour (whole run, last third): the game alone 1.83 and 1.82; rules only 1.84 and 1.61 (a one-off stock fill, then less income); rules and catalog 1.98 and 2.04, with a second expansion (refined metals, eating the ore that filled the store) and 2.03 in credits over the last third (`docs/experiments.md`) |
-| 6.2 | built on branch `growth-2026-10`, tests green; ranked offline on the baseline and a rules-only end save; proof in the game to do |
-| 6.3 | to do (needs the game) |
+| 6.2 | done: `expand KYV-745 nostropoil` built in the game (a ware new to the bridge); Python's `grow` rule expands with the top of the ranking (margin, demand, and not a ware with ten module-hours in store), in `main` since `311a7d7` |
+| 6.3 | done in the game: the MD found no station without modules (`find_object` skips the non-operational); with `checkoperational="false"` GKL-870 took a budget and started a water module, solid storage added to the plan by itself. `grow` now starts an empty station with a ware made from mined inputs or energy cells |
 | 6.4 | first finding: the station offers only a sliver of its stock in every arm (energy cells 157,754 held and 328 offered at the baseline, 159,128 and 1,502 in an advise run, 208,846 and 79 after rules only); the game's manager keeps the rest as a buffer for its own production, and Python's sell limits are small (2,000 to 15,000). So the rules-only stock gain is mostly a larger buffer after the expansion, one-off; whether income per hour grows is the long runs' question (6.1) |
-| 6.5 | built on the branch (civilian ships only, set once); proof in the game to do |
-| 6.6 | built on the branch (Teladi L stores, offered first when a store is full); proof in the game to do |
+| 6.5 | done in the game: `avoid hostile on -> civilian=true`; set once by `standing.once` |
+| 6.6 | storage done in the game (`expand KYV-745 storage_solid`, a Teladi L solid store queued); seminars still to do |
 | 6.8 | switch built on the branch (`X4_RULES_OFF`); warm baseline and runs after the series |
 | 6.7 | position test done: with the options reversed the model took the same option in 1 of 16 choices and the same position in 9 (`docs/contracts.md`); next, Python takes the top-ranked option and the model may only decline it |
