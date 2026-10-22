@@ -466,3 +466,14 @@ growth merge (`311a7d7`): the rules now grow stations by themselves
 
 One run per arm. Both rules are switched off by default after this and kept
 behind a switch; a run with both off confirms it.
+
+**Afterwards, the confirmation did not confirm.** With both rules off from
+the same warm baseline: 1.83 million credits per game hour, 1.91 in net
+worth with stock up to known demand. Had each rule cost 0.22 million, both
+off should have been the best arm; it is in the middle. The spread between
+runs that grow is evidently larger than the 0.05 between advise runs (an
+expansion finishing earlier or later, a ship lost or not), so the single
+runs above do not single out a rule that costs income. What does hold: every
+arm that grows earns more credits per hour than the game alone, 12 to 33 %.
+Both rules stay off by default, because off is simpler (some 200 price
+commands fewer per run) and was not worse; that is a choice, not a finding.
