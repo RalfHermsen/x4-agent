@@ -154,5 +154,5 @@ pay back.
 | 6.4 | first finding: the station offers only a sliver of its stock in every arm (energy cells 157,754 held and 328 offered at the baseline, 159,128 and 1,502 in an advise run, 208,846 and 79 after rules only); the game's manager keeps the rest as a buffer for its own production, and Python's sell limits are small (2,000 to 15,000). So the rules-only stock gain is mostly a larger buffer after the expansion, one-off; whether income per hour grows is the long runs' question (6.1) |
 | 6.5 | done in the game: `avoid hostile on -> civilian=true`; set once by `standing.once` |
 | 6.6 | storage done in the game (`expand KYV-745 storage_solid`, a Teladi L solid store queued); seminars still to do |
-| 6.8 | switch built on the branch (`X4_RULES_OFF`); warm baseline and runs after the series |
+| 6.8 | done: from the warm baseline, credits per game hour: the game alone 1.49, every rule 1.76, without fleet focus 1.75, without sell limits 1.98, without repricing 1.98 (`docs/experiments.md`); sell limits and repricing switched off by default, a confirmation run with both off to come |
 | 6.7 | position test done: with the options reversed the model took the same option in 1 of 16 choices and the same position in 9 (`docs/contracts.md`); next, Python takes the top-ranked option and the model may only decline it |

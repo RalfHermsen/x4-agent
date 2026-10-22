@@ -431,3 +431,38 @@ One run per arm; the direction is clear, the size is not yet. The rule
 that follows is Python's: expand with what uses the stock that piles up
 (the branch's `grow` ranks by margin and demand), and measure it against
 these three.
+
+## 2026-10-22: which rule costs income, from a grown station (6.8)
+
+The long rules-only run earned less per hour than the game alone once its
+store was full. To find out why without waiting 33 game hours each time, its
+end save (107 game hours, the first expansion built, the store full) was
+frozen as a warm baseline, and two-hour runs started from it: the game
+alone, every rule, and every rule but one. The code was `main` after the
+growth merge (`311a7d7`): the rules now grow stations by themselves
+(`grow`), GKL-870 included, and keep traders out of enemy sectors.
+
+| Per game hour | Credits | Net worth (minimum prices) | Net worth (stock up to known demand) | Modules | Ships lost |
+|---|---|---|---|---|---|
+| The game alone | 1.49 M | 1.76 M | 1.94 M | +0 | 1 |
+| Every rule | 1.76 M | 1.69 M | 2.07 M | +3 | 0 |
+| Every rule but the fleet focus | 1.75 M | 1.58 M | 2.08 M | +3 | 0 |
+| Every rule but the sell limits | 1.98 M | 1.87 M | 1.98 M | +3 | 1 |
+| Every rule but repricing | 1.98 M | 1.70 M | 1.99 M | +3 | 1 |
+
+* **Every rules arm earns more credits than the game alone**, 17 to 33 %,
+  through growth: KYV-745 and the empty GKL-870 each expanded with refined
+  metals, builders hired by Python.
+* **Two rules cost income:** the sell limits (4.3) hold stock back that
+  would have been sold, and Python's repricing sells under the price the
+  game's own managers set; each costs about 0.22 million credits per game
+  hour, more than four times the spread between the advise runs.
+* **The fleet focus makes no difference.**
+* The net worth at minimum prices falls where stock is used up: the rules
+  turned 37,000 silicon into wafers and sold them, and silicon counts at 111
+  Cr a unit while only 11,600 are asked for. Counting stock only up to known
+  demand (`net_sellable`, `3e5d2b2`) removes that bias; credits remain the
+  hardest measure.
+
+One run per arm. Both rules are switched off by default after this and kept
+behind a switch; a run with both off confirms it.
