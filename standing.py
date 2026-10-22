@@ -383,8 +383,10 @@ RULES = (sell_limits, revisit, satellites, ledger, once, patrols, find_builds, h
          repairs, seminars, scouts, grow)
 
 
-def commands(state: dict, data: dict) -> list[str]:
+def commands(state: dict, data: dict, off: set | frozenset = frozenset()) -> list[str]:
+    """Every standing rule's commands, except the rules named in `off`."""
     out = []
     for rule in RULES:
-        out += rule(state, data)
+        if rule.__name__ not in off:
+            out += rule(state, data)
     return out

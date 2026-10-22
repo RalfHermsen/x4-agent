@@ -58,6 +58,12 @@ RULES_ONLY = os.environ.get("X4_RULES_ONLY") == "1"
 # game alone, bought nothing, and changed a price 214 times, about as often
 # up as down; this arm measures whether the prices are the difference.
 NO_PRICING = os.environ.get("X4_NO_PRICING") == "1"
+# Single rules switched off for a measurement, by name: "focus" (executor.
+# focus_fleet), "pricing" (executor.repricing), or a standing rule's function
+# name ("sell_limits", "grow", ...). Over 33 game hours rules only earned 1.61
+# million per game hour in the last third against 1.82 for the game alone, and
+# these switches find which rule costs it.
+RULES_OFF = {r.strip() for r in os.environ.get("X4_RULES_OFF", "").split(",") if r.strip()}
 
 
 def _scripted(remembered: dict) -> PlannerResponse:
@@ -223,7 +229,7 @@ def cycle(model: str | None = None, save: Path | None = None, force: bool = Fals
     # Aim the trade fleet at whatever is crowding the warehouse, and hand the
     # ships back when nothing is. Deterministic for the same reason pricing is:
     # which ware takes the most room is a sum, not a judgement.
-    commands += executor.focus_fleet(state)
+    commands += [] if "focus" in RULES_OFF else executor.focus_fleet(state)
     # A build that cannot pay stops buying. Topping it up is a sum.
     commands += executor.funding(state, remembered.setdefault("funded", {}))
     # A station making a ware itself should not also pay NPCs for it.
@@ -231,7 +237,7 @@ def cycle(model: str | None = None, save: Path | None = None, force: bool = Fals
     # A build waits for whoever brings its wares; one of ours brings them.
     commands += executor.feed_build_storages(state, remembered.setdefault("feeders", {}))
     # Settings and errands that are arithmetic, each sent once (standing.py).
-    commands += standing.commands(state, remembered)
+    commands += standing.commands(state, remembered, off=RULES_OFF)
 
     # Explorers that are exploring the sector they are already in are reported,
     # not re-tasked. Sending them out automatically killed five scouts in an
@@ -246,7 +252,7 @@ def cycle(model: str | None = None, save: Path | None = None, force: bool = Fals
     failures += exhausted
 
     priced = {c.rsplit(" ", 1)[0] for c in commands if c.startswith("price ")}
-    commands += [c for c in ([] if NO_PRICING else executor.repricing(state))
+    commands += [c for c in ([] if NO_PRICING or "pricing" in RULES_OFF else executor.repricing(state))
                  if c.rsplit(" ", 1)[0] not in priced]
 
     # A ship on an errand belongs to its job until released: nothing else may

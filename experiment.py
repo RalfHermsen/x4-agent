@@ -190,6 +190,7 @@ def main() -> int:
         "seta": args.seta, "catalog": os.environ.get("X4_CATALOG") == "1",
         "rules_only": os.environ.get("X4_RULES_ONLY") == "1",
         "no_pricing": os.environ.get("X4_NO_PRICING") == "1",
+        "rules_off": os.environ.get("X4_RULES_OFF", ""),
         "started": datetime.now().isoformat(timespec="seconds")}, indent=2), encoding="utf-8")
 
     if launch_game.running():

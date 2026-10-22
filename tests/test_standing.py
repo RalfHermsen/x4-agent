@@ -229,3 +229,11 @@ def test_grow_expands_with_the_top_ranked_ware(small_state, monkeypatch):
     assert standing.grow(state, {}) == ["expand KYV-745 water"]   # the first that passes its gates
     state["player"]["money"] = 1_000_000
     assert standing.grow(state, {}) == []                          # below the capital floor
+
+
+def test_rules_named_off_are_not_run(small_state):
+    import copy
+    state = copy.deepcopy(small_state)
+    everything = standing.commands(state, {})
+    assert any(c.startswith("resupply") for c in everything)
+    assert not any(c.startswith("resupply") for c in standing.commands(state, {}, off={"once"}))
