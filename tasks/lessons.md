@@ -268,6 +268,16 @@ overwritten; turning cloud sync off for the game is what keeps it from
 coming back. The launcher's retries cannot get past it; when a launch fails
 three times, look at the screen first.
 
+**L23. Confirm a single-run finding before acting on it, and take the noise
+from runs of the same kind.** Two single ablations each earned 0.22 million
+credits per game hour more, four times the spread between advise runs, and
+both rules were switched off by default and written down as costing income.
+The run with both off then came out between the others. Runs in which a
+station grows spread far more than runs of the game alone, because an
+expansion finishes sooner or later and a ship is lost or not. The noise
+that counts is that of the arm being compared; measure it, or run the
+combination, before changing a default and before writing the cause down.
+
 ## About working on this
 
 **L15. A log line must say whether it worked, not what happened.** "sending:
