@@ -333,9 +333,14 @@ def scouts(state: dict, data: dict) -> list[str]:
     st = data.setdefault("standing", {})
     most = max(st.get("scouts_most", 0), len(ours))
     st["scouts_most"] = most
-    out = [f"explore {s['code']}" for s in ours
-           if sitrep.role_of(s) == "IDLE" and (s.get("assignment") or {}).get("group") is None]
     now = state.get("meta", {}).get("playtime_s") or 0
+    # A scout still at the wharf takes no order yet and stays idle; the explore
+    # order sent to it is remembered (agent.py, `sent_at`) and not sent again
+    # for a while. QPE-143 was sent one three cycles running.
+    sent_at = data.get("sent_at") or {}
+    out = [f"explore {s['code']}" for s in ours
+           if sitrep.role_of(s) == "IDLE" and (s.get("assignment") or {}).get("group") is None
+           and now - sent_at.get(f"explore {s['code']}", -1e9) > SCOUT_DELIVERY]
     if len(ours) < most and now - st.get("scout_bought_at", -1e9) > SCOUT_DELIVERY:
         # A wharf's M build module builds S ships too; the parser marks such a
         # wharf "m" only, so asking for "s" found no wharf and no lost scout

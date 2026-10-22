@@ -114,6 +114,20 @@ Done when: the position test is written up; the second change measured as
 GPU time per game hour and, in the next series, as net worth against the
 catalog runs above.
 
+## 6.8 Which rule costs income in steady state
+
+Added 2026-10-22 after 6.1's long runs: rules only earned 1.61 million per
+game hour in its last third against 1.82 for the game alone.
+
+* A warm baseline: the long rules-only run's end save (107 game hours, the
+  expansion built, the store full), frozen next to the 73-hour baseline.
+* Two-hour runs from it: the game alone, every rule, and every rule but one
+  (`X4_RULES_OFF`: "focus", "sell_limits", "pricing"), so each run measures
+  steady state from its first hour.
+
+Done when: each arm written up per game hour in net worth and credits; the
+rule that costs income, if one does, switched off or rewritten, with tests.
+
 ## Order of work, and what needs the game
 
 | Item | Offline now (worktree) | Needs the game |
@@ -134,10 +148,11 @@ pay back.
 
 | Item | State |
 |---|---|
-| 6.1 | to do |
-| 6.2 | to do |
-| 6.3 | to do |
-| 6.4 | to do |
-| 6.5 | to do |
-| 6.6 | to do |
-| 6.7 | to do |
+| 6.1 | done: over 33 game hours, net worth per game hour (whole run, last third): the game alone 1.83 and 1.82; rules only 1.84 and 1.61 (a one-off stock fill, then less income); rules and catalog 1.98 and 2.04, with a second expansion (refined metals, eating the ore that filled the store) and 2.03 in credits over the last third (`docs/experiments.md`) |
+| 6.2 | built on branch `growth-2026-10`, tests green; ranked offline on the baseline and a rules-only end save; proof in the game to do |
+| 6.3 | to do (needs the game) |
+| 6.4 | first finding: the station offers only a sliver of its stock in every arm (energy cells 157,754 held and 328 offered at the baseline, 159,128 and 1,502 in an advise run, 208,846 and 79 after rules only); the game's manager keeps the rest as a buffer for its own production, and Python's sell limits are small (2,000 to 15,000). So the rules-only stock gain is mostly a larger buffer after the expansion, one-off; whether income per hour grows is the long runs' question (6.1) |
+| 6.5 | built on the branch (civilian ships only, set once); proof in the game to do |
+| 6.6 | built on the branch (Teladi L stores, offered first when a store is full); proof in the game to do |
+| 6.8 | switch built on the branch (`X4_RULES_OFF`); warm baseline and runs after the series |
+| 6.7 | position test done: with the options reversed the model took the same option in 1 of 16 choices and the same position in 9 (`docs/contracts.md`); next, Python takes the top-ranked option and the model may only decline it |

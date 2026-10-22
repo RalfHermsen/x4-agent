@@ -448,3 +448,24 @@ situation out of the ten. On those three saves the local model chose the
 liquid miner purchase each time; in save_005 it bought one rather than assign
 the two liquid miners we own, because two had not kept the store up. Two
 situations offering the same purchase now send it once.
+
+## Does the model choose an option or a position? (6.7, 2026-10-21)
+
+From the five catalog runs, the 41 cycles in which a situation offered two or
+more options; each report given to the local model again with every
+situation's options in reverse order, and the chosen option compared by its
+text with the first answer. Sixteen choices could be compared (both answers
+chose something in a situation with more than one option):
+
+| | Choices |
+|---|---|
+| The same option as the first time | 1 |
+| Another option | 15 |
+| of which at the same position as the first time | 9 |
+
+The model follows the position more often than the option: reversed, it took
+the same number in 9 of 16 cases and the same option in one. That is why the
+catalog adds nothing measurable to Python's rules (`docs/experiments.md`):
+its choices between options are mostly position and chance. A choice with
+weight should be ranked by Python (6.2's margins) and taken from the top,
+with the model at most able to decline it.

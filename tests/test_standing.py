@@ -237,3 +237,13 @@ def test_rules_named_off_are_not_run(small_state):
     everything = standing.commands(state, {})
     assert any(c.startswith("resupply") for c in everything)
     assert not any(c.startswith("resupply") for c in standing.commands(state, {}, off={"once"}))
+
+
+def test_an_explore_order_is_not_resent_to_a_scout_still_at_the_wharf(small_state):
+    import copy
+    state = copy.deepcopy(small_state)
+    _add_ship(state, "SCT-003", "ship_arg_s_scout_01_a_macro", owner="player")
+    next(a for a in state["assets"] if a["code"] == "SCT-003")["orders"] = []
+    now = state["meta"]["playtime_s"]
+    assert "explore SCT-003" not in standing.scouts(state, {"sent_at": {"explore SCT-003": now - 300}})
+    assert "explore SCT-003" in standing.scouts(state, {"sent_at": {"explore SCT-003": now - 4000}})
