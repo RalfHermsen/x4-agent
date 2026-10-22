@@ -182,10 +182,15 @@
                    multiple="true"
                    recursive="true"/>
 
+      <!-- checkoperational="false": a station with no modules yet (GKL-870, a
+           plot with a build storage) is not operational, and without this it
+           was never found, so every command for it went unanswered. The game's
+           own aiscripts use the same attribute to find wrecks for towing. -->
       <find_object name="$agent_stations"
                    class="class.station"
                    owner="faction.player"
                    space="player.galaxy"
+                   checkoperational="false"
                    multiple="true"
                    recursive="true"/>
 
