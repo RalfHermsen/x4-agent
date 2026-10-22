@@ -134,7 +134,7 @@ pay back.
 
 | Item | State |
 |---|---|
-| 6.1 | the game alone over 33 game hours: 1.83 million per game hour in net worth, 1.82 over the last third, steady; the rules-only and catalog long runs to come |
+| 6.1 | long runs, 33 game hours each, net worth per game hour (whole run, last third): the game alone 1.83 and 1.82; rules only 1.84 and 1.61, its 8 million of extra stock all in the first five game hours. The rules' lead in two-hour runs was the one-off fill of the larger store; after it they earn less per hour than the game alone. Next: find which rule costs income in steady state (fleet focus, sell limits, repricing), from a grown station's save; the catalog long run to come |
 | 6.2 | built on branch `growth-2026-10`, tests green; ranked offline on the baseline and a rules-only end save; proof in the game to do |
 | 6.3 | to do (needs the game) |
 | 6.4 | first finding: the station offers only a sliver of its stock in every arm (energy cells 157,754 held and 328 offered at the baseline, 159,128 and 1,502 in an advise run, 208,846 and 79 after rules only); the game's manager keeps the rest as a buffer for its own production, and Python's sell limits are small (2,000 to 15,000). So the rules-only stock gain is mostly a larger buffer after the expansion, one-off; whether income per hour grows is the long runs' question (6.1) |
