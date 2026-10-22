@@ -319,13 +319,11 @@ def price_gaps(stations: list[dict], known: list[dict]) -> list[str]:
             if ask > top * (1 + PRICE_GAP):
                 lines.append(f"  {station['code']} sell price for {ware} is {ask:.0f} Cr "
                              f"(stock {held}); the best bid we know is {top:.0f} Cr "
-                             f"from {who}, who wants {wanted}. Python cuts it once "
-                             f"two buyers are known.")
+                             f"from {who}, who wants {wanted}.")
             elif ask < top * (1 - PRICE_GAP):
                 lines.append(f"  {station['code']} sell price for {ware} is {ask:.0f} Cr "
                              f"(stock {held}) while {who} pays {top:.0f} Cr for "
-                             f"{wanted}. Python prices under the cheapest supplier "
-                             f"on purpose, to draw outside traders.")
+                             f"{wanted}.")
     return lines
 
 

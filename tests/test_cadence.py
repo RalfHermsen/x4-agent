@@ -17,6 +17,8 @@ def test_second_cycle_on_same_state_skips_the_model(run_cycle, fake_planner):
 def test_repricing_still_runs_when_quiet(run_cycle, monkeypatch):
     # The small save has nothing to reprice, so stand in for the arithmetic and
     # check that a silent cycle still calls it and still sends what it returns.
+    # Repricing is off by default since 6.8; this is the behaviour when it is on.
+    monkeypatch.setattr(agent, "RULES_OFF", {"sell_limits"})
     monkeypatch.setattr(agent.executor, "repricing",
                         lambda state: ["price KYV-745 sunriseflowers sell 110"])
     run_cycle()

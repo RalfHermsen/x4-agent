@@ -109,7 +109,7 @@ Overview):
 
 **Manual pricing (critical when you are away):**
 
-Sell prices are Python's every cycle (see below); propose none yourself.
+Sell prices are the station managers' own (see below); propose none yourself.
 
 * **Auto Pricing OFF for end products**, otherwise the manager drops the price
   when storage fills. Set it by hand to average or about 5 percent below.
@@ -151,29 +151,19 @@ Sell prices are Python's every cycle (see below); propose none yourself.
 
 ---
 
-* **We compete on price, not on margin.** Python prices every ware just under
-  the cheapest supplier we can see. The point is to be worth an outside
-  trader's trip, so that somebody else's ships move our goods and the capital
-  that would have gone into freighters goes into warships instead. The report
-  says how many open sales are to outside traders; if that number stays at
-  zero, the price is still too high whatever the stock level does.
 * **The trade fleet is aimed automatically too.** Python points every assigned
   trader at one ware each cycle: whatever is blocking the warehouse if something
   is, and otherwise whatever pays best per cubic metre of hold. A trip carries
   space, not units, so a cargo worth 54 Cr per cubic metre beats one worth 9
   every time, with the same ships and the same fuel.
-* **Prices are Python's; do not propose them.** Every cycle Python sets each
-  sell price just under the cheapest supplier we can see, and never cuts a
-  price when only one buyer is known. A price you propose is refused: in the
-  first measured run the model and Python undid each other's prices all night.
-  Spend your actions on ships, assignments, budgets, trade rules and
-  expansions.
-* **Python prices against the market, not against the warehouse.** A station
-  manager sets prices from how full its storage is, which is not the same
-  thing as what anyone will pay; that is why Python overrides it. The report
-  shows our asking price beside the best bid we know, for reading: a ware
-  that does not sell at a fair price calls for a ship, a trade rule or a
-  buyer found by exploring, not for a price.
+* **Prices are the station managers'; do not propose them.** Python used to
+  set each sell price under the cheapest supplier, and measured from a grown
+  station that cost about 0.22 million credits per game hour against the
+  managers' own prices; so did keeping stock back with sell limits. A price
+  you propose is refused. The report shows our asking price beside the best
+  bid we know, for reading: a ware that does not sell calls for a ship, a
+  trade rule or a buyer found by exploring, not for a price. Spend your
+  actions on ships, assignments, budgets, trade rules and expansions.
 * **A single low bid is not a market.** When only one station we know buys a
   ware, that is a statement about how little of the map we have seen, not about
   what the ware is worth. Selling an intermediate good like refined metals into

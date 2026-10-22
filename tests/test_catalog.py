@@ -274,6 +274,7 @@ def test_a_paid_repair_is_not_cleared(small_state):
 
 def test_rules_only_never_asks_the_model_and_still_acts(run_cycle, fake_planner, monkeypatch):
     monkeypatch.setattr(agent, "RULES_ONLY", True)
+    monkeypatch.setattr(agent, "RULES_OFF", {"sell_limits"})          # repricing on for this check
     monkeypatch.setattr(agent.executor, "repricing", lambda state: ["price KYV-745 energycells sell 15"])
     result = run_cycle()
     assert fake_planner.calls == 0
@@ -385,3 +386,10 @@ def test_an_empty_station_starts_with_a_ware_it_can_make_alone(small_state, monk
     assert catalog._growth_wares(station, ["microchips", "water"]) == ["water"]
     station["modules"] = ["prod_gen_water_macro"]
     assert catalog._growth_wares(station, ["microchips", "water"]) == ["microchips", "water"]
+
+
+def test_sell_limits_and_repricing_are_off_by_default():
+    import agent
+    assert agent.rules_off({}) == {"sell_limits", "pricing"}
+    assert agent.rules_off({"X4_RULES_ON": "pricing"}) == {"sell_limits"}
+    assert agent.rules_off({"X4_RULES_OFF": "focus"}) == {"sell_limits", "pricing", "focus"}

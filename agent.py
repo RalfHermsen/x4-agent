@@ -63,7 +63,19 @@ NO_PRICING = os.environ.get("X4_NO_PRICING") == "1"
 # name ("sell_limits", "grow", ...). Over 33 game hours rules only earned 1.61
 # million per game hour in the last third against 1.82 for the game alone, and
 # these switches find which rule costs it.
-RULES_OFF = {r.strip() for r in os.environ.get("X4_RULES_OFF", "").split(",") if r.strip()}
+# Off by default since 6.8: from a grown station each cost about 0.22 million
+# credits per game hour (docs/experiments.md). X4_RULES_ON turns one back on.
+DEFAULT_OFF = frozenset({"sell_limits", "pricing"})
+
+
+def rules_off(env: dict) -> set[str]:
+    """The rules switched off: the defaults and X4_RULES_OFF, minus X4_RULES_ON."""
+    def names(key):
+        return {r.strip() for r in env.get(key, "").split(",") if r.strip()}
+    return (set(DEFAULT_OFF) | names("X4_RULES_OFF")) - names("X4_RULES_ON")
+
+
+RULES_OFF = rules_off(os.environ)
 
 
 def _scripted(remembered: dict) -> PlannerResponse:
