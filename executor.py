@@ -65,6 +65,18 @@ EXPANSION_MODULES = {
     "water": ("prod_gen_water_macro", True),
     "refinedmetals": ("prod_gen_refinedmetals_macro", True),
     "siliconwafers": ("prod_gen_siliconwafers_macro", True),
+    # 6.2: every other production ware a blueprint was held for in the 73-hour
+    # save. None of them eats a mined solid.
+    "microchips": ("prod_gen_microchips_macro", False),
+    "smartchips": ("prod_gen_smartchips_macro", False),
+    "spices": ("prod_gen_spices_macro", False),
+    "medicalsupplies": ("prod_tel_medicalsupplies_macro", False),
+    "nostropoil": ("prod_tel_nostropoil_macro", False),
+    "sunriseflowers": ("prod_tel_sunriseflowers_macro", False),
+    # 6.6: a large store of the kind that is full (Teladi, whose blueprints
+    # are held). Liquid storage is left out: no blueprint for it.
+    "storage_solid": ("storage_tel_l_solid_01_macro", False),
+    "storage_container": ("storage_tel_l_container_01_macro", False),
     # 3.7: a small habitat of the race the station is built from. The model
     # asks for "habitation"; Python picks the race (habitation_race below).
     "habitation_arg": ("hab_arg_s_01_macro", False),

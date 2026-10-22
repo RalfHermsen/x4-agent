@@ -246,7 +246,7 @@ def blueprint_lines(state: dict) -> list[str]:
     held = set(state.get("player", {}).get("blueprints") or [])
     have, missing = [], []
     for ware, (macro, _) in executor.EXPANSION_MODULES.items():
-        if ware.startswith("habitation"):
+        if ware.startswith(("habitation", "storage_")):
             continue
         entry = table.get(macro) or {}
         if entry.get("ware") in held:

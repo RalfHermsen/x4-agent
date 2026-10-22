@@ -294,8 +294,8 @@ def storage_full(state: dict) -> list[Situation]:
     """A store at 90 % or more: what is in it decides what helps.
 
     Products piling up need more traders; mined inputs piling up need
-    production that uses them. Storage modules would help both, and the
-    bridge cannot build them yet. Taking miners off the station is not
+    production that uses them. A larger store helps both and is offered
+    first (6.6, a Teladi L module). Taking miners off the station is not
     offered: `automine` queues a mining order but leaves the ship in the
     station's mining group, so it went on delivering to the full store
     (POS-705, twice, in the first catalog run). That needs a verb that
@@ -316,6 +316,10 @@ def storage_full(state: dict) -> list[Situation]:
             products = [w for w in wares if w in sells]
             inputs = [w for w in wares if w not in sells]
             candidates = []
+            if f"storage_{transport}" in executor.EXPANSION_MODULES:
+                candidates.append((f"expand {st['code']} with a large {transport} store",
+                                   {"type": "expand_station", "station_id": st["code"],
+                                    "ware": f"storage_{transport}"}))
             for ware in inputs:
                 consumer = CONSUMER_OF.get(ware)
                 if consumer:
@@ -337,7 +341,7 @@ def storage_full(state: dict) -> list[Situation]:
                 options += _buy_options(state, (("container freighter",
                                                  "ship_{race}_m_trans_container_01_a_macro"),))[:2]
             text = (f"{st['code']} {transport} storage is {share * 100:.0f} % full "
-                    f"({', '.join(wares[:4]) or 'unknown wares'}). The agent cannot build storage modules yet.")
+                    f"({', '.join(wares[:4]) or 'unknown wares'}).")
             if options:
                 out.append(Situation(f"storage:{st['code']}:{transport}", text, options[:MAX_OPTIONS]))
     return out
@@ -435,6 +439,105 @@ def covered_ground(state: dict) -> list[Situation]:
     return out
 
 
+RECIPE_RACE = {"tel": "teladi", "arg": "argon", "par": "paranid", "spl": "split", "ter": "terran"}
+HELD_HOURS = 10    # stock of a ware, in hours of one module's output, above which it is not expanded
+
+
+def _best_buy(state: dict, ware: str) -> float | None:
+    """The best price a station we know pays for this ware, if one buys it."""
+    prices = [o["price"] for k in state.get("known_stations", []) for o in k.get("offers", [])
+              if o.get("ware") == ware and o.get("side") == "buy" and o.get("price")
+              and (o.get("amount") or 0) > 0]
+    return max(prices) if prices else None
+
+
+def _demand(state: dict, ware: str) -> int:
+    """How much of this ware the stations we know are asking to buy."""
+    return sum(int(o.get("amount") or 0) for k in state.get("known_stations", [])
+               for o in k.get("offers", []) if o.get("ware") == ware and o.get("side") == "buy")
+
+
+def expansion_margins(state: dict) -> list[tuple[str, float]]:
+    """(ware, margin per module per game hour) for each ware the bridge can
+    build, best first, at the prices we know (6.2).
+
+    The output at the best known buy price; each input at what we could get
+    for it instead (its best known buy price), or at the game's minimum price
+    when nobody we know buys it. A ware nobody we know buys is left out: its
+    module would fill a store. So is a ware we already hold more of than
+    everyone we know wants to buy: after the first rules-only run KYV-745 sat
+    on 208,000 unsold energy cells, and energy cells still topped the ranking
+    by margin. The recipe is the module's race's where the ware has one
+    (`libraries/wares.xml`), else the default.
+    """
+    import gamedata
+    table = gamedata.wares()
+    held: dict[str, int] = {}
+    for st in _stations(state):
+        for w, n in (st.get("cargo") or {}).items():
+            held[w] = held.get(w, 0) + n
+    out = []
+    for ware, (macro, _) in executor.EXPANSION_MODULES.items():
+        if ware.startswith(("habitation", "storage_")):
+            continue
+        recipes = (table.get(ware) or {}).get("recipes") or {}
+        race = RECIPE_RACE.get(macro.split("_")[1])
+        recipe = recipes.get(race) or recipes.get("default") or next(iter(recipes.values()), None)
+        sell = _best_buy(state, ware)
+        if not recipe or not sell or not recipe.get("time") or held.get(ware, 0) >= _demand(state, ware):
+            continue
+        # Ten hours of one module's output already in store: the station is not
+        # selling what it makes, and one more module adds to the pile. KYV-745
+        # held 208,000 energy cells, twenty hours of a module, and offered 79.
+        if held.get(ware, 0) >= HELD_HOURS * recipe["amount"] * 3600 / recipe["time"]:
+            continue
+        cost = sum(n * (_best_buy(state, w) or (table.get(w) or {}).get("minprice", 0))
+                   for w, n in (recipe.get("inputs") or {}).items())
+        out.append((ware, (recipe["amount"] * sell - cost) * 3600 / recipe["time"]))
+    return sorted(out, key=lambda pair: -pair[1])
+
+
+def first_module_ok(ware: str) -> bool:
+    """A ware an empty station can make: inputs only that are mined, or energy
+    cells, which every market sells and its budget buys. Its first module has
+    nothing next to it to feed it otherwise (6.3)."""
+    import gamedata
+    recipe = ((gamedata.wares().get(ware) or {}).get("recipes") or {}).get("default") or {}
+    allowed = set().union(*executor.MINABLE.values()) | {"energycells"}
+    return all(w in allowed for w in (recipe.get("inputs") or {}))
+
+
+def _growth_wares(st: dict, margins: list[str]) -> list[str]:
+    """The ranked wares for this station: all of them, or for a station with no
+    modules yet only those its first module can make alone."""
+    return margins if st.get("modules") else [w for w in margins if first_module_ok(w)]
+
+
+def could_grow(state: dict) -> list[Situation]:
+    """A station with modules and no build running: the three expansions that
+    pay most at the prices we know, each through the gates (blueprint, a
+    build already planned). A builder is hired by Python when one is needed."""
+    ranked = [(w, m) for w, m in expansion_margins(state) if m > 0]
+    out = []
+    for st in _stations(state):
+        code = st["code"]
+        allowed = set(_growth_wares(st, [w for w, _ in ranked]))
+        margins = [(w, m) for w, m in ranked if w in allowed]
+        options = []
+        for ware, margin in margins:
+            option = _option(f"expand {code} with {ware} production, about {margin / 1000:,.0f}k Cr "
+                             f"per game hour per module at the prices we know",
+                             {"type": "expand_station", "station_id": code, "ware": ware}, state)
+            if option:
+                options.append(option)
+            if len(options) == 3:
+                break
+        if options:
+            out.append(Situation(f"grow:{code}", f"{code} has no build running; the expansions that "
+                                 f"pay most at the prices we know:", options))
+    return out
+
+
 def mined_shortage(state: dict) -> list[Situation]:
     """A station low on a ware that is mined, not bought: miners are the answer.
 
@@ -480,7 +583,7 @@ def mined_shortage(state: dict) -> list[Situation]:
 
 # Risk first, then what blocks production, then idle hands. Money alone is
 # not a situation (5.6): a purchase belongs to the need it answers.
-ENTRIES = (under_fire, in_hostile_space, storage_full, mined_shortage, no_budget,
+ENTRIES = (under_fire, in_hostile_space, storage_full, mined_shortage, could_grow, no_budget,
            idle_ships, covered_ground)
 DANGER = (under_fire, in_hostile_space)
 

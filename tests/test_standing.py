@@ -64,7 +64,7 @@ def test_ledger_every_tenth_cycle():
 def test_once_settings_go_out_once(small_state):
     data = {}
     first = standing.once(small_state, data)
-    assert first == ["resupply medium", "respond foundabandonedship claim",
+    assert first == ["resupply medium", "avoid hostile on", "respond foundabandonedship claim",
                      "respond foundlockbox collect", "turrets KYV-745 attackenemies"]
     assert standing.once(small_state, data) == []
 
@@ -215,6 +215,28 @@ def test_an_idle_scout_is_sent_exploring(small_state):
     _add_ship(state, "SCT-002", "ship_arg_s_scout_01_a_macro", owner="player")
     next(a for a in state["assets"] if a["code"] == "SCT-002")["orders"] = []
     assert "explore SCT-002" in standing.scouts(state, {})
+
+
+def test_grow_expands_with_the_top_ranked_ware(small_state, monkeypatch):
+    import copy
+    import catalog
+    state = copy.deepcopy(small_state)
+    state["player"]["money"] = 50_000_000
+    monkeypatch.setattr(catalog, "expansion_margins", lambda state: [("microchips", 40000.0), ("water", 9000.0)])
+    monkeypatch.setattr(catalog, "_through_gates",
+                        lambda action, state: (None if action["ware"] == "microchips"
+                                               else f"expand {action['station_id']} {action['ware']}"))
+    assert standing.grow(state, {}) == ["expand KYV-745 water"]   # the first that passes its gates
+    state["player"]["money"] = 1_000_000
+    assert standing.grow(state, {}) == []                          # below the capital floor
+
+
+def test_rules_named_off_are_not_run(small_state):
+    import copy
+    state = copy.deepcopy(small_state)
+    everything = standing.commands(state, {})
+    assert any(c.startswith("resupply") for c in everything)
+    assert not any(c.startswith("resupply") for c in standing.commands(state, {}, off={"once"}))
 
 
 def test_an_explore_order_is_not_resent_to_a_scout_still_at_the_wharf(small_state):

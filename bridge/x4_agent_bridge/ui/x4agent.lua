@@ -342,7 +342,9 @@ end
 -- space. Named so it can be found again, and never confused with one the
 -- player made by hand.
 local AVOID_HOSTILE = "x4-agent: avoid hostile space"
-local BLACKLIST_GROUPS = { "civilian", "military" }
+-- Civilian only: traders and miners. Scouts explore hostile space on purpose
+-- (the player's decision, 2026-10-21) and fighters go where they are sent.
+local BLACKLIST_GROUPS = { "civilian" }
 
 --- The id of the blacklist with this name, or nil.
 local function find_blacklist(name)
@@ -394,7 +396,7 @@ local function create_avoid_hostile()
     return id
 end
 
---- "avoid hostile on" -> no ship of ours travels through hostile sectors.
+--- "avoid hostile on" -> no civilian ship of ours travels through hostile sectors.
 --
 -- Set as the player default rather than ship by ship, so it covers ships bought
 -- later as well. That is the difference between a rule and a chore.
