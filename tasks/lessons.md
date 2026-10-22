@@ -259,6 +259,15 @@ Before believing that a change costs money, look for where the money went:
 an account, a store, a ship. A metric that cannot see an investment always
 favours doing nothing.
 
+**L22. Unattended runs need the game's Steam Cloud sync off.** Each run puts
+the player's saves back, and Steam then finds local saves that differ from
+its cloud copies. Twice in two days a launch hung on a Steam dialog waiting
+for a click ("Unable to Sync", then "Cloud Conflict"), and a series stopped
+for hours. Answering it is the player's choice, since one side is
+overwritten; turning cloud sync off for the game is what keeps it from
+coming back. The launcher's retries cannot get past it; when a launch fails
+three times, look at the screen first.
+
 ## About working on this
 
 **L15. A log line must say whether it worked, not what happened.** "sending:
