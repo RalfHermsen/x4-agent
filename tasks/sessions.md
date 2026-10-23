@@ -187,3 +187,33 @@ dialog that blocked launches (the player answered it; it did not come back), a
 defender cleared in combat, a scout re-sent before the logbook showed its
 order, a fighter sent exploring. Scouts now explore and a lost one is
 replaced at once, the player's decision.
+
+## 2026-10-21 to 2026-10-23: growth, and finding out it had been free
+
+A growth plan (6.1 to 6.8) was built and measured: a score that counts what
+the stations hold, long runs of 33 game hours from a warm baseline, a `grow`
+rule ranking expansions by margin and demand, and single rules switched off
+by name. The rules looked ahead of the game alone in every growing arm.
+
+Then the second station, GKL-870, drew budgets, defenders and expansions
+that did nothing, and the cause turned out to be a chain. The station had
+never been built (the parser counted modules under construction), because
+its build storage never got money (the funding rule read what a moneyless
+build offers to buy, which is nothing). Once built it had no manager (the
+game appoints none: `manager`, crew from our own ships), no money in its
+account (`budget` moves none: `account`, the game's own estimate) and no
+dock, without which no trader came. KYV-745 had stopped growing too: no
+production module could be attached without a connector the player had no
+blueprint for (bought now, by Python), and a build of nothing sat queued
+behind its expansion. Once modules could be attached, a proof run grew 28
+modules in five game hours without spending a credit: the bridge applied
+each plan to the station, which places finished modules on a working
+station for free. Fixed the faction logic's way, the plan handed to the
+build storage as a build, and proven paid for. So the growth measured
+before 2026-10-23 rests on free modules (`docs/experiments.md`); the series
+started that evening is the first with growth paid for.
+
+Most of the mechanics behind this the manual states in a sentence; four
+probes were spent finding them out before it was read (the player's
+remark, and the rule since: the manual first, then the game's own scripts,
+then a probe). Lessons L24 to L26.
