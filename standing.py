@@ -17,6 +17,7 @@ takes one command every two seconds (tasks/lessons.md L9, L11).
     4.15  our own construction vessel looks for our builds
     6.9   a station with modules and no manager gets one from our crews
     6.10  a station without a dock gets one, an empty plot first
+    6.11  a station with a manager and an empty account gets the game's estimate
 """
 
 from __future__ import annotations
@@ -209,6 +210,8 @@ def _served(build: dict) -> bool:
 
 # A build may wait this long, in game seconds, for a vessel before we hire one.
 HIRE_AFTER = 600
+# A build still waiting for a vessel this long after a hire hires again.
+REHIRE_AFTER = 4 * 3600
 
 
 def hire_builders(state: dict, data: dict) -> list[str]:
@@ -224,6 +227,7 @@ def hire_builders(state: dict, data: dict) -> list[str]:
     now = state.get("meta", {}).get("playtime_s") or 0
     waiting = data.setdefault("standing", {}).setdefault("build_waiting", {})
     hired = data["standing"].setdefault("hired", {})
+    hired_at = data["standing"].setdefault("hired_at", {})
     tried = data["standing"].setdefault("hire_tried", [])
     own_builder = any(sitrep.ship_type(a.get("macro")) == "construction vessel"
                       and a.get("owner") == "player" for a in state.get("assets", []))
@@ -238,7 +242,16 @@ def hire_builders(state: dict, data: dict) -> list[str]:
         if not (build.get("queued") or build.get("in_progress")) or _served(build):
             waiting.pop(code, None)
             hired.pop(code, None)
+            hired_at.pop(code, None)
             continue
+        # A hired vessel that waits too long for resources leaves for other
+        # work (the manual's Station Building page: it may "disengage"), and
+        # the build waits for a vessel again. GKL-870's build was hired one
+        # vessel in 33 game hours and never another.
+        if (code in hired and now - hired_at.setdefault(code, now) > REHIRE_AFTER
+                and (build.get("processor") or {}).get("vessel_required")):
+            hired.pop(code)
+            hired_at.pop(code)
         since = waiting.setdefault(code, now)
         if now - since < HIRE_AFTER or own_builder or code in hired:
             continue
@@ -248,6 +261,7 @@ def hire_builders(state: dict, data: dict) -> list[str]:
         if candidates:
             _, builder, owner = candidates[0]
             hired[code] = builder
+            hired_at[code] = now
             tried.append(builder)
             out.append(f"hire {builder} {owner} {code}")
     return out
@@ -398,12 +412,34 @@ def managers(state: dict, data: dict) -> list[str]:
     import catalog
     now = state.get("meta", {}).get("playtime_s") or 0
     sent_at = data.get("sent_at") or {}
-    # A built station, dock or not: crew from JEC-090 was sent to GKL-870 with
-    # only a water module and a store standing. A construction site refuses
-    # everyone ("invalid").
+    # A construction site refuses everyone ("invalid"); a built station takes
+    # one with or without a dock, but without one nobody trades with it
+    # (`accounts`), so a station that cannot dock is sent nobody.
     return [f"manager {st['code']}" for st in catalog._stations(state)
-            if st.get("code") and st.get("modules") and not st.get("manager")
+            if st.get("code") and st.get("modules") and catalog._has_dock(st) and not st.get("manager")
             and now - sent_at.get(f"manager {st['code']}", -1e9) > MANAGER_TRAVEL]
+
+
+def accounts(state: dict, data: dict) -> list[str]:
+    """6.11: a station with a manager and an empty account gets money: the
+    game's own estimate, as its "Accept Estimate" button moves it.
+
+    `budget` sets a minimum and a maximum and moves nothing. A station that
+    sells nothing yet never fills its account itself: GKL-870 sat for two game
+    hours with a minimum of 4.9 million, an empty account, and a buy offer for
+    0 ice. Once an hour at most, so the transfer shows in the save first.
+
+    Only with a dock: given the game's estimate (0.62 million), GKL-870 asked
+    for 17,828 ice and in 2.4 game hours no trader so much as reserved a
+    trade, while KYV-745 beside it had eleven.
+    """
+    import catalog
+    now = state.get("meta", {}).get("playtime_s") or 0
+    sent_at = data.get("sent_at") or {}
+    return [f"account {st['code']}" for st in catalog._stations(state)
+            if st.get("code") and st.get("manager") and catalog._has_dock(st)
+            and not int((st.get("account") or {}).get("amount", 0) or 0)
+            and now - sent_at.get(f"account {st['code']}", -1e9) > ACCOUNT_WAIT]
 
 
 def docks(state: dict, data: dict) -> list[str]:
@@ -431,9 +467,11 @@ def docks(state: dict, data: dict) -> list[str]:
 SCOUT_DELIVERY = 1800
 # Game seconds a manager sent from our crews gets to arrive before another is sent.
 MANAGER_TRAVEL = 3600
+# Game seconds before an account top-up is sent again.
+ACCOUNT_WAIT = 3600
 
 RULES = (sell_limits, revisit, satellites, ledger, once, patrols, find_builds, hire_builders,
-         repairs, seminars, scouts, docks, managers, grow)
+         repairs, seminars, scouts, docks, managers, accounts, grow)
 
 
 def commands(state: dict, data: dict, off: set | frozenset = frozenset()) -> list[str]:

@@ -297,7 +297,7 @@ def cycle(model: str | None = None, save: Path | None = None, force: bool = Fals
     memory.record(remembered, commands)
     sent_at = remembered.setdefault("sent_at", {})
     for c in commands:
-        if c.startswith(("explore ", "expand ", "manager ")):
+        if c.startswith(("explore ", "expand ", "manager ", "account ")):
             sent_at[c] = state.get("meta", {}).get("playtime_s", 0.0)
     memory.start_expansions(remembered, commands, state,
                             lambda ware: executor.EXPANSION_MODULES.get(ware, ("?", False))[0])

@@ -272,8 +272,40 @@ def test_a_station_without_a_dock_gets_one(small_state, monkeypatch):
     _station(state)["modules"] = ["prod_gen_water_macro", "storage_tel_m_solid_01_macro"]
     _station(state)["manager"] = None
     assert standing.docks(state, {}) == ["expand KYV-745 dock"]
-    assert standing.managers(state, {}) == ["manager KYV-745"]      # built, so someone can go
+    assert standing.managers(state, {}) == []                       # nobody would trade with it
     assert catalog._growth_wares(_station(state), ["water"]) == []
     _station(state)["modules"] = []                                 # an empty plot: its dock first
     assert standing.docks(state, {}) == ["expand KYV-745 dock"]
     assert standing.managers(state, {}) == []
+
+
+def test_a_managed_station_with_an_empty_account_gets_the_estimate_once(small_state):
+    import copy
+    state = copy.deepcopy(small_state)
+    _station(state)["account"] = {"id": "[0x1]", "own": "1", "amount": "930744"}
+    assert standing.accounts(state, {}) == []
+    _station(state)["account"] = {"id": "[0x1]", "own": "1", "min": "4877115"}   # a min, no money
+    assert standing.accounts(state, {}) == ["account KYV-745"]
+    now = state["meta"]["playtime_s"]
+    assert standing.accounts(state, {"sent_at": {"account KYV-745": now - 600}}) == []
+    _station(state)["manager"] = None
+    assert standing.accounts(state, {}) == []
+
+
+def test_a_build_still_waiting_long_after_a_hire_hires_again(small_state):
+    state = copy.deepcopy(small_state)
+    bs = next(a for a in state["assets"] if a["code"] == "XQL-000")
+    bs["build"] = {"queued": 0, "in_progress": 1, "builders": [],
+                   "processor": {"state": "waitingforresources", "vessel_required": True}}
+    sector = _station(state)["place"]["sector"]
+    state["builders"] = [{"code": "CZK-784", "owner": "antigone", "sector": sector},
+                         {"code": "DLM-221", "owner": "argon", "sector": sector}]
+    data = {}
+    standing.hire_builders(state, data)
+    state["meta"]["playtime_s"] += 700
+    first = standing.hire_builders(state, data)
+    state["meta"]["playtime_s"] += 3600
+    assert standing.hire_builders(state, data) == []                  # still its own
+    state["meta"]["playtime_s"] += 4 * 3600
+    second = standing.hire_builders(state, data)
+    assert len(first) == len(second) == 1 and first != second         # the first one left

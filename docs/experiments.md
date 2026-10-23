@@ -502,3 +502,54 @@ the ice) and refined metals (eating the ore) now head the ranking, well
 above nostropoil. Whether that is enough is open: water stays just ahead of
 refined metals, and this run built water twice without earning more. The
 next run with growth shows whether refined metals is what paid.
+
+**Correction, after the parser fix below.** Counted again with modules under
+construction left out, the new rules built three modules over the run, not
+four, all at KYV-745 (25 to 28); the rates in the table stand, since the
+miscounted modules appeared before the last third. The water at GKL-870 was
+never built.
+
+## 2026-10-23: GKL-870 was never built
+
+The run with the catalog and the new rules was stopped after twenty minutes:
+a budget for GKL-870 and a defender assigned to it were each sent three
+cycles running, and `expand GKL-870 water` six times. Each refusal looked
+like it had its own cause (no manager, then no dock), and the manager verb
+built for it was refused by the game for every one of 54 crew members
+("This transfer is currently not possible"). The station had never been
+built. In the save the station and both its modules carry
+state="construction"; the parser counted every module component as built.
+Its build had waited at step 1 of 9 since before the 73-hour baseline, in
+every run: a build storage with no money offers to buy 0 of everything while
+it still wants the lot, and the funding rule counted the offers, saw nothing
+missing, and never sent a credit. No `fund` had ever been sent in any run.
+
+Fixed and proven in the game, one step at a time, from the 75-hour save:
+
+| Step | What happened |
+|---|---|
+| Funding counts what the build wants | `fund GKL-870 low` (5.2 M); the build finished within about two game hours and used some 0.4 M |
+| `manager GKL-870`, crew from our own ships, no fee | refused on the construction site; on the built station a 4-star manager (12/15) arrived within minutes |
+| `expand GKL-870 dock` | refused: no construction sequence could attach an M dock, the venturer dock or even a second water module to the 2 km plot. It is full |
+| `budget GKL-870 low` | sets min and max (4.9 M and 7.3 M) and moves nothing: two game hours later the account was empty and the ice offer still at 0 |
+| `account GKL-870`, the game's "Accept Estimate" | 0.62 M moved, min and max set, the ice offer up from 0 to 17,828 |
+| Trade without a dock | in 2.4 game hours not one trader reserved a trade at GKL-870; KYV-745 beside it had eleven. A station without a dock is out of every trader's reach |
+
+Most of this the manual says in a sentence (the Station Building page of the
+Egosoft wiki): an unfunded build storage pays nobody, a hired builder that
+waits too long for resources may leave, the station account is filled with
+the slider or "Accept Estimate", and the dock goes first. Looking there
+first would have saved four probes. What it leaves open, trade without a
+dock, the last probe answered. GKL-870 stays as it is: a full plot with
+nowhere to dock, its 5.4 million in two accounts still ours.
+
+What changed in the rules: a module being built is not counted; a build
+storage is funded from what the build wants; a built station without a
+manager gets one from our crews (6.9); an empty plot gets a dock before
+anything else, and a station without one is not grown (6.10); a station with
+a manager and an empty account gets the game's own estimate moved into it,
+as its "Accept Estimate" button does (6.11); a manager and money go only to
+a station with a dock; a build still waiting for a vessel four game hours
+after a hire hires again; an expansion the bridge could not fit is not asked
+for again; and a run deploys the bridge it measures (L25: the first proof
+run spent half an hour against the previous bridge).

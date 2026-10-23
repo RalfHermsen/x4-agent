@@ -128,6 +128,21 @@ game hour in its last third against 1.82 for the game alone.
 Done when: each arm written up per game hour in net worth and credits; the
 rule that costs income, if one does, switched off or rewritten, with tests.
 
+## 6.9 to 6.11 A station that can work
+
+Found on 2026-10-23 (`docs/experiments.md`): GKL-870 was never built, and
+nothing that makes a station work was in place. In order, for any station:
+
+* **6.10 a dock**, an empty plot first: ships trade at a dock, and without
+  one no trader came. The expansion path builds only the modules asked for.
+* **6.9 a manager** from our own crews, the personnel menu's "work somewhere
+  else"; the game appoints none, it only gives the player an upkeep mission.
+* **6.11 money in the station account**, the game's own estimate moved as
+  its "Accept Estimate" button does; `budget` sets min and max only.
+
+Each through the gates and with a wait (`sent_at`), so a step that has not
+shown in the save yet is not sent twice.
+
 ## Order of work, and what needs the game
 
 | Item | Offline now (worktree) | Needs the game |
@@ -156,3 +171,6 @@ pay back.
 | 6.6 | storage done in the game (`expand KYV-745 storage_solid`, a Teladi L solid store queued); seminars still to do |
 | 6.8 | done, inconclusive on the rules: single runs suggested sell limits and repricing each cost 0.22 million credits per game hour, but both off together came out at 1.83, between the others; growth runs spread more than advise runs. Every growing arm beat the game alone (12 to 33 % in credits). Both rules off by default as the simpler choice |
 | 6.7 | position test done: with the options reversed the model took the same option in 1 of 16 choices and the same position in 9 (`docs/contracts.md`); next, Python takes the top-ranked option and the model may only decline it |
+| 6.9 | done in the game: a 4-star manager from our crews arrived at GKL-870 within minutes (refused while it was a construction site) |
+| 6.10 | rule and gate done; on GKL-870's full 2 km plot no dock fits, so it stays out of reach. A dock built first on an empty plot is still to be seen in a run |
+| 6.11 | done in the game: `account GKL-870` moved the game's estimate (0.62 M) and the ice offer went from 0 to 17,828; no trader came, for want of a dock |

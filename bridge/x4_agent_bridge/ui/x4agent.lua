@@ -1190,6 +1190,41 @@ local function assign_manager(station, args)
                                 args.code, #candidates, table.concat(parts, ", ")))
 end
 
+--- "account GKL-870" -> the station account set to what the game recommends:
+--- the map menu's "Accept Estimate" (infoSubmenuSetManagerAccountToEstimate).
+--- The estimate is the game's own: productionmoney plus the supply and trade
+--- ware budgets. Min becomes the estimate, max half as much again, and what is
+--- missing moves from the player. `budget` sets min and max only, so a
+--- station with no sales of its own kept an empty account and bought nothing.
+--- Only tops up: a station holding more keeps it.
+local function set_account(station, args)
+    local s64 = ConvertStringTo64Bit(tostring(station))
+    local money, estimate = GetComponentData(s64, "money", "productionmoney")
+    local okextra, extra = pcall(function()
+        return tonumber(C.GetSupplyBudget(station)) / 100 + tonumber(C.GetTradeWareBudget(station)) / 100
+    end)
+    if not okextra then
+        return refuse("account: the map menu's functions are not available: " .. tostring(extra))
+    end
+    estimate = (estimate or 0) + extra
+    money = money or 0
+    if estimate <= 0 then
+        return refuse("account: the game recommends nothing for " .. args.code)
+    end
+    local amount = estimate - money
+    if amount > 0 and amount > GetPlayerMoney() then
+        return refuse(string.format("account: %s needs %d Cr, we have %d", args.code, amount, GetPlayerMoney()))
+    end
+    SetMaxBudget(s64, (estimate * 3) / 2)
+    SetMinBudget(s64, estimate)
+    if amount > 0 then
+        TransferPlayerMoneyTo(amount, s64)
+    end
+    log(string.format("ORDER: account of %s set to the estimate %d Cr, %d Cr moved from the player",
+                      args.code, estimate, math.max(amount, 0)))
+    return true
+end
+
 --- "sellship ASO-629 WRF-001 argon" -> sell a ship of ours at that shipyard,
 --- for what the game says it is worth there. The map menu's sell dialog:
 --- the ship must be sellable and the yard able to build it; the value is
@@ -1422,6 +1457,7 @@ local HANDLERS = {
     tradeware = set_tradeware,
     traderule = set_trade_rule,
     manager = assign_manager,
+    account = set_account,
 }
 
 -- Commands that are not about one station. The station handlers above all take
