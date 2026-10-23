@@ -143,6 +143,26 @@ nothing that makes a station work was in place. In order, for any station:
 Each through the gates and with a wait (`sent_at`), so a step that has not
 shown in the save yet is not sent twice.
 
+## 6.12 A larger plot
+
+In the series of 2026-10-23 GKL-870 got its dock and a 3-star manager, and
+then neither refined metals nor water fitted beside the dock on its 2 km
+plot. The manual says nothing about enlarging a plot; the game's Plan Build
+menu does it (`menu_station_configuration.lua`): `ExtendBuildPlot` with the
+change per axis, the price `GetBuildPlotPrice` for the new size less
+`GetBuildPlotPayment`, paid with `TransferPlayerMoneyTo` to the sector's
+control station, then `PayBuildPlotSize`. A verb `plot STATION KM` that does
+the same at the menu price, and a rule that asks for it when an expansion
+was refused for want of room. KYV-745's 5 km plot fills too, so this is for
+growth at both. Built and proven after the series.
+
+## 6.13 Fund what is missing, not a tenth of the money
+
+`fund GKL-870 low` moved 4.7 million for a dock of about 0.4 million; the
+rest sits in the build storage. It counts in net worth but does not work.
+The bridge takes levels because it cannot parse a number (MD); the Lua side
+can, so the shortfall itself can be moved.
+
 ## Order of work, and what needs the game
 
 | Item | Offline now (worktree) | Needs the game |
