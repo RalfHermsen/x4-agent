@@ -429,6 +429,9 @@ def build(state: dict, goals: list[str] | None = None,
                         "TOO LOW: a manager needs money to open purchase orders")
 
             mgr = st.get("manager")
+            if not mgr and st.get("modules"):
+                add("  manager: none. Without one the station neither buys nor sells; "
+                    "Python sends one from our crews.")
             if mgr and mgr.get("management_raw") is not None:
                 stars = mgr["management_stars"]
                 warn = ("  TOO LOW: a station needs about 3 stars of management "

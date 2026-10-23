@@ -80,3 +80,16 @@ def test_build_storage_linked_to_its_station(small_state, large_state):
             assert bs["station"] in stations, bs["code"]
             assert stations[bs["station"]]["buildstorage"] == bs["code"]
     assert {a["code"]: a["buildstorage"] for a in _stations(small_state)} == {"KYV-745": "XQL-000"}
+
+
+def test_a_module_still_being_built_is_not_counted():
+    from lxml import etree
+
+    from save_parser import _built_modules
+    elem = etree.fromstring(
+        '<component><connections>'
+        '<connection><component class="production" macro="prod_gen_water_macro" state="construction" construction="[0x1]"/></connection>'
+        '<connection><component class="dockarea" macro="dockarea_arg_m_station_01_lowtech_macro" construction="[0x2]"/></connection>'
+        '<connection><component class="controlroom" macro="control_room_macro"/></connection>'
+        '</connections></component>')
+    assert _built_modules(elem) == ["dockarea_arg_m_station_01_lowtech_macro"]

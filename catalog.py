@@ -86,6 +86,22 @@ def _stations(state: dict) -> list[dict]:
     return [a for a in state.get("assets", []) if a.get("cls") == "station"]
 
 
+def _has_dock(st: dict) -> bool:
+    """A dock or a pier among the modules that stand: where ships trade."""
+    return any(m.startswith(("dockarea_", "pier_")) for m in st.get("modules") or [])
+
+
+def _managed(state: dict) -> list[dict]:
+    """Stations that can work: modules built, a dock, and a manager to run them.
+
+    GKL-870 was sent a budget, a defender and a second water module while it
+    was still a construction site, and the save showed none of them
+    (2026-10-23). `standing.docks` and `standing.managers` give a station
+    what it lacks.
+    """
+    return [s for s in _stations(state) if s.get("modules") and _has_dock(s) and s.get("manager")]
+
+
 def _order(ship: dict) -> str:
     return sitrep._first_order(ship) or "no orders"
 
@@ -232,7 +248,7 @@ def _buy_options(state: dict, roles: tuple[tuple[str, str], ...], size: str = "m
 def idle_ships(state: dict) -> list[Situation]:
     """A ship of ours with no orders and no commander earns nothing."""
     out = []
-    stations = [s for s in _stations(state) if s.get("modules")]
+    stations = _managed(state)
     for ship in _ships(state):
         if sitrep.role_of(ship) != "IDLE" or (ship.get("assignment") or {}).get("group") is not None:
             continue
@@ -278,7 +294,7 @@ def no_budget(state: dict) -> list[Situation]:
         if acct and int(acct.get("min", 0) or 0):
             continue
         modules = len(st.get("modules") or [])
-        if not modules:
+        if not modules or not st.get("manager"):
             continue
         what = f"{modules} modules"
         options = [o for o in (_option(f"set the budget of {st['code']} to {level}",
@@ -372,7 +388,7 @@ def under_fire(state: dict) -> list[Situation]:
     """A ship attacked recently, as the report's UNDER ATTACK section lists it."""
     out = []
     now = state.get("meta", {}).get("playtime_s", 0.0)
-    stations = [s for s in _stations(state) if s.get("modules")]
+    stations = _managed(state)
     for ship in _ships(state):
         hit = ship.get("attack") or {}
         if not hit or hit.get("method") in sitrep.HARMLESS_ATTACKS or now - hit["time"] > sitrep.ATTACK_MEMORY:
@@ -394,7 +410,7 @@ def in_hostile_space(state: dict) -> list[Situation]:
     threat (the report's THREATS section), not on a guarding order."""
     out = []
     home = {(s.get("place") or {}).get("sector") for s in _stations(state)}
-    stations = [s for s in _stations(state) if s.get("modules")]
+    stations = _managed(state)
     danger = {t["sector"]: t for t in sitrep.threats(state) if t["strength"] != "minor"}
     for ship in _ships(state):
         sector = (ship.get("place") or {}).get("sector")
@@ -419,7 +435,7 @@ def covered_ground(state: dict) -> list[Situation]:
     into unknown space six times and lost in both catalog runs of 2026-10-21.
     """
     out = []
-    stations = [s for s in _stations(state) if s.get("modules")]
+    stations = _managed(state)
     for ship in _ships(state):
         if not executor._exploring_nothing(ship, state):
             continue
@@ -519,9 +535,14 @@ def first_module_ok(ware: str) -> bool:
 
 
 def _growth_wares(st: dict, margins: list[str]) -> list[str]:
-    """The ranked wares for this station: all of them, or for a station with no
-    modules yet only those its first module can make alone."""
-    return margins if st.get("modules") else [w for w in margins if first_module_ok(w)]
+    """The ranked wares for this station: none until it has a dock and a
+    manager (`standing.docks`, then `standing.managers`); then, while it makes
+    nothing yet, only those its first production module can make alone."""
+    if not (_has_dock(st) and st.get("manager")):
+        return []
+    if not any(m.startswith("prod_") for m in st.get("modules") or []):
+        return [w for w in margins if first_module_ok(w)]
+    return margins
 
 
 def could_grow(state: dict) -> list[Situation]:

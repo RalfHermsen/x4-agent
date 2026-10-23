@@ -379,6 +379,12 @@
           <set_value name="$agent_module" exact="macro.storage_tel_l_container_01_macro"/>
         </do_if>
 
+        <!-- 6.10: an M dock, for a station that has none. -->
+        <do_if value="event.param == 'expand %s dock'.[$agent_station.idcode]">
+          <set_value name="$agent_ware" exact="ware.module_arg_dock_m_01_lowtech"/>
+          <set_value name="$agent_module" exact="macro.dockarea_arg_m_station_01_lowtech_macro"/>
+        </do_if>
+
         <!-- 3.7: a small habitat, of the race Python chose from the station's
              own modules. $agent_ware is the module's own ware, so the logbook
              line names it. -->
@@ -481,7 +487,7 @@
             </do_if>
             <do_else>
               <write_to_logbook category="general"
-                text="'[x4-agent] could not build a construction sequence for %s'.[$agent_ware.name]"/>
+                text="'[x4-agent] REFUSED: %s: could not build a construction sequence for %s (%s)'.[$agent_station.idcode, $agent_ware.name, $agent_ware.id]"/>
             </do_else>
           </do_elseif>
           <do_else>

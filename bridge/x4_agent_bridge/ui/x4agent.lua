@@ -1124,6 +1124,72 @@ local function deploy_builder(args)
     return true
 end
 
+--- "manager GKL-870" -> one of our crew runs the station: the personnel menu's
+--- "work somewhere else" to the manager post (menu_map.lua, the crew transfer
+--- to a station), for the person on any ship of ours whose combined skill for
+--- that post is highest. No fee, as in the game: the crew came with the ships
+--- we paid for. The person travels there; the save names them on arrival.
+--- The types and functions are the map menu's, used once it has declared them.
+local function assign_manager(station, args)
+    if GetComponentData(ConvertStringTo64Bit(tostring(station)), "tradenpc") then
+        return refuse("manager: " .. args.code .. " has a manager")
+    end
+    local okfn, can = pcall(function() return C.CanControllableHaveControlEntity(station, "manager") end)
+    if not okfn then
+        return refuse("manager: the map menu's functions are not available: " .. tostring(can))
+    end
+    if not can then
+        return refuse("manager: " .. args.code .. " cannot have a manager")
+    end
+    local candidates = {}
+    for shipcode, ship in pairs(player_ships()) do
+        local n = C.GetNumAllRoles()
+        local people = ffi.new("PeopleInfo[?]", n)
+        n = C.GetPeople2(people, n, ship, false)
+        for i = 0, n - 1 do
+            local role = ffi.string(people[i].id)
+            if (role == "service" or role == "marine") and people[i].amount > 0 then
+                local ntiers = people[i].numtiers
+                local tiers = ffi.new("RoleTierData[?]", ntiers)
+                ntiers = C.GetRoleTiers(tiers, ntiers, ship, role)
+                for j = 0, ntiers - 1 do
+                    local count = tiers[j].amount
+                    if count > 0 then
+                        local seeds = ffi.new("NPCSeed[?]", count)
+                        count = C.GetRoleTierNPCs(seeds, count, ship, role, tiers[j].skilllevel)
+                        for k = 0, count - 1 do
+                            candidates[#candidates + 1] = {
+                                ship = ship, shipcode = shipcode, seed = seeds[k],
+                                skill = C.GetPersonCombinedSkill(ship, seeds[k], nil, "manager") }
+                        end
+                    end
+                end
+            end
+        end
+    end
+    table.sort(candidates, function(a, b) return a.skill > b.skill end)
+    local tally = {}
+    for _, c in ipairs(candidates) do
+        local actor = { entity = nil, personcontrollable = c.ship, personseed = c.seed }
+        local reason = ffi.string(C.AssignHiredActor(actor, station, "manager", nil, true))
+        if reason == "" then
+            C.AssignHiredActor(actor, station, "manager", nil, false)
+            log(string.format("ORDER: crew from %s sent to manage %s, manager skill %d of 100",
+                              c.shipcode, args.code, c.skill))
+            return true
+        end
+        tally[reason] = (tally[reason] or 0) + 1
+    end
+    local parts = {}
+    for reason, n in pairs(tally) do
+        parts[#parts + 1] = reason .. " " .. n
+    end
+    -- "invalid" for every candidate while the station is still being built:
+    -- nobody can be sent to a construction site.
+    return refuse(string.format("manager: nobody of ours can take %s: %d candidates (%s)",
+                                args.code, #candidates, table.concat(parts, ", ")))
+end
+
 --- "sellship ASO-629 WRF-001 argon" -> sell a ship of ours at that shipyard,
 --- for what the game says it is worth there. The map menu's sell dialog:
 --- the ship must be sellable and the yard able to build it; the value is
@@ -1355,6 +1421,7 @@ local HANDLERS = {
     price = set_price,
     tradeware = set_tradeware,
     traderule = set_trade_rule,
+    manager = assign_manager,
 }
 
 -- Commands that are not about one station. The station handlers above all take

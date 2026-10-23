@@ -383,8 +383,10 @@ def test_an_empty_station_starts_with_a_ware_it_can_make_alone(small_state, monk
     assert catalog.first_module_ok("energycells") and catalog.first_module_ok("water")
     assert not catalog.first_module_ok("microchips")
     station["modules"] = []
+    assert catalog._growth_wares(station, ["microchips", "water"]) == []          # its dock first
+    station["modules"] = ["dockarea_arg_m_station_01_lowtech_macro"]
     assert catalog._growth_wares(station, ["microchips", "water"]) == ["water"]
-    station["modules"] = ["prod_gen_water_macro"]
+    station["modules"] = ["prod_gen_water_macro", "dockarea_arg_m_station_01_lowtech_macro"]
     assert catalog._growth_wares(station, ["microchips", "water"]) == ["microchips", "water"]
 
 
@@ -421,3 +423,37 @@ def test_an_expansion_we_sent_counts_as_planned_before_the_save_shows_it(small_s
     assert executor._expansion_planned(expand, state)
     state["sent_at"] = {"expand KYV-745 water": state["meta"]["playtime_s"] - 4000}
     assert not executor._expansion_planned(expand, state)
+
+
+def test_a_station_without_a_manager_is_sent_no_budget_defender_or_expansion(small_state, monkeypatch):
+    state = copy.deepcopy(small_state)
+    monkeypatch.setattr(catalog, "expansion_margins", lambda state: [("water", 9000.0)])
+    monkeypatch.setattr(catalog, "_through_gates",
+                        lambda action, state: (f"expand {action['station_id']} {action['ware']}"
+                                               if action.get("type") == "expand_station" else None))
+    station = next(a for a in state["assets"] if a["code"] == "KYV-745")
+    assert any(s.key == "grow:KYV-745" for s in catalog.could_grow(state))
+    station["manager"] = None
+    assert not any(s.key == "budget:KYV-745" for s in catalog.no_budget(state))
+    assert not any(s.key == "grow:KYV-745" for s in catalog.could_grow(state))
+    assert catalog._managed(state) == []
+    station["modules"] = []                       # an empty plot gets its dock first, not growth
+    assert not any(s.key == "grow:KYV-745" for s in catalog.could_grow(state))
+
+
+def test_an_expansion_the_bridge_could_not_fit_is_not_asked_again(small_state):
+    import executor
+    from schemas import PlannerResponse
+    state = copy.deepcopy(small_state)
+    table = __import__("gamedata").modules()
+    state["player"]["blueprints"] = [table["dockarea_arg_m_station_01_lowtech_macro"]["ware"]]
+    now = state["meta"]["playtime_s"]
+    plan = PlannerResponse.model_validate({"assessment": "", "updated_goals": [], "actions": [
+        {"type": "expand_station", "station_id": "KYV-745", "ware": "dock", "rationale": "dock"}]}).actions
+    assert executor.to_commands(plan, state)[0] == ["expand KYV-745 dock"]
+    state["sent_at"] = {"expand KYV-745 dock": now - 600}
+    state["logbook"] = list(state.get("logbook", [])) + [
+        (now - 500, "[x4-agent] REFUSED: KYV-745: could not build a construction sequence "
+                    "for 1M6S Basic Dock Area (module_arg_dock_m_01_lowtech)")]
+    commands, skipped = executor.to_commands(plan, state)
+    assert commands == [] and "could not fit" in skipped[0][1]

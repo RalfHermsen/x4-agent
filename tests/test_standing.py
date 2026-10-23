@@ -247,3 +247,33 @@ def test_an_explore_order_is_not_resent_to_a_scout_still_at_the_wharf(small_stat
     now = state["meta"]["playtime_s"]
     assert "explore SCT-003" not in standing.scouts(state, {"sent_at": {"explore SCT-003": now - 300}})
     assert "explore SCT-003" in standing.scouts(state, {"sent_at": {"explore SCT-003": now - 4000}})
+
+
+def test_a_station_with_modules_and_no_manager_is_sent_one_once(small_state):
+    import copy
+    state = copy.deepcopy(small_state)
+    assert standing.managers(state, {}) == []                       # KYV-745 has one
+    _station(state)["manager"] = None
+    assert standing.managers(state, {}) == ["manager KYV-745"]
+    now = state["meta"]["playtime_s"]
+    assert standing.managers(state, {"sent_at": {"manager KYV-745": now - 600}}) == []
+    assert standing.managers(state, {"sent_at": {"manager KYV-745": now - 4000}}) == ["manager KYV-745"]
+    _station(state)["modules"] = []                                 # nothing to run yet
+    assert standing.managers(state, {}) == []
+
+
+def test_a_station_without_a_dock_gets_one(small_state, monkeypatch):
+    import copy
+    import catalog
+    state = copy.deepcopy(small_state)
+    monkeypatch.setattr(catalog, "_through_gates",
+                        lambda action, state: f"expand {action['station_id']} {action['ware']}")
+    assert standing.docks(state, {}) == []                          # KYV-745 has a dock and a pier
+    _station(state)["modules"] = ["prod_gen_water_macro", "storage_tel_m_solid_01_macro"]
+    _station(state)["manager"] = None
+    assert standing.docks(state, {}) == ["expand KYV-745 dock"]
+    assert standing.managers(state, {}) == ["manager KYV-745"]      # built, so someone can go
+    assert catalog._growth_wares(_station(state), ["water"]) == []
+    _station(state)["modules"] = []                                 # an empty plot: its dock first
+    assert standing.docks(state, {}) == ["expand KYV-745 dock"]
+    assert standing.managers(state, {}) == []

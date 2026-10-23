@@ -479,11 +479,7 @@ def _asset(elem, ancestors: list[dict]) -> Asset:
         asset.offers = _offers(elem)
         asset.production = _production(elem)
         asset.production_queue = [line["ware"] for line in asset.production]
-        # A module that exists carries construction="[0x..]", pointing at its
-        # entry in the station's construction sequence. Planned modules have an
-        # entry and no component, so this is what is actually built.
-        asset.modules = [c.get("macro") for c in
-                         elem.iterfind("connections/connection/component[@construction]")]
+        asset.modules = _built_modules(elem)
         asset.capacity = gamedata.capacity(asset.modules)
         # Workforce: <workforces><workforce race=".." amount=".."/></workforces>
         # on the station; capacity is the sum over its habitation modules.
@@ -513,6 +509,20 @@ def _processor(elem) -> dict:
     return {"state": node.get("state"),
             "vessel_required": node.get("constructionvesselrequired") == "1",
             "step": _int(node.get("step")), "steps": _int(node.get("steps"))}
+
+
+def _built_modules(elem) -> list[str]:
+    """The station's modules that stand, by macro.
+
+    A module carries construction="[0x..]", pointing at its entry in the
+    station's construction sequence; planned modules have an entry and no
+    component. A module being built has a component too, with
+    state="construction": GKL-870's water module and store sat like that
+    through a whole 33-hour run, its build waiting for money at step 1 of 9,
+    and were counted as built, in the score and by every rule.
+    """
+    return [c.get("macro") for c in elem.iterfind("connections/connection/component[@construction]")
+            if c.get("state") != "construction"]
 
 
 def _builders(elem) -> list[str]:

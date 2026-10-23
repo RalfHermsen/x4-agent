@@ -77,6 +77,9 @@ EXPANSION_MODULES = {
     # are held). Liquid storage is left out: no blueprint for it.
     "storage_solid": ("storage_tel_l_solid_01_macro", False),
     "storage_container": ("storage_tel_l_container_01_macro", False),
+    # 6.10: the M dock KYV-745 is built with, whose blueprint is held. Ships
+    # trade at a dock; a station without one is out of their reach.
+    "dock": ("dockarea_arg_m_station_01_lowtech_macro", False),
     # 3.7: a small habitat of the race the station is built from. The model
     # asks for "habitation"; Python picks the race (habitation_race below).
     "habitation_arg": ("hab_arg_s_01_macro", False),
@@ -547,6 +550,28 @@ def _missing_blueprints(action, state: dict) -> str | None:
     return None
 
 
+def _expansion_refused(action, state: dict) -> str | None:
+    """The bridge could not fit this module to this station after we last asked.
+
+    create_construction_sequence runs with failsafe off, so a module it cannot
+    attach is refused rather than left floating. On GKL-870's 2 km plot
+    neither M dock fitted, and the rule asked again every half hour. The
+    refusal names the station and the ware id and stays in the logbook, so
+    the same expansion is not asked for again while it is there.
+    """
+    import gamedata
+    sent = (state.get("sent_at") or {}).get(f"expand {action.station_id} {action.ware}")
+    if sent is None or action.ware not in EXPANSION_MODULES:
+        return None
+    module = (gamedata.modules().get(EXPANSION_MODULES[action.ware][0]) or {}).get("ware")
+    ids = {f"({w})" for w in (action.ware, module) if w}
+    prefix = f"[x4-agent] REFUSED: {action.station_id}: could not build a construction sequence"
+    if any(t >= sent and text and text.startswith(prefix) and text.rstrip().endswith(tuple(ids))
+           for t, text in state.get("logbook", [])):
+        return "the bridge could not fit this module to the station"
+    return None
+
+
 # Funding levels as the bridge implements them: a share of player money moved
 # to the build storage. Python picks the smallest share that covers what the
 # build still has to buy.
@@ -578,7 +603,11 @@ def funding(state: dict, funded: dict) -> list[str]:
             continue
         if funded.get(bs["station"], -1) >= now:
             continue
-        cost = sum((o.get("amount") or 0) * (o.get("price") or 0)
+        # What the build wants, not what it offers to buy: with no money a
+        # build storage offers 0 of everything (amount) while it still wants
+        # the lot (desired), so counting the offers saw nothing missing and
+        # GKL-870's build never got a credit (2026-10-23).
+        cost = sum(max(o.get("amount") or 0, o.get("desired") or 0) * (o.get("price") or 0)
                    for o in bs.get("offers", []) if o.get("side") == "buy")
         balance = float((bs.get("account") or {}).get("amount") or 0)
         shortfall = cost - balance
@@ -1024,7 +1053,7 @@ def to_commands(actions: list, state: dict | None = None,
         if not blocked and key == ("set_trade_rule", None) and state:
             blocked = _trade_rule_pointless(action, state)
         if not blocked and key == ("expand_station", None) and state:
-            blocked = _missing_blueprints(action, state)
+            blocked = _missing_blueprints(action, state) or _expansion_refused(action, state)
         if blocked:
             skipped.append((action, blocked))
             continue

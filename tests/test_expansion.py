@@ -82,3 +82,10 @@ def test_same_save_is_not_funded_twice(small_state):
 def test_reserve_is_never_breached():
     for level, share in executor.FUND_SHARE.items():
         assert share <= 1 - executor.FUND_RESERVE, level
+
+
+def test_a_build_storage_with_no_money_is_funded_for_what_the_build_wants(small_state):
+    state = _building(small_state, money=2_000_000)
+    bs = next(a for a in state["assets"] if a["cls"] == "buildstorage")
+    bs["offers"][0]["amount"] = 0                  # nothing offered without money
+    assert executor.funding(state, {}) == ["fund KYV-745 low"]

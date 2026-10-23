@@ -278,6 +278,17 @@ expansion finishes sooner or later and a ship is lost or not. The noise
 that counts is that of the arm being compared; measure it, or run the
 combination, before changing a default and before writing the cause down.
 
+**L24. Before explaining why a thing does not work, check that it exists.**
+GKL-870 refused a budget, a defender and a manager, and each refusal got its
+own explanation: no manager, then no dock. The station had never been
+built. Its modules sat in the save as components with state="construction",
+which the parser counted as built, and the build had waited for money at
+step 1 of 9 through every run since the baseline: with no money a build
+storage offers to buy 0 of everything (`amount`) while it wants the lot
+(`desired`), and the funding rule read `amount`, saw nothing missing, and
+never sent a credit. Read what a save field means before computing on it,
+and look at the object's own state before the reasons around it.
+
 ## About working on this
 
 **L15. A log line must say whether it worked, not what happened.** "sending:
@@ -292,3 +303,9 @@ about X4.
 **L17. Check which repository you are in before committing.** A commit intended
 for this project landed in an unrelated one, with a message describing work that
 was not in it.
+
+**L25. A run deploys the code it measures.** The bridge was copied into the
+game only by proof scripts, so a run tested whatever the last proof had left
+there: half an hour of rules sending `expand ... dock` to an MD that did not
+know the word, and a Lua with a probe still in it. `experiment.py` now
+deploys the bridge from the checkout before it starts the game.

@@ -15,6 +15,8 @@ takes one command every two seconds (tasks/lessons.md L9, L11).
     4.12  station turrets engage enemies
     4.13  claim abandoned ships, collect lockboxes
     4.15  our own construction vessel looks for our builds
+    6.9   a station with modules and no manager gets one from our crews
+    6.10  a station without a dock gets one, an empty plot first
 """
 
 from __future__ import annotations
@@ -384,11 +386,54 @@ def grow(state: dict, data: dict) -> list[str]:
     return out
 
 
+def managers(state: dict, data: dict) -> list[str]:
+    """6.9: a station with modules and no manager gets one from our crews.
+
+    Without one it neither buys nor sells (catalog._managed). The game does
+    not appoint one: it gives the player an upkeep mission to hire someone
+    (md/upkeep.xml). The bridge moves the crew member with the best manager
+    skill from one of our ships; they travel there, and the save names them
+    only on arrival, so a station sent one is left for MANAGER_TRAVEL.
+    """
+    import catalog
+    now = state.get("meta", {}).get("playtime_s") or 0
+    sent_at = data.get("sent_at") or {}
+    # A built station, dock or not: crew from JEC-090 was sent to GKL-870 with
+    # only a water module and a store standing. A construction site refuses
+    # everyone ("invalid").
+    return [f"manager {st['code']}" for st in catalog._stations(state)
+            if st.get("code") and st.get("modules") and not st.get("manager")
+            and now - sent_at.get(f"manager {st['code']}", -1e9) > MANAGER_TRAVEL]
+
+
+def docks(state: dict, data: dict) -> list[str]:
+    """6.10: a station without a dock gets an M dock, an empty plot first.
+
+    Ships trade at a dock. The expansion path builds only the modules asked
+    for, so GKL-870, started from an empty plot with water, had a water
+    module and a store and nowhere to dock, and on its 2 km plot no dock
+    could be fitted afterwards. So an empty plot starts with its dock. Through
+    the same gates as any expansion: the blueprint, one build at a time, and
+    not again once the bridge could not fit it.
+    """
+    import catalog
+    out = []
+    for st in catalog._stations(state):
+        if st.get("code") and not catalog._has_dock(st):
+            command = catalog._through_gates({"type": "expand_station", "station_id": st["code"],
+                                              "ware": "dock"}, state)
+            if command:
+                out.append(command)
+    return out
+
+
 # Game seconds a bought scout gets to arrive before another is bought.
 SCOUT_DELIVERY = 1800
+# Game seconds a manager sent from our crews gets to arrive before another is sent.
+MANAGER_TRAVEL = 3600
 
 RULES = (sell_limits, revisit, satellites, ledger, once, patrols, find_builds, hire_builders,
-         repairs, seminars, scouts, grow)
+         repairs, seminars, scouts, docks, managers, grow)
 
 
 def commands(state: dict, data: dict, off: set | frozenset = frozenset()) -> list[str]:

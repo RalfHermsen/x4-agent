@@ -196,6 +196,15 @@ def main() -> int:
     if launch_game.running():
         log(run_dir, "X4 is already running; not starting an experiment on top of it")
         return 2
+    # The run tests the bridge in this checkout, not whatever a proof left in
+    # the game folder: a run on 2026-10-23 spent half an hour on a probe build
+    # of the Lua and an MD without the verb the rules were sending.
+    deployed = subprocess.run([sys.executable, "deploy_bridge.py"], cwd=REPO,
+                              capture_output=True, text=True, encoding="utf-8")
+    if deployed.returncode != 0:
+        log(run_dir, f"could not deploy the bridge: {deployed.stderr.strip()}")
+        return 1
+    log(run_dir, "bridge deployed from this checkout")
     sums = snapshot(folder, run_dir / "player-saves")
     if not sums:
         log(run_dir, f"no protected saves found in {folder}; refusing to run without a copy")
