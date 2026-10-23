@@ -888,6 +888,7 @@ def _budget_already_set(action, state: dict) -> bool:
 
 
 EXPLORE_GAP = 3600   # game seconds a scout gets to sweep the sector it was sent to
+EXPANSION_SENT_WAIT = 1800   # game seconds an expansion we sent counts as planned
 
 
 def _exploring_nothing(ship: dict, state: dict | None = None) -> bool:
@@ -934,9 +935,16 @@ def _expansion_planned(action, state: dict) -> bool:
     planned, leaving it alone"), and without this the agent asked again every
     cycle: four times in the first fifteen minutes of a run.
     """
-    return any((a.get("build") or {}).get("queued") or (a.get("build") or {}).get("in_progress")
-               for a in state.get("assets", [])
-               if a.get("cls") == "buildstorage" and a.get("station") == action.station_id)
+    if any((a.get("build") or {}).get("queued") or (a.get("build") or {}).get("in_progress")
+           for a in state.get("assets", [])
+           if a.get("cls") == "buildstorage" and a.get("station") == action.station_id):
+        return True
+    # Sent but not yet in the save: the build task appears a little after the
+    # bridge plans it, and cycles triggered by attacks came close enough
+    # together to send `expand GKL-870 water` three times (agent.py, sent_at).
+    now = state.get("meta", {}).get("playtime_s", 0.0)
+    return any(c.startswith(f"expand {action.station_id} ") and now - t < EXPANSION_SENT_WAIT
+               for c, t in (state.get("sent_at") or {}).items())
 
 
 def _assigned_already(action, state: dict) -> bool:

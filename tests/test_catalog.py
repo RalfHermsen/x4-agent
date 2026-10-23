@@ -409,3 +409,15 @@ def test_an_input_we_cannot_sell_costs_nothing_in_the_margin(small_state):
     assert glut > with_buyers
     # 88 at 150 against 90 cells at 16, the ore free, every 150 s
     assert round(glut) == round((88 * 150 - 90 * 16) * 24)
+
+
+def test_an_expansion_we_sent_counts_as_planned_before_the_save_shows_it(small_state):
+    import executor
+    from types import SimpleNamespace
+    state = copy.deepcopy(small_state)
+    expand = SimpleNamespace(station_id="KYV-745")
+    assert not executor._expansion_planned(expand, state)
+    state["sent_at"] = {"expand KYV-745 water": state["meta"]["playtime_s"] - 300}
+    assert executor._expansion_planned(expand, state)
+    state["sent_at"] = {"expand KYV-745 water": state["meta"]["playtime_s"] - 4000}
+    assert not executor._expansion_planned(expand, state)
