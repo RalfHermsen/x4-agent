@@ -393,3 +393,19 @@ def test_sell_limits_and_repricing_are_off_by_default():
     assert agent.rules_off({}) == {"sell_limits", "pricing"}
     assert agent.rules_off({"X4_RULES_ON": "pricing"}) == {"sell_limits"}
     assert agent.rules_off({"X4_RULES_OFF": "focus"}) == {"sell_limits", "pricing", "focus"}
+
+
+def test_an_input_we_cannot_sell_costs_nothing_in_the_margin(small_state):
+    state = copy.deepcopy(small_state)
+    state["known_stations"] = [{"code": "BUY-001", "owner": "argon", "place": {},
+                                "offers": [{"ware": "refinedmetals", "side": "buy", "price": 150, "amount": 50000},
+                                           {"ware": "ore", "side": "buy", "price": 60, "amount": 1000},
+                                           {"ware": "energycells", "side": "buy", "price": 16, "amount": 500000}]}]
+    station = next(a for a in state["assets"] if a["code"] == "KYV-745")
+    station["cargo"] = {"ore": 500}
+    with_buyers = dict(catalog.expansion_margins(state))["refinedmetals"]
+    station["cargo"] = {"ore": 90000}                     # far more than anyone wants
+    glut = dict(catalog.expansion_margins(state))["refinedmetals"]
+    assert glut > with_buyers
+    # 88 at 150 against 90 cells at 16, the ore free, every 150 s
+    assert round(glut) == round((88 * 150 - 90 * 16) * 24)

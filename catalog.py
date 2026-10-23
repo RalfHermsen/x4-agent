@@ -457,6 +457,18 @@ def _demand(state: dict, ware: str) -> int:
                for o in k.get("offers", []) if o.get("ware") == ware and o.get("side") == "buy")
 
 
+def _input_cost(state: dict, ware: str, held: dict[str, int], table: dict) -> float:
+    """What a unit of an input costs us: what we could sell it for, or nothing
+    when we hold more of it than every station we know wants. Over 33 game
+    hours the run that expanded with refined metals, eating the ore that
+    filled the store, was the one that earned more per hour at the end; ore
+    counted at its minimum price had kept refined metals low in the ranking.
+    """
+    if held.get(ware, 0) > _demand(state, ware):
+        return 0.0
+    return _best_buy(state, ware) or (table.get(ware) or {}).get("minprice", 0)
+
+
 def expansion_margins(state: dict) -> list[tuple[str, float]]:
     """(ware, margin per module per game hour) for each ware the bridge can
     build, best first, at the prices we know (6.2).
@@ -491,8 +503,7 @@ def expansion_margins(state: dict) -> list[tuple[str, float]]:
         # held 208,000 energy cells, twenty hours of a module, and offered 79.
         if held.get(ware, 0) >= HELD_HOURS * recipe["amount"] * 3600 / recipe["time"]:
             continue
-        cost = sum(n * (_best_buy(state, w) or (table.get(w) or {}).get("minprice", 0))
-                   for w, n in (recipe.get("inputs") or {}).items())
+        cost = sum(n * _input_cost(state, w, held, table) for w, n in (recipe.get("inputs") or {}).items())
         out.append((ware, (recipe["amount"] * sell - cost) * 3600 / recipe["time"]))
     return sorted(out, key=lambda pair: -pair[1])
 
