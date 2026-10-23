@@ -477,3 +477,26 @@ runs above do not single out a rule that costs income. What does hold: every
 arm that grows earns more credits per hour than the game alone, 12 to 33 %.
 Both rules stay off by default, because off is simpler (some 200 price
 commands fewer per run) and was not worse; that is a choice, not a finding.
+
+## 2026-10-23: the new rules over 33 game hours
+
+The rules as they stood after 6.8 (growth on, sell limits and repricing
+off), from the 73-hour baseline, six hours at six times speed:
+
+| Last third, per game hour | Credits | Net worth (minimum prices) | Modules over the run |
+|---|---|---|---|
+| The game alone | 1.77 M | 1.82 M | +0 |
+| Old rules | 1.71 M | 1.61 M | +1 |
+| Old rules and catalog | 2.03 M | 2.04 M | +2 |
+| New rules | 1.78 M | 1.87 M | +4 |
+
+The new rules built most, four modules on two stations, and at the end
+earned no more per hour than the game alone. What they built differs: the
+catalog's winning run added refined metals, which eats the ore that fills
+the store; `grow` added water at GKL-870 and nostropoil and water at KYV-745,
+because its margin counted every input at the price it would sell for, and
+ore, of which we hold ten times what anyone asks, still cost its minimum
+price. Since `catalog._input_cost` an input held beyond every known buyer's
+demand costs nothing in the margin; on the 73-hour baseline water (eating
+the ice) and refined metals (eating the ore) now head the ranking, well
+above nostropoil.
