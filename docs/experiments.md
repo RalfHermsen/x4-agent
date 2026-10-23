@@ -499,4 +499,6 @@ ore, of which we hold ten times what anyone asks, still cost its minimum
 price. Since `catalog._input_cost` an input held beyond every known buyer's
 demand costs nothing in the margin; on the 73-hour baseline water (eating
 the ice) and refined metals (eating the ore) now head the ranking, well
-above nostropoil.
+above nostropoil. Whether that is enough is open: water stays just ahead of
+refined metals, and this run built water twice without earning more. The
+next run with growth shows whether refined metals is what paid.
