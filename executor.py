@@ -105,6 +105,9 @@ def habitation_race(station: dict) -> str:
             counts[parts[1]] = counts.get(parts[1], 0) + 1
     return max(counts, key=counts.get) if counts else "arg"
 SOLID_STORAGE = "storage_tel_m_solid_01_macro"
+# The connector without which no production module or habitat attached to an
+# existing station of ours (the bridge's create_construction_sequence call).
+CONNECTOR = "struct_arg_cross_01_macro"
 EXPANDABLE_WARES = tuple(EXPANSION_MODULES)
 
 
@@ -542,6 +545,8 @@ def _missing_blueprints(action, state: dict) -> str | None:
     needed = [macro]
     if solid_input and not (station.get("capacity") or {}).get("solid"):
         needed.append(SOLID_STORAGE)
+    if macro.startswith(("prod_", "hab_")):
+        needed.append(CONNECTOR)
     held = set(state.get("player", {}).get("blueprints") or [])
     missing = [(table.get(m) or {}).get("ware") or m for m in needed
                if (table.get(m) or {}).get("ware") not in held]
@@ -565,61 +570,56 @@ def _expansion_refused(action, state: dict) -> str | None:
         return None
     module = (gamedata.modules().get(EXPANSION_MODULES[action.ware][0]) or {}).get("ware")
     ids = {f"({w})" for w in (action.ware, module) if w}
-    prefix = f"[x4-agent] REFUSED: {action.station_id}: could not build a construction sequence"
+    # The MD refuses as "[x4-agent]", the Lua side, cancelling an empty build,
+    # as "[x4-agent lua]".
+    prefix = tuple(f"[x4-agent{side}] REFUSED: {action.station_id}: could not build a construction sequence"
+                   for side in ("", " lua"))
     if any(t >= sent and text and text.startswith(prefix) and text.rstrip().endswith(tuple(ids))
            for t, text in state.get("logbook", [])):
         return "the bridge could not fit this module to the station"
     return None
 
 
-# Funding levels as the bridge implements them: a share of player money moved
-# to the build storage. Python picks the smallest share that covers what the
-# build still has to buy.
-FUND_SHARE = {"low": 0.10, "mid": 0.25, "high": 0.50}
-# Never leave less than this share of player money behind.
-FUND_RESERVE = 0.20
+# Game seconds between two top-ups of one build storage, so a transfer shows
+# in a save before the next is judged.
+FUND_WAIT = 3600
 
 
 def funding(state: dict, funded: dict) -> list[str]:
-    """Top up build storages that cannot pay for what they still need.
+    """Top up build storages to what their builds want.
 
     A build storage has its own account, and a build with no money buys
     nothing and does not progress, while the station beside it can be rich.
-    That is a sum, so it is Python's: cost of every open buy offer against the
-    balance, and the smallest bridge level that covers the gap.
+    The amount is the game's own estimate (`buildfund`: the Plan Build menu's
+    construction money set to "wantedmoney"); Python says when. A queued build
+    is funded too, before its vessel comes: a hired builder that waits too
+    long for resources leaves (the manual's Station Building page), and
+    KYV-745's refined metals sat queued for six game hours after one did.
+    Not when the build's open buy offers are covered by the balance already.
 
     `funded` maps station code to the save's playtime at which it was funded.
-    Saves arrive minutes apart; without this the same save read twice would
-    fund the same build twice before the first transfer showed.
+    Before this the levels moved a share of the player's money: 4.7 million
+    for a dock of about 0.4 (6.13).
     """
-    money = state.get("player", {}).get("money") or 0
     now = state.get("meta", {}).get("playtime_s") or 0
     commands = []
     for bs in state.get("assets", []):
         if bs.get("cls") != "buildstorage" or not bs.get("station"):
             continue
         build = bs.get("build") or {}
-        if not (build.get("queued") or build.get("in_progress")):
+        if not (build.get("queued") or build.get("in_progress")) or _adds_nothing(bs, state):
             continue
-        if funded.get(bs["station"], -1) >= now:
+        if now - funded.get(bs["station"], -1e9) < FUND_WAIT:
             continue
         # What the build wants, not what it offers to buy: with no money a
         # build storage offers 0 of everything (amount) while it still wants
-        # the lot (desired), so counting the offers saw nothing missing and
-        # GKL-870's build never got a credit (2026-10-23).
+        # the lot (desired).
         cost = sum(max(o.get("amount") or 0, o.get("desired") or 0) * (o.get("price") or 0)
                    for o in bs.get("offers", []) if o.get("side") == "buy")
         balance = float((bs.get("account") or {}).get("amount") or 0)
-        shortfall = cost - balance
-        if shortfall <= 0 or money <= 0:
+        if cost and balance >= cost:
             continue
-        levels = [lvl for lvl, share in FUND_SHARE.items()
-                  if share <= 1 - FUND_RESERVE]
-        # Smallest level that covers it; the largest allowed if none does, as
-        # a partial payment still lets the build buy something.
-        level = next((lvl for lvl in levels if money * FUND_SHARE[lvl] >= shortfall),
-                     levels[-1])
-        commands.append(f"fund {bs['station']} {level}")
+        commands.append(f"buildfund {bs['station']}")
         funded[bs["station"]] = now
     return commands
 
@@ -955,6 +955,25 @@ def _exploring_nothing(ship: dict, state: dict | None = None) -> bool:
 # A station's subordinate group names for each role a ship can be assigned.
 STATION_GROUPS = {"mine": "mining", "trade": "trade", "defend": "defence",
                   "buildstorage": "tradeforbuildstorage"}
+
+
+def _adds_nothing(bs: dict, state: dict) -> bool:
+    """A build storage whose only builds are queued ones made of modules that
+    all stand already.
+
+    KYV-745's refined metals expansion queued such a build: its sequence was
+    the station's 28 modules and nothing new. Hired builders came, found
+    nothing to build and went back to their own work, six of them, and the
+    build sat queued for every remaining game hour, so no other expansion was
+    ever asked for (2026-10-23).
+    """
+    from collections import Counter
+    build = bs.get("build") or {}
+    if build.get("in_progress") or not build.get("queue"):
+        return False
+    station = next((a for a in state.get("assets", []) if a.get("code") == bs.get("station")), {})
+    built = Counter(station.get("modules") or [])
+    return all(not (Counter(seq) - built) for seq in build["queue"])
 
 
 def _expansion_planned(action, state: dict) -> bool:

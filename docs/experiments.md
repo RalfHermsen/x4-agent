@@ -553,3 +553,47 @@ a station with a dock; a build still waiting for a vessel four game hours
 after a hire hires again; an expansion the bridge could not fit is not asked
 for again; and a run deploys the bridge it measures (L25: the first proof
 run spent half an hour against the previous bridge).
+
+## 2026-10-23: expansions of a working station were free
+
+Why KYV-745 stopped growing at 28 modules, and what that showed about every
+growth result before it.
+
+**The stall.** KYV-745's refined metals expansion left a queued build whose
+sequence was the station's 28 standing modules and nothing new. Hired
+builders came, found nothing to build and went back to their own work;
+the build sat queued for every remaining game hour, and Python, seeing a
+build planned, asked for no other expansion. The generator, asked again,
+returned nothing for any production module on either station: water,
+refined metals, nostropoil and a habitat all came back null with the
+connectors the player holds blueprints for, while storage, docks and
+connectors fitted. With every connector the game has it worked, and adding
+one was enough: `struct_arg_cross_01` (88,348 Cr). Python now buys that
+blueprint (a ship of ours docks at an Antigone station; a ship still on a
+stale MoveWait of its own has its orders cleared first) and requires it for
+any production or habitat module.
+
+**The free modules.** With the connector in place, a proof run from the
+86-hour save added 12 modules to KYV-745 and 16 to GKL-870 in five game
+hours while neither build storage spent a credit. A probe showed why:
+`apply_construction_sequence`, which the bridge used to append the plan to
+the station before handing it to the build storage, puts the modules on a
+station that stands at once, finished and working, and leaves behind a
+build of modules that already exist. Only a station still being built (an
+empty plot's first modules) got them as construction sites. The faction
+logic does not apply the plan; it hands it to the build storage
+(`add_build_to_expand_station` with the generated sequence). Done that way,
+from the same save, the new module appears as a construction site, the
+build runs and the build storage pays (4.83 M down to 4.53 M within the
+first game hour).
+
+**What this does to earlier results.** Every expansion of a working station
+since the bridge was written was free: in the expansion proofs (6.2's
+nostropoil included) and in every run whose arm grew. Those arms gained
+modules, and their production, without paying for them. So the finding
+that every growing arm earned more than the game alone, 12 to 33 % in
+credits (6.8 and the long runs), does not stand as a comparison of play:
+part of it, perhaps all, is the free modules. What stands are the arms
+that did not grow (the game alone, advise runs) and every finding that
+does not rest on what an expansion cost. The series after this fix is the
+first in which growth is paid for.

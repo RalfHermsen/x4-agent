@@ -303,13 +303,12 @@
 
         <!-- Expand an existing station so it produces a ware itself.
 
-             The chain is entirely the game's own: get_god_production_construction_plan
-             hands back the prefab plan its factions use for that product,
-             apply_construction_sequence appends it to a station that already
-             exists ("The construction plan for the station can be empty"), and
-             add_build_to_expand_station turns it into a build task on the
-             station's own build storage. That is exactly what engineer.ai.xml
-             does for NPC stations.
+             The chain is the game's own: create_construction_sequence extends
+             the station's sequence with the module, and
+             add_build_to_expand_station hands that plan to the station's own
+             build storage as a build, which a construction vessel then builds
+             with wares the build storage buys. That is what the faction logic
+             does for NPC stations (md/factionlogic_economy.xml).
 
              The ware is matched from a short explicit list. A ware name cannot
              be parsed out of the command string, and there is no ware-by-name
@@ -442,7 +441,12 @@
                  without any connections". That is what happened on the first
                  real expansion, and it looks exactly like success from here.
                  struct_arg_base_02 is in the list because the station is
-                 already built out of it.
+                 already built out of it. struct_arg_cross_01 because without
+                 it no production module attached to KYV-745 or GKL-870 at all
+                 (2026-10-23: water, refined metals, nostropoil and a habitat
+                 all came back null, storage and docks did not); with it
+                 water fitted on both. Python buys its blueprint first
+                 (standing.connectors) and refuses an expansion without it.
 
                  failsafe="false" turns that into a plain failure, which the
                  branch below reports. A refused expansion is recoverable; a
@@ -465,6 +469,7 @@
             <create_construction_sequence station="$agent_station"
                                           macros="$agent_macros"
                                           connectors="[macro.struct_arg_base_02_macro,
+                                                       macro.struct_arg_cross_01_macro,
                                                        macro.struct_gen_venturerbase_01_macro,
                                                        macro.struct_gen_venturerbase_02_macro,
                                                        macro.struct_gen_venturerbase_03_macro,
@@ -476,10 +481,16 @@
               <immediate result="$agent_plan"/>
             </create_construction_sequence>
             <do_if value="@$agent_plan">
-              <apply_construction_sequence station="$agent_station" sequence="$agent_plan"/>
+              <!-- The plan goes to the build storage as a build, as the
+                   faction logic does it (md/factionlogic_economy.xml), and is
+                   not applied to the station: apply_construction_sequence on a
+                   station that stands puts the modules there at once,
+                   finished and unpaid, and leaves a build of nothing behind.
+                   Found on 2026-10-23, after every expansion of a working
+                   station since the bridge was written had been free. -->
               <add_build_to_expand_station object="$agent_station.buildstorage"
                                            buildobject="$agent_station"
-                                           constructionplan="$agent_station.plannedconstruction.sequence"/>
+                                           constructionplan="$agent_plan"/>
               <write_to_logbook category="general"
                 text="'[x4-agent] ORDER: %s expanding to produce %s'.[$agent_station.idcode, $agent_ware.name]"/>
               <show_notification

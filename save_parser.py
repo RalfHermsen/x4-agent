@@ -366,6 +366,11 @@ def _build_tasks(elem) -> dict:
     return {
         "queued": len(node.findall("queue/build")),
         "in_progress": len(node.findall("inprogress/build")),
+        # Each queued build's whole sequence, by macro: what stands already and
+        # what it adds. KYV-745's refined metals expansion queued a build of
+        # its 28 standing modules and nothing else (executor._adds_nothing).
+        "queue": [[e.get("macro") for e in b.iterfind("sequence/entry")]
+                  for b in node.iterfind("queue/build")],
     }
 
 

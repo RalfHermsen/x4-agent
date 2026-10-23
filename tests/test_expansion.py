@@ -28,7 +28,8 @@ def test_expand_with_blueprints_goes_through(small_state):
     import gamedata
     table = gamedata.modules()
     small_state["player"]["blueprints"] = [
-        table["prod_gen_water_macro"]["ware"], table[executor.SOLID_STORAGE]["ware"]]
+        table["prod_gen_water_macro"]["ware"], table[executor.SOLID_STORAGE]["ware"],
+        table[executor.CONNECTOR]["ware"]]
     commands, skipped = executor.to_commands(_expand("water"), small_state)
     assert commands == ["expand KYV-745 water"], skipped
 
@@ -37,7 +38,8 @@ def test_no_solid_storage_needed_when_station_has_some(small_state):
     import gamedata
     station = next(a for a in small_state["assets"] if a["code"] == "KYV-745")
     station["capacity"] = {"container": 50000, "solid": 100000}
-    small_state["player"]["blueprints"] = [gamedata.modules()["prod_gen_water_macro"]["ware"]]
+    small_state["player"]["blueprints"] = [gamedata.modules()["prod_gen_water_macro"]["ware"],
+                                           gamedata.modules()[executor.CONNECTOR]["ware"]]
     commands, _ = executor.to_commands(_expand("water"), small_state)
     assert commands == ["expand KYV-745 water"]
 
@@ -52,11 +54,9 @@ def _building(state, cost_units=100, unit_price=1000.0, balance=None, money=200_
     return state
 
 
-@pytest.mark.parametrize("money,level", [(2_000_000, "low"), (400_000, "mid"),
-                                         (200_000, "high"), (50_000, "high")])
-def test_fund_picks_smallest_covering_level(small_state, money, level):
-    state = _building(small_state, money=money)       # needs 100,000 Cr
-    assert executor.funding(state, {}) == [f"fund KYV-745 {level}"]
+def test_a_running_build_short_of_money_is_funded(small_state):
+    state = _building(small_state)                    # wants 100,000 Cr, has none
+    assert executor.funding(state, {}) == ["buildfund KYV-745"]
 
 
 def test_no_funding_when_balance_covers_it(small_state):
@@ -70,22 +70,30 @@ def test_no_funding_without_a_build(small_state):
     assert executor.funding(state, {}) == []
 
 
-def test_same_save_is_not_funded_twice(small_state):
+def test_a_build_storage_is_funded_once_a_game_hour(small_state):
     state = _building(small_state)
     funded = {}
-    assert executor.funding(state, funded) == ["fund KYV-745 high"]
+    assert executor.funding(state, funded) == ["buildfund KYV-745"]
     assert executor.funding(state, funded) == []
-    state["meta"]["playtime_s"] += 300           # a newer save
-    assert executor.funding(state, funded) == ["fund KYV-745 high"]
+    state["meta"]["playtime_s"] += 300           # a newer save, too soon
+    assert executor.funding(state, funded) == []
+    state["meta"]["playtime_s"] += executor.FUND_WAIT
+    assert executor.funding(state, funded) == ["buildfund KYV-745"]
 
 
-def test_reserve_is_never_breached():
-    for level, share in executor.FUND_SHARE.items():
-        assert share <= 1 - executor.FUND_RESERVE, level
-
-
-def test_a_build_storage_with_no_money_is_funded_for_what_the_build_wants(small_state):
-    state = _building(small_state, money=2_000_000)
+def test_a_queued_build_is_funded_before_its_vessel_comes(small_state):
+    state = _building(small_state, balance=0)
     bs = next(a for a in state["assets"] if a["cls"] == "buildstorage")
-    bs["offers"][0]["amount"] = 0                  # nothing offered without money
-    assert executor.funding(state, {}) == ["fund KYV-745 low"]
+    bs["build"] = {"queued": 1, "in_progress": 0, "builders": [], "processor": {}}
+    bs["offers"] = []                              # a queued build offers nothing
+    assert executor.funding(state, {}) == ["buildfund KYV-745"]
+
+
+def test_a_production_module_needs_the_connector_blueprint(small_state):
+    import gamedata
+    table = gamedata.modules()
+    station = next(a for a in small_state["assets"] if a["code"] == "KYV-745")
+    station["capacity"] = {"container": 50000, "solid": 100000}
+    small_state["player"]["blueprints"] = [table["prod_gen_water_macro"]["ware"]]
+    commands, skipped = executor.to_commands(_expand("water"), small_state)
+    assert commands == [] and table[executor.CONNECTOR]["ware"] in skipped[0][1]

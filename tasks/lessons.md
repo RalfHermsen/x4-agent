@@ -289,6 +289,17 @@ storage offers to buy 0 of everything (`amount`) while it wants the lot
 never sent a credit. Read what a save field means before computing on it,
 and look at the object's own state before the reasons around it.
 
+**L26. When something is suddenly easy, look at what it cost.** The first
+proof run with the connector in place grew 28 modules in five game hours,
+and the build storages had not spent a credit; the bridge's
+`apply_construction_sequence` had been placing finished modules for free
+on every working station since it was written, and the growth measured in
+every run was partly that. A result that jumps should be checked against
+the money before it is believed, and an action a game script uses only for
+setting up a world (`apply_construction_sequence` appears in gamestarts and
+story set-ups) is no way to play it. Copy what the game's own logic does in
+play, here the faction logic, not the first action that works.
+
 ## About working on this
 
 **L15. A log line must say whether it worked, not what happened.** "sending:

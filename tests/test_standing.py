@@ -295,8 +295,7 @@ def test_a_managed_station_with_an_empty_account_gets_the_estimate_once(small_st
 def test_a_build_still_waiting_long_after_a_hire_hires_again(small_state):
     state = copy.deepcopy(small_state)
     bs = next(a for a in state["assets"] if a["code"] == "XQL-000")
-    bs["build"] = {"queued": 0, "in_progress": 1, "builders": [],
-                   "processor": {"state": "waitingforresources", "vessel_required": True}}
+    bs["build"] = {"queued": 1, "in_progress": 0, "builders": [], "processor": {}}
     sector = _station(state)["place"]["sector"]
     state["builders"] = [{"code": "CZK-784", "owner": "antigone", "sector": sector},
                          {"code": "DLM-221", "owner": "argon", "sector": sector}]
@@ -306,6 +305,73 @@ def test_a_build_still_waiting_long_after_a_hire_hires_again(small_state):
     first = standing.hire_builders(state, data)
     state["meta"]["playtime_s"] += 3600
     assert standing.hire_builders(state, data) == []                  # still its own
-    state["meta"]["playtime_s"] += 4 * 3600
+    state["meta"]["playtime_s"] += 2 * 3600
     second = standing.hire_builders(state, data)
     assert len(first) == len(second) == 1 and first != second         # the first one left
+
+
+def test_a_queued_build_of_standing_modules_is_cancelled_and_not_asked_again(small_state):
+    import copy
+    import executor
+    state = copy.deepcopy(small_state)
+    bs = next(a for a in state["assets"] if a["code"] == "XQL-000")
+    modules = list(_station(state)["modules"])
+    bs["build"] = {"queued": 1, "in_progress": 0, "builders": [], "processor": {}, "queue": [modules]}
+    assert executor._adds_nothing(bs, state)
+    now = state["meta"]["playtime_s"]
+    data = {"sent_at": {"expand KYV-745 refinedmetals": now - 7200}}
+    assert standing.empty_builds(state, data) == ["cancelbuild KYV-745 refinedmetals"]
+    assert standing.empty_builds(state, {"sent_at": {"cancelbuild KYV-745": now - 60}}) == []
+    bs["build"]["queue"] = [modules + ["prod_gen_water_macro"]]       # adds a module: a real build
+    assert not executor._adds_nothing(bs, state)
+    assert standing.empty_builds(state, data) == []
+
+
+def test_a_build_that_adds_nothing_gets_no_builder_and_no_money(small_state):
+    import copy
+    import executor
+    state = copy.deepcopy(small_state)
+    bs = next(a for a in state["assets"] if a["code"] == "XQL-000")
+    bs["build"] = {"queued": 1, "in_progress": 0, "builders": [], "processor": {},
+                   "queue": [list(_station(state)["modules"])]}
+    state["builders"] = [{"code": "CZK-784", "owner": "antigone", "sector": _station(state)["place"]["sector"]}]
+    data = {}
+    standing.hire_builders(state, data)
+    state["meta"]["playtime_s"] += 700
+    assert standing.hire_builders(state, data) == []
+    assert executor.funding(state, {}) == []
+
+
+def test_the_connector_blueprint_is_bought_when_missing(small_state, monkeypatch):
+    import copy
+    import gamedata
+    import executor
+    import purchases
+    state = copy.deepcopy(small_state)
+    ware = gamedata.modules()[executor.CONNECTOR]["ware"]
+    monkeypatch.setattr(purchases, "start", lambda data, w, state: (f"dockat SHP-001 STN-001 argon", None))
+    state["player"]["blueprints"] = []
+    assert standing.connectors(state, {}) == ["dockat SHP-001 STN-001 argon"]
+    assert standing.connectors(state, {"purchases": {ware: {}}}) == []     # under way already
+    state["player"]["blueprints"] = [ware]
+    assert standing.connectors(state, {}) == []
+
+
+def test_a_ship_on_an_order_of_its_own_is_cleared_before_it_docks_to_buy(small_state, monkeypatch):
+    import copy
+    import gamedata
+    import executor
+    import purchases
+    state = copy.deepcopy(small_state)
+    state["player"]["blueprints"] = []
+    ware = gamedata.modules()[executor.CONNECTOR]["ware"]
+
+    def start(data, w, state):
+        data.setdefault("purchases", {})[w] = {"ship": "ASO-629"}
+        return "dockat ASO-629 STN-001 argon", None
+    monkeypatch.setattr(purchases, "start", start)
+    aso = next(a for a in state["assets"] if a["code"] == "ASO-629")
+    aso["orders"] = [{"order": "MoveWait", "state": "started", "default": False}]
+    assert standing.connectors(state, {}) == ["clear ASO-629", "dockat ASO-629 STN-001 argon"]
+    aso["orders"] = [{"order": "Explore", "state": "started", "default": True}]
+    assert standing.connectors(state, {}) == ["dockat ASO-629 STN-001 argon"]

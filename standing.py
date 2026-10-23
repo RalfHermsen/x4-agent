@@ -18,6 +18,8 @@ takes one command every two seconds (tasks/lessons.md L9, L11).
     6.9   a station with modules and no manager gets one from our crews
     6.10  a station without a dock gets one, an empty plot first
     6.11  a station with a manager and an empty account gets the game's estimate
+          a queued build that adds nothing is cancelled
+          the blueprint of the connector production modules need is bought
 """
 
 from __future__ import annotations
@@ -211,7 +213,7 @@ def _served(build: dict) -> bool:
 # A build may wait this long, in game seconds, for a vessel before we hire one.
 HIRE_AFTER = 600
 # A build still waiting for a vessel this long after a hire hires again.
-REHIRE_AFTER = 4 * 3600
+REHIRE_AFTER = 2 * 3600
 
 
 def hire_builders(state: dict, data: dict) -> list[str]:
@@ -223,6 +225,7 @@ def hire_builders(state: dict, data: dict) -> list[str]:
     nearest by jumps; the game refuses a busy or hostile one, and the refusal
     comes back through the logbook, after which the next candidate is tried.
     """
+    import executor
     from purchases import _graph, jumps
     now = state.get("meta", {}).get("playtime_s") or 0
     waiting = data.setdefault("standing", {}).setdefault("build_waiting", {})
@@ -239,17 +242,22 @@ def hire_builders(state: dict, data: dict) -> list[str]:
             continue
         build = bs.get("build") or {}
         code = bs["station"]
-        if not (build.get("queued") or build.get("in_progress")) or _served(build):
+        # A build of modules that all stand gives a vessel nothing to do; it is
+        # cancelled (`empty_builds`), not served.
+        if (not (build.get("queued") or build.get("in_progress")) or _served(build)
+                or executor._adds_nothing(bs, state)):
             waiting.pop(code, None)
             hired.pop(code, None)
             hired_at.pop(code, None)
             continue
         # A hired vessel that waits too long for resources leaves for other
         # work (the manual's Station Building page: it may "disengage"), and
-        # the build waits for a vessel again. GKL-870's build was hired one
-        # vessel in 33 game hours and never another.
-        if (code in hired and now - hired_at.setdefault(code, now) > REHIRE_AFTER
-                and (build.get("processor") or {}).get("vessel_required")):
+        # the build waits for a vessel again: GKL-870's was hired one vessel
+        # in 33 game hours and never another, and MYI-961, hired for KYV-745's
+        # queued refined metals, was back on its own FindBuildTasks six game
+        # hours later with nothing built. A queued build has no processor yet,
+        # so the time since the hire is all there is to go by.
+        if code in hired and now - hired_at.setdefault(code, now) > REHIRE_AFTER:
             hired.pop(code)
             hired_at.pop(code)
         since = waiting.setdefault(code, now)
@@ -431,15 +439,72 @@ def accounts(state: dict, data: dict) -> list[str]:
 
     Only with a dock: given the game's estimate (0.62 million), GKL-870 asked
     for 17,828 ice and in 2.4 game hours no trader so much as reserved a
-    trade, while KYV-745 beside it had eleven.
+    trade, while KYV-745 beside it had eleven. And only once it makes
+    something: before that the game recommends nothing.
     """
     import catalog
     now = state.get("meta", {}).get("playtime_s") or 0
     sent_at = data.get("sent_at") or {}
     return [f"account {st['code']}" for st in catalog._stations(state)
             if st.get("code") and st.get("manager") and catalog._has_dock(st)
+            and any(m.startswith("prod_") for m in st.get("modules") or [])
             and not int((st.get("account") or {}).get("amount", 0) or 0)
             and now - sent_at.get(f"account {st['code']}", -1e9) > ACCOUNT_WAIT]
+
+
+def connectors(state: dict, data: dict) -> list[str]:
+    """The blueprint of the connector production modules need is bought.
+
+    Without struct_arg_cross_01 no production module or habitat attached to
+    KYV-745 or GKL-870 at all; with it water fitted on both (2026-10-23). The
+    expansion gate asks for it (executor.CONNECTOR). Bought as any blueprint:
+    a ship of ours docks at a station of a faction that sells it. Not among
+    RULES: agent.py sends its first command with the purchase jobs', which
+    the errand filter lets through.
+    """
+    import executor
+    import gamedata
+    import purchases
+    ware = (gamedata.modules().get(executor.CONNECTOR) or {}).get("ware")
+    if not ware or ware in (state.get("player", {}).get("blueprints") or []):
+        return []
+    if ware in data.get("purchases", {}):
+        return []
+    first, _ = purchases.start(data, ware, state)
+    if not first:
+        return []
+    # A ship still on an order of its own that is not its default, such as
+    # the MoveWait VSR-185 carried, never got to the dock: three hours of
+    # `dockat` and `release`, a game hour each. Its orders are cleared first.
+    code = ((data.get("purchases") or {}).get(ware) or {}).get("ship")
+    ship = next((a for a in state.get("assets", []) if code and a.get("code") == code), {})
+    head = (ship.get("orders") or [{}])[0]
+    if head.get("order") and not head.get("default"):
+        return [f"clear {code}", first]
+    return [first]
+
+
+def empty_builds(state: dict, data: dict) -> list[str]:
+    """A queued build that adds nothing is cancelled (executor._adds_nothing).
+
+    The ware named is the last expansion sent to that station: the bridge
+    writes it into its refusal, so the expansion that made the empty build
+    is not asked for again. Once an hour at most.
+    """
+    import executor
+    now = state.get("meta", {}).get("playtime_s") or 0
+    sent_at = data.get("sent_at") or {}
+    out = []
+    for bs in state.get("assets", []):
+        code = bs.get("station")
+        if bs.get("cls") != "buildstorage" or not code or not executor._adds_nothing(bs, state):
+            continue
+        if now - sent_at.get(f"cancelbuild {code}", -1e9) < CANCEL_WAIT:
+            continue
+        sent = [(t, c.split()[2]) for c, t in sent_at.items()
+                if c.startswith(f"expand {code} ") and len(c.split()) == 3]
+        out.append(f"cancelbuild {code} {max(sent)[1] if sent else 'unknown'}")
+    return out
 
 
 def docks(state: dict, data: dict) -> list[str]:
@@ -469,9 +534,11 @@ SCOUT_DELIVERY = 1800
 MANAGER_TRAVEL = 3600
 # Game seconds before an account top-up is sent again.
 ACCOUNT_WAIT = 3600
+# Game seconds before an empty build is asked to be cancelled again.
+CANCEL_WAIT = 3600
 
 RULES = (sell_limits, revisit, satellites, ledger, once, patrols, find_builds, hire_builders,
-         repairs, seminars, scouts, docks, managers, accounts, grow)
+         repairs, seminars, scouts, empty_builds, docks, managers, accounts, grow)
 
 
 def commands(state: dict, data: dict, off: set | frozenset = frozenset()) -> list[str]:

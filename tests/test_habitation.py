@@ -27,7 +27,8 @@ def test_habitation_expansion_is_race_specific_and_gated(small_state):
     state["player"]["blueprints"] = []
     commands, skipped = executor.to_commands(plan.actions, state)
     assert commands == [] and "module_tel_hab_s_01" in skipped[0][1]
-    state["player"]["blueprints"] = [gamedata.modules()["hab_tel_s_01_macro"]["ware"]]
+    state["player"]["blueprints"] = [gamedata.modules()["hab_tel_s_01_macro"]["ware"],
+                                     gamedata.modules()[executor.CONNECTOR]["ware"]]
     commands, _ = executor.to_commands(plan.actions, state)
     assert commands == ["expand KYV-745 habitation_tel"]
 

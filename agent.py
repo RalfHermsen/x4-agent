@@ -161,6 +161,10 @@ def cycle(model: str | None = None, save: Path | None = None, force: bool = Fals
     failures += executor.transport_shortage(state)
     job_commands, job_lines = purchases.advance(remembered, state)
     failures += job_lines
+    # A purchase job's first command goes with the jobs' own: the ship is on
+    # the errand from the moment the job opens, and the errand filter below
+    # dropped the `dockat` of a job opened among the standing rules, six times.
+    job_commands += standing.connectors(state, remembered)
     # When each explore order went out, in game time: the bridge's logbook line
     # appears only once the game has carried it out, and a save taken before
     # that showed the scout on seen ground again (executor._exploring_nothing).
@@ -299,6 +303,9 @@ def cycle(model: str | None = None, save: Path | None = None, force: bool = Fals
     for c in commands:
         if c.startswith(("explore ", "expand ", "manager ", "account ")):
             sent_at[c] = state.get("meta", {}).get("playtime_s", 0.0)
+        elif c.startswith("cancelbuild "):
+            # Keyed on the station alone: the ware it names changes.
+            sent_at[" ".join(c.split()[:2])] = state.get("meta", {}).get("playtime_s", 0.0)
     memory.start_expansions(remembered, commands, state,
                             lambda ware: executor.EXPANSION_MODULES.get(ware, ("?", False))[0])
     if model_ran:

@@ -1225,6 +1225,126 @@ local function set_account(station, args)
     return true
 end
 
+--- "buildfund KYV-745" -> the station's build storage gets what the game says
+--- its builds still need: the Plan Build menu's construction money set to the
+--- estimate (menu_station_configuration.lua buttonConfirmMoney, with the map
+--- menu's "wantedmoney" estimate). Only tops up. `fund` moved a share of the
+--- player's money instead: 4.7 million for a dock of about 0.4.
+local function fund_build(station, args)
+    local bsid = GetComponentData(ConvertStringTo64Bit(tostring(station)), "buildstorage")
+    if not bsid or bsid == 0 then
+        return refuse("buildfund: " .. args.code .. " has no build storage")
+    end
+    local bs = ConvertStringTo64Bit(tostring(ConvertIDTo64Bit(bsid)))
+    local money, wanted = GetComponentData(bs, "money", "wantedmoney")
+    money, wanted = money or 0, wanted or 0
+    local amount = wanted - money
+    if amount <= 0 then
+        return refuse(string.format("buildfund: %s has %d Cr, its builds want %d", args.code, money, wanted))
+    end
+    if amount > GetPlayerMoney() then
+        return refuse(string.format("buildfund: %s wants %d Cr, we have %d", args.code, amount, GetPlayerMoney()))
+    end
+    TransferPlayerMoneyTo(amount, bs)
+    log(string.format("ORDER: build storage of %s funded with %d Cr, as the build wants %d",
+                      args.code, amount, wanted))
+    return true
+end
+
+--- "cancelbuild KYV-745 refinedmetals" -> the station's queued builds are
+--- cancelled where the game allows it: the interact menu's "Cancel
+--- construction" (CancelConstruction after CanCancelConstruction). Python
+--- sends it only for queued builds whose modules all stand already
+--- (executor._adds_nothing). The refusal names the ware, so the expansion
+--- that made the empty build is not asked for again (executor._expansion_refused).
+local function cancel_build(station, args)
+    local ware = args[1] or "unknown"
+    local containers = { station }
+    local bsid = GetComponentData(ConvertStringTo64Bit(tostring(station)), "buildstorage")
+    if bsid and bsid ~= 0 then
+        containers[#containers + 1] = ConvertIDTo64Bit(bsid)
+    end
+    local ok, cancelled = pcall(function()
+        local count = 0
+        for _, container in ipairs(containers) do
+            local n = C.GetNumBuildTasks(container, 0, false, false)
+            if n > 0 then
+                local buf = ffi.new("BuildTaskInfo[?]", n)
+                n = C.GetBuildTasks(buf, n, container, 0, false, false)
+                for i = 0, n - 1 do
+                    if C.CanCancelConstruction(container, buf[i].id) then
+                        C.CancelConstruction(container, buf[i].id)
+                        count = count + 1
+                    end
+                end
+            end
+        end
+        return count
+    end)
+    if not ok then
+        return refuse("cancelbuild: the map menu's functions are not available: " .. tostring(cancelled))
+    end
+    if cancelled == 0 then
+        return refuse("cancelbuild: no queued build of " .. args.code .. " could be cancelled")
+    end
+    log(string.format("ORDER: %d queued build(s) of %s cancelled", cancelled, args.code))
+    return refuse(string.format("%s: could not build a construction sequence that adds anything (%s)",
+                                args.code, ware))
+end
+
+--- "plot GKL-870 3 2000000" -> the station's plot grown to 3 km a side, both
+--- ways along each axis, at the Plan Build menu's price and not above the
+--- given cap: ExtendBuildPlot, the price GetBuildPlotPrice for the new size
+--- less what was paid (GetBuildPlotPayment), paid to the sector's control
+--- station, then PayBuildPlotSize (menu_station_configuration.lua). Free
+--- outside owned space, as there. A price above the cap is refused, naming it.
+local function extend_plot(station, args)
+    local km, cap = tonumber(args[1]), tonumber(args[2])
+    if not (km and cap) or km < 1 or km > 20 then
+        return refuse("plot needs: plot <OUR STATION> <km a side, 1 to 20> <max price>")
+    end
+    if not (Helper and Helper.getPlotData) then
+        return refuse("plot: the menu helpers are not loaded")
+    end
+    local ok, data = pcall(Helper.getPlotData, station)
+    if not ok then
+        return refuse("plot: no plot data for " .. args.code .. ": " .. tostring(data))
+    end
+    local pos, neg = { x = 0, y = 0, z = 0 }, { x = 0, y = 0, z = 0 }
+    local new = {}
+    for _, axis in ipairs({ "x", "y", "z" }) do
+        local more = km - data.size[axis]
+        if more > 0 then
+            pos[axis] = math.ceil(more / 2) * 1000
+            neg[axis] = math.floor(more / 2) * 1000
+        end
+        new[axis] = data.size[axis] * 1000 + pos[axis] + neg[axis]
+    end
+    if pos.x + pos.y + pos.z == 0 then
+        return refuse(string.format("plot: %s is %g by %g by %g km already", args.code,
+                                    data.size.x, data.size.y, data.size.z))
+    end
+    local price = 0
+    if data.isinownedspace then
+        local buf = ffi.new("bool[1]", 0)
+        price = tonumber(C.GetBuildPlotPrice(data.sector, data.position, new.x, new.y, new.z, "player"))
+            - tonumber(C.GetBuildPlotPayment(station, buf))
+    end
+    if price > cap or price > GetPlayerMoney() then
+        return refuse(string.format("plot: %s to %d km costs %d Cr, cap %d, we have %d",
+                                    args.code, km, price, cap, GetPlayerMoney()))
+    end
+    if not C.ExtendBuildPlot(station, pos, neg, false) then
+        return refuse("plot: the game would not extend the plot of " .. args.code)
+    end
+    if price > 0 then
+        TransferPlayerMoneyTo(price, ConvertStringTo64Bit(tostring(C.GetSectorControlStation(data.sector))))
+    end
+    C.PayBuildPlotSize(station, C.GetBuildPlotSize(station), C.GetBuildPlotCenterOffset(station))
+    log(string.format("ORDER: plot of %s extended to %d km, %d Cr paid", args.code, km, price))
+    return true
+end
+
 --- "sellship ASO-629 WRF-001 argon" -> sell a ship of ours at that shipyard,
 --- for what the game says it is worth there. The map menu's sell dialog:
 --- the ship must be sellable and the yard able to build it; the value is
@@ -1458,6 +1578,9 @@ local HANDLERS = {
     traderule = set_trade_rule,
     manager = assign_manager,
     account = set_account,
+    buildfund = fund_build,
+    plot = extend_plot,
+    cancelbuild = cancel_build,
 }
 
 -- Commands that are not about one station. The station handlers above all take

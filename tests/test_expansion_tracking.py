@@ -91,7 +91,8 @@ def test_sent_expansion_is_tracked_by_the_cycle(run_cycle, fake_planner, small_s
     import gamedata
     table = gamedata.modules()
     small_state["player"]["blueprints"] = [table[MACRO]["ware"],
-                                           table["storage_tel_m_solid_01_macro"]["ware"]]
+                                           table["storage_tel_m_solid_01_macro"]["ware"],
+                                           table["struct_arg_cross_01_macro"]["ware"]]
     fake_planner.plan["actions"] = [{"type": "expand_station", "station_id": "KYV-745",
                                      "ware": "water", "rationale": "test"}]
     result = run_cycle(small_state)
