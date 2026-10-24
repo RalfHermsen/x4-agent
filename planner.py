@@ -188,8 +188,10 @@ def _chat(model: str, messages: list[dict], schema: dict | None,
         "think": False,
         # guidelines.md is around 3.5k tokens and the sitrep grows with the
         # game. Ollama truncates silently on overflow, and what falls off the
-        # front is exactly the guidelines.
-        "options": {"temperature": temperature, "num_ctx": 16384},
+        # front is exactly the guidelines. 65536 is the server's own default:
+        # another client on the same server sends none, and two sizes made
+        # Ollama reload the model at every switch, one load taking minutes.
+        "options": {"temperature": temperature, "num_ctx": 65536},
     }
     if schema:
         payload["format"] = schema
