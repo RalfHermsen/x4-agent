@@ -145,6 +145,43 @@ shortages and gluts on purpose, and destruction is its main source of demand.
 For a player that means local market data counts for more than general advice,
 and that ship parts are where demand comes from.
 
+## From a scan of the X4 boards (2026-10-24)
+
+A cheap model listed 36 topics from the first five pages of each English X4
+board; these are the ones that held something for the agent.
+
+* **Build storages price down as they fill**, on purpose, so that sites about
+  to run dry are served first ([t=476768](https://forum.egosoft.com/viewtopic.php?t=476768)).
+  The last tenth of a build then often sits undelivered, traders reporting no
+  orders. Players fix the price at its maximum, or start construction before
+  everything has arrived. A candidate rule for builds that hang near the end.
+* **Resources deplete locally and regenerate slowly** (staff, [t=477391](https://forum.egosoft.com/viewtopic.php?t=477391));
+  a mined-out hotspot "does not automatically regenerate or respawn in place"
+  (moderator, [t=477479](https://forum.egosoft.com/viewtopic.php?t=477479)).
+  One player with hundreds of station-assigned miners saw no station short.
+* **A station's manager can stall its miners**: every subordinate miner
+  reporting "No resources in range" while other stations' miners worked the
+  same fields, cured by unassigning and reassigning the manager
+  ([t=477112](https://forum.egosoft.com/viewtopic.php?t=477112)). Not seen in
+  our runs; a recovery rule if it ever is. 9.00 also has a known bug with the
+  same message for L and M miners on local automine ([t=476838](https://forum.egosoft.com/viewtopic.php?t=476838)).
+* **Station trade rules cover buying and selling at once**; splitting them
+  takes a per-ware override, e.g. buy internal, sell unrestricted
+  ([t=477348](https://forum.egosoft.com/viewtopic.php?t=477348)).
+* **Construction plans come only from files**: a mod adds one with a `<diff>`
+  on `libraries/constructionplans.xml`, not at runtime
+  ([t=477056](https://forum.egosoft.com/viewtopic.php?t=477056)); the game's
+  own plans can be used by id.
+* **LLM-driven testing with X4Mcp and X4Native**, by their author
+  ([t=476309](https://forum.egosoft.com/viewtopic.php?t=476309)): Claude Code
+  sends chat commands that call the menus' own Lua handlers, so "there is no
+  difference between the test doing it and a player doing it", and reads state
+  back as JSON from the debug log. The same principle as lesson L26.
+* **Script errors can be logged** with the launch options
+  `-debug all -logfile x4debug.log -scriptlogfiles x4scripts.log`
+  ([t=473817](https://forum.egosoft.com/viewtopic.php?t=473817)), which would
+  show MD mistakes in the bridge during a run.
+
 ## Ideas this suggests for the project
 
 1. **Respect player orders.** Check `$order.$internalorder` before overriding.
