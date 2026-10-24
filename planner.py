@@ -46,6 +46,8 @@ GUIDELINES = Path(__file__).parent / "guidelines.md"
 OPENAI_URL = os.environ.get("X4_OPENAI_URL", "http://localhost:4000/v1")
 OPENAI_KEY = os.environ.get("X4_OPENAI_KEY", "")
 REASONING_EFFORT = os.environ.get("X4_REASONING_EFFORT", "medium")
+# A planner model named "claude:<model>" is asked through the Claude Code CLI.
+CLAUDE_CLI = os.environ.get("X4_CLAUDE_CLI", "claude")
 
 # How many actions call 1 may end in. Four since the first day, with no reason
 # written down; the cap is a setting so that a higher one can be measured on the
@@ -180,6 +182,8 @@ def _chat(model: str, messages: list[dict], schema: dict | None,
     if model.startswith("openai:"):
         return _chat_openai(model[len("openai:"):], messages, schema,
                             temperature, timeout)
+    if model.startswith("claude:"):
+        return _chat_claude(model[len("claude:"):], messages, schema, timeout)
     payload = {
         "model": model,
         "messages": messages,
@@ -236,6 +240,47 @@ def _chat_openai(model: str, messages: list[dict], schema: dict | None,
     response.raise_for_status()
 
     content = response.json()["choices"][0]["message"]["content"] or ""
+    if not content.strip():
+        raise RuntimeError(f"{model} returned empty content")
+    return content, time.perf_counter() - start
+
+
+def _chat_claude(model: str, messages: list[dict], schema: dict | None,
+                 timeout: float) -> tuple[str, float]:
+    """The same call through the Claude Code CLI (`claude -p`), on the account
+    it is logged in with: a test of a Claude model as the planner without an
+    API key.
+
+    Run in an empty directory, with local setting sources only and no tools,
+    so that no CLAUDE.md, memory or user hook reaches the prompt or runs on
+    each call; the system prompt goes in a file, as a Windows command line
+    is too short for it. The CLI takes no temperature and no schema, so the
+    translation step stays local (X4_EXTRACT_MODEL); the catalog has none.
+    """
+    if schema:
+        raise RuntimeError("the claude CLI route takes no schema; set X4_EXTRACT_MODEL to a local model")
+    import json
+    import shutil
+    import subprocess
+    import tempfile
+    system = "\n\n".join(m["content"] for m in messages if m["role"] == "system")
+    user = "\n\n".join(m["content"] for m in messages if m["role"] != "system")
+    start = time.perf_counter()
+    with tempfile.TemporaryDirectory(prefix="x4-claude-") as work:
+        prompt = os.path.join(work, "system.txt")
+        with open(prompt, "w", encoding="utf-8") as handle:
+            handle.write(system)
+        done = subprocess.run(
+            [shutil.which(CLAUDE_CLI) or CLAUDE_CLI, "-p", "--model", model,
+             "--system-prompt-file", prompt, "--tools", "", "--output-format", "json",
+             "--no-session-persistence", "--strict-mcp-config", "--setting-sources", "local"],
+            input=user, capture_output=True, text=True, encoding="utf-8", cwd=work, timeout=timeout)
+    if done.returncode != 0:
+        raise RuntimeError(f"claude CLI exited {done.returncode}: {done.stderr.strip()[:300]}")
+    out = json.loads(done.stdout)
+    if out.get("is_error"):
+        raise RuntimeError(f"claude CLI: {str(out.get('result'))[:300]}")
+    content = out.get("result") or ""
     if not content.strip():
         raise RuntimeError(f"{model} returned empty content")
     return content, time.perf_counter() - start

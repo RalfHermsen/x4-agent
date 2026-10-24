@@ -470,3 +470,23 @@ def test_an_assignment_we_sent_counts_as_done_for_half_a_game_hour(small_state):
     assert executor._assigned_already(action, state)
     state["sent_at"] = {"assign ASO-629 KYV-745 mine": now - 4000}
     assert not executor._assigned_already(action, state)
+
+
+def test_a_claude_planner_is_asked_through_the_cli_in_an_empty_directory(monkeypatch):
+    import json
+    import subprocess
+    import planner
+    seen = {}
+
+    def run(args, input, capture_output, text, encoding, cwd, timeout):
+        seen.update(args=args, input=input, cwd=cwd,
+                    system=open(args[args.index("--system-prompt-file") + 1], encoding="utf-8").read())
+        return subprocess.CompletedProcess(args, 0, json.dumps({"is_error": False, "result": "DECISIONS:\nS1: 1"}), "")
+    monkeypatch.setattr(subprocess, "run", run)
+    text, _ = planner._chat("claude:sonnet", [{"role": "system", "content": "SYS"},
+                                              {"role": "user", "content": "REPORT"}], schema=None)
+    assert text == "DECISIONS:\nS1: 1"
+    assert seen["system"] == "SYS" and seen["input"] == "REPORT"
+    assert seen["args"][seen["args"].index("--model") + 1] == "sonnet"
+    assert seen["args"][seen["args"].index("--tools") + 1] == ""
+    assert seen["args"][seen["args"].index("--setting-sources") + 1] == "local"
