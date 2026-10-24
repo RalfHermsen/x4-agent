@@ -154,7 +154,9 @@ board; these are the ones that held something for the agent.
   to run dry are served first ([t=476768](https://forum.egosoft.com/viewtopic.php?t=476768)).
   The last tenth of a build then often sits undelivered, traders reporting no
   orders. Players fix the price at its maximum, or start construction before
-  everything has arrived. A candidate rule for builds that hang near the end.
+  everything has arrived. Not our problem so far: in the rules run the build
+  storages bought at 100 % of the maximum price throughout, and what hung at
+  the end was a few dozen claytronics nobody sold, not the price.
 * **Resources deplete locally and regenerate slowly** (staff, [t=477391](https://forum.egosoft.com/viewtopic.php?t=477391));
   a mined-out hotspot "does not automatically regenerate or respawn in place"
   (moderator, [t=477479](https://forum.egosoft.com/viewtopic.php?t=477479)).
