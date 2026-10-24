@@ -366,6 +366,78 @@
           <set_value name="$agent_ware" exact="ware.sunriseflowers"/>
           <set_value name="$agent_module" exact="macro.prod_tel_sunriseflowers_macro"/>
         </do_if>
+        <!-- Strategy step 3: the production wares a strategist may plan, all
+             but those eating a gas (hydrogen, helium, methane), for which the
+             bridge cannot yet build liquid storage, and the illegal spaceweed. -->
+        <do_if value="event.param == 'expand %s advancedcomposites'.[$agent_station.idcode]">
+          <set_value name="$agent_ware" exact="ware.advancedcomposites"/>
+          <set_value name="$agent_module" exact="macro.prod_gen_advancedcomposites_macro"/>
+        </do_if>
+        <do_if value="event.param == 'expand %s advancedelectronics'.[$agent_station.idcode]">
+          <set_value name="$agent_ware" exact="ware.advancedelectronics"/>
+          <set_value name="$agent_module" exact="macro.prod_gen_advancedelectronics_macro"/>
+        </do_if>
+        <do_if value="event.param == 'expand %s antimatterconverters'.[$agent_station.idcode]">
+          <set_value name="$agent_ware" exact="ware.antimatterconverters"/>
+          <set_value name="$agent_module" exact="macro.prod_gen_antimatterconverters_macro"/>
+        </do_if>
+        <do_if value="event.param == 'expand %s claytronics'.[$agent_station.idcode]">
+          <set_value name="$agent_ware" exact="ware.claytronics"/>
+          <set_value name="$agent_module" exact="macro.prod_gen_claytronics_macro"/>
+        </do_if>
+        <do_if value="event.param == 'expand %s dronecomponents'.[$agent_station.idcode]">
+          <set_value name="$agent_ware" exact="ware.dronecomponents"/>
+          <set_value name="$agent_module" exact="macro.prod_gen_dronecomponents_macro"/>
+        </do_if>
+        <do_if value="event.param == 'expand %s engineparts'.[$agent_station.idcode]">
+          <set_value name="$agent_ware" exact="ware.engineparts"/>
+          <set_value name="$agent_module" exact="macro.prod_gen_engineparts_macro"/>
+        </do_if>
+        <do_if value="event.param == 'expand %s fieldcoils'.[$agent_station.idcode]">
+          <set_value name="$agent_ware" exact="ware.fieldcoils"/>
+          <set_value name="$agent_module" exact="macro.prod_gen_fieldcoils_macro"/>
+        </do_if>
+        <do_if value="event.param == 'expand %s hullparts'.[$agent_station.idcode]">
+          <set_value name="$agent_ware" exact="ware.hullparts"/>
+          <set_value name="$agent_module" exact="macro.prod_gen_hullparts_macro"/>
+        </do_if>
+        <do_if value="event.param == 'expand %s missilecomponents'.[$agent_station.idcode]">
+          <set_value name="$agent_ware" exact="ware.missilecomponents"/>
+          <set_value name="$agent_module" exact="macro.prod_gen_missilecomponents_macro"/>
+        </do_if>
+        <do_if value="event.param == 'expand %s plasmaconductors'.[$agent_station.idcode]">
+          <set_value name="$agent_ware" exact="ware.plasmaconductors"/>
+          <set_value name="$agent_module" exact="macro.prod_gen_plasmaconductors_macro"/>
+        </do_if>
+        <do_if value="event.param == 'expand %s quantumtubes'.[$agent_station.idcode]">
+          <set_value name="$agent_ware" exact="ware.quantumtubes"/>
+          <set_value name="$agent_module" exact="macro.prod_gen_quantumtubes_macro"/>
+        </do_if>
+        <do_if value="event.param == 'expand %s scanningarrays'.[$agent_station.idcode]">
+          <set_value name="$agent_ware" exact="ware.scanningarrays"/>
+          <set_value name="$agent_module" exact="macro.prod_gen_scanningarrays_macro"/>
+        </do_if>
+        <do_if value="event.param == 'expand %s shieldcomponents'.[$agent_station.idcode]">
+          <set_value name="$agent_ware" exact="ware.shieldcomponents"/>
+          <set_value name="$agent_module" exact="macro.prod_gen_shieldcomponents_macro"/>
+        </do_if>
+        <do_if value="event.param == 'expand %s swampplant'.[$agent_station.idcode]">
+          <set_value name="$agent_ware" exact="ware.swampplant"/>
+          <set_value name="$agent_module" exact="macro.prod_tel_swampplant_macro"/>
+        </do_if>
+        <do_if value="event.param == 'expand %s teladianium'.[$agent_station.idcode]">
+          <set_value name="$agent_ware" exact="ware.teladianium"/>
+          <set_value name="$agent_module" exact="macro.prod_tel_teladianium_macro"/>
+          <set_value name="$agent_solidinput" exact="true"/>
+        </do_if>
+        <do_if value="event.param == 'expand %s turretcomponents'.[$agent_station.idcode]">
+          <set_value name="$agent_ware" exact="ware.turretcomponents"/>
+          <set_value name="$agent_module" exact="macro.prod_gen_turretcomponents_macro"/>
+        </do_if>
+        <do_if value="event.param == 'expand %s weaponcomponents'.[$agent_station.idcode]">
+          <set_value name="$agent_ware" exact="ware.weaponcomponents"/>
+          <set_value name="$agent_module" exact="macro.prod_gen_weaponcomponents_macro"/>
+        </do_if>
 
         <!-- 6.6: a large store of the kind that is full. $agent_ware is the
              module's own ware, as for habitats. -->

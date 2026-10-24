@@ -13,7 +13,7 @@ Python works out how, as everywhere else in this project.
 |---|------|--------|
 | 1 | What players and Egosoft say about mid and late game | done: thin on numbers; `docs/forum-findings.md` has what holds for 9.00 |
 | 2 | `economics.py`: per production module, build cost, blueprint, margin per game hour at known prices, payback, known demand and stock in hours of output | done (offline) |
-| 3 | A plan the rules follow: build order per station, fleet targets per station, sectors to avoid or explore, where money goes. `grow` takes the next module from the plan instead of the margin ranking; purchases keep fleets at their targets; the gates stay | open, after the running series |
+| 3 | A plan the rules follow (`schemas.Strategy`, `strategy.py`): modules per ware, miners per kind and traders per station, in absolute numbers. `grow` builds what the plan asks first, the margins once its targets stand; `fleet` assigns free ships and buys one a cycle under the purchase brake; `strategy.blueprints` buys a planned module's blueprint; the report gets a STRATEGY section. Plan from `X4_STRATEGY_FILE` until step 4. Seventeen more production wares in the bridge (all without gas inputs) | built on branch `strategy`, offline only; merge after the running series |
 | 4 | The strategist call: every few game hours, a richer report (timeline, `economics.py`, the game's own plans for a ware), the plan back as JSON through the API | open |
 | 5 | Measure: strategist and rules against rules alone, same baseline, same code | open |
 
@@ -36,6 +36,13 @@ knows, build costs at the game's average prices):
 * Build costs are at average prices; in the runs the build storages spent
   about 0.76 million per expansion, so these may be two to three times low.
   To be calibrated against what build storages actually spend.
+
+## Open after step 3
+
+* The purchase job picks the ship for a blueprint errand itself, and on the
+  88-hour save it picked MCX-254, a fighter defending KYV-745. Same as for the
+  connector before; an errand ship should not be a station defender.
+* Not in the game yet: the new expansion wares and `fleet` need a run.
 
 ## Notes for step 4
 
