@@ -681,13 +681,15 @@
              The commander check makes a repeat harmless: re-sending the same
              assignment changes nothing and writes no logbook line.
 
-             Through the AssignCommander order, as the player's own menu does it
-             (menu_interactmenu.lua, orderAssignCommander: cancel orders, first
-             in the queue). set_object_commander alone changes the commander and
-             nothing else: the order a ship runs comes from lib.request.orders,
-             which only AssignCommander calls, so a miner that had been sent to
-             sell wafers went on trying to sell wafers as a "miner" of KYV-745,
-             and a fighter assigned to defend went on exploring. -->
+             Through the AssignCommander order, as the game's own faction logic
+             does it (factionlogic_economy.xml: immediate, cancelorders false).
+             set_object_commander alone changes the commander and nothing else:
+             the default order comes from lib.request.orders, which only
+             AssignCommander calls, so a miner that had been sent to sell wafers
+             went on trying to sell wafers as a "miner" of KYV-745, and a
+             fighter assigned to defend went on exploring. The player's menu
+             also cancels the ship's queued orders; that would throw away a
+             repair already paid for, so they are kept. -->
         <do_for_each name="$agent_station" in="$agent_stations">
           <do_if value="event.param == 'assign %s %s trade'.[$agent_ship.idcode, $agent_station.idcode]">
             <set_value name="$agent_handled" exact="1"/>
@@ -695,7 +697,7 @@
               <create_order object="$agent_ship" id="'AssignCommander'" immediate="true">
                 <param name="commander" value="$agent_station"/>
                 <param name="assignment" value="assignment.trade"/>
-                <param name="cancelorders" value="true"/>
+                <param name="cancelorders" value="false"/>
               </create_order>
               <write_to_logbook category="general"
                 text="'[x4-agent] ORDER: %s now trades for %s'.[$agent_ship.idcode, $agent_station.idcode]"/>
@@ -716,7 +718,7 @@
               <create_order object="$agent_ship" id="'AssignCommander'" immediate="true">
                 <param name="commander" value="$agent_station"/>
                 <param name="assignment" value="assignment.defence"/>
-                <param name="cancelorders" value="true"/>
+                <param name="cancelorders" value="false"/>
               </create_order>
               <write_to_logbook category="general"
                 text="'[x4-agent] ORDER: %s now defends %s'.[$agent_ship.idcode, $agent_station.idcode]"/>
@@ -734,7 +736,7 @@
             <create_order object="$agent_ship" id="'AssignCommander'" immediate="true">
               <param name="commander" value="$agent_station"/>
               <param name="assignment" value="assignment.tradeforbuildstorage"/>
-              <param name="cancelorders" value="true"/>
+              <param name="cancelorders" value="false"/>
             </create_order>
             <write_to_logbook category="general"
               text="'[x4-agent] ORDER: %s now supplies the build storage of %s'.[$agent_ship.idcode, $agent_station.idcode]"/>
@@ -748,7 +750,7 @@
               <create_order object="$agent_ship" id="'AssignCommander'" immediate="true">
                 <param name="commander" value="$agent_station"/>
                 <param name="assignment" value="assignment.mining"/>
-                <param name="cancelorders" value="true"/>
+                <param name="cancelorders" value="false"/>
               </create_order>
               <write_to_logbook category="general"
                 text="'[x4-agent] ORDER: %s now mines for %s'.[$agent_ship.idcode, $agent_station.idcode]"/>
