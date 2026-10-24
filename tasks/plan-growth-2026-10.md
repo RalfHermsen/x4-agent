@@ -193,6 +193,7 @@ pay back.
 | 6.7 | position test done: with the options reversed the model took the same option in 1 of 16 choices and the same position in 9 (`docs/contracts.md`); next, Python takes the top-ranked option and the model may only decline it |
 | 6.9 | done in the game: a 4-star manager from our crews arrived at GKL-870 within minutes (refused while it was a construction site) |
 | 6.10 | rule and gate done; on GKL-870's full 2 km plot no dock fits, so it stays out of reach. A dock built first on an empty plot is still to be seen in a run |
+| Series | first with paid growth (2026-10-23/24): rules 3.41 M net worth per game hour in the last third, the game alone 1.82, rules and catalog 2.17 (21 ships bought). `docs/experiments.md` |
 | 6.12 | `plot` verb proven (GKL-870 to 6 km for 0.17 M); no rule yet: the plot was not what held growth back. What did: no connector blueprint (`struct_arg_cross_01`, now bought by Python), and expansions that were free because the bridge applied the plan to the station (fixed; `docs/experiments.md`). Growth results before 2026-10-23 rest on free modules |
 | 6.13 | done: `buildfund` moves the game's own estimate for the build ("wantedmoney"), queued builds included |
 | 6.11 | done in the game: `account GKL-870` moved the game's estimate (0.62 M) and the ice offer went from 0 to 17,828; no trader came, for want of a dock |

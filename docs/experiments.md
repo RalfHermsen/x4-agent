@@ -597,3 +597,41 @@ part of it, perhaps all, is the free modules. What stands are the arms
 that did not grow (the game alone, advise runs) and every finding that
 does not rest on what an expansion cost. The series after this fix is the
 first in which growth is paid for.
+
+## 2026-10-23/24: growth paid for, rules and catalog over 33 game hours
+
+The first series with expansions built and paid for (`54c707c`), from the
+73-hour baseline, six hours at six times speed each. The game alone is the
+run of 2026-10-21/22 (nothing grew there, so the free modules never touched
+it).
+
+| Last third, per game hour | Net worth | Credits | Modules | Ships |
+|---|---|---|---|---|
+| The game alone | 1.82 M | 1.77 M | 25 | 23 |
+| Rules (lean2-long, 33.8 game h) | 3.41 M | 1.55 M | 25 to 104 | 23 to 20 |
+| Rules and catalog (leancat2-long, 30.3 game h) | 2.17 M | 0.22 M | 25 to 108 | 23 to 30 |
+
+**The rules almost double the game alone in net worth**, and it is paid
+for: 25.8 million moved into build storages in the hourly saves, 39
+builders hired, 34 expansions planned, the connector blueprint bought at an
+Antigone station. Most of the growth is in modules (counted at their
+minimum price) and in the build storages' accounts; credits per hour stay a
+little under the game alone because the money keeps going into the next
+build. Whether a module pays back its cost in income is the next question;
+over this run credits still rose by 28 million.
+
+**The catalog arm bought 21 ships** (11 scouts, 10 solid miners, about 1
+million each) and sent scouts exploring 65 times; the rules arm bought none
+and sent none. The scouts died in hostile space and each loss was replaced
+at once (the player's policy); the miners were the catalog's "buy one"
+option for a station short of a mined ware. Ships are not in net worth, but
+counted at cost the catalog arm would still trail. It got fewer game hours
+too (the model's calls take time), and its final save never came: the last
+save is from 25 minutes before the end, used as its end point. A fault seen
+during it, the same assignment sent three cycles running because a group
+number means mining at both stations, is fixed in `main` (a sent assignment
+counts as done for half a game hour).
+
+One run per arm, and growth runs spread widely (L23). The rules' lead is
+large enough to stand without a second run before the next change; the
+catalog's deficit has the same cause it had before, purchases.

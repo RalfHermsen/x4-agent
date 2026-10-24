@@ -457,3 +457,16 @@ def test_an_expansion_the_bridge_could_not_fit_is_not_asked_again(small_state):
                     "for 1M6S Basic Dock Area (module_arg_dock_m_01_lowtech)")]
     commands, skipped = executor.to_commands(plan, state)
     assert commands == [] and "could not fit" in skipped[0][1]
+
+
+def test_an_assignment_we_sent_counts_as_done_for_half_a_game_hour(small_state):
+    import executor
+    from types import SimpleNamespace
+    state = copy.deepcopy(small_state)
+    action = SimpleNamespace(ship_ref="ASO-629", station_id="KYV-745", role="mine")
+    assert not executor._assigned_already(action, state)
+    now = state["meta"]["playtime_s"]
+    state["sent_at"] = {"assign ASO-629 KYV-745 mine": now - 600}
+    assert executor._assigned_already(action, state)
+    state["sent_at"] = {"assign ASO-629 KYV-745 mine": now - 4000}
+    assert not executor._assigned_already(action, state)

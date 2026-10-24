@@ -1002,6 +1002,15 @@ def _assigned_already(action, state: dict) -> bool:
     (save_parser._assignment). A number that means the same role on another
     station of ours too could be either, and then this says no.
     """
+    # Sent within the last half game hour: the save gives a subordinate only
+    # its group number, and where that number means the same role on both our
+    # stations it cannot say which one it serves. MYN-888 was assigned to
+    # GKL-870 as a miner three cycles running (agent.py, sent_at).
+    now = state.get("meta", {}).get("playtime_s", 0.0)
+    sent = (state.get("sent_at") or {}).get(
+        f"assign {action.ship_ref} {action.station_id} {getattr(action, 'role', '')}")
+    if sent is not None and now - sent < EXPANSION_SENT_WAIT:
+        return True
     wanted = STATION_GROUPS.get(getattr(action, "role", ""))
     assets = {a.get("code"): a for a in state.get("assets", [])}
     ship, station = assets.get(action.ship_ref) or {}, assets.get(action.station_id) or {}
