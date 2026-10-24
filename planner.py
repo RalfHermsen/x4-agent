@@ -46,7 +46,8 @@ GUIDELINES = Path(__file__).parent / "guidelines.md"
 OPENAI_URL = os.environ.get("X4_OPENAI_URL", "http://localhost:4000/v1")
 OPENAI_KEY = os.environ.get("X4_OPENAI_KEY", "")
 REASONING_EFFORT = os.environ.get("X4_REASONING_EFFORT", "medium")
-# A planner model named "claude:<model>" is asked through the Claude Code CLI.
+# A planner model named "claude:<model>" is asked through the Claude Code CLI,
+# one named "anthropic:<model>" through the Claude API (key in ANTHROPIC_API_KEY).
 CLAUDE_CLI = os.environ.get("X4_CLAUDE_CLI", "claude")
 
 # How many actions call 1 may end in. Four since the first day, with no reason
@@ -177,13 +178,20 @@ cycles, so an empty list throws that memory away."""
 
 
 def _chat(model: str, messages: list[dict], schema: dict | None,
-          temperature: float = 0.2, timeout: float = 600.0) -> tuple[str, float]:
-    """One model call. With a schema the output is grammar-constrained."""
+          temperature: float = 0.2, timeout: float = 600.0,
+          cache_prefix: str = "") -> tuple[str, float]:
+    """One model call. With a schema the output is grammar-constrained.
+
+    `cache_prefix` is the part of the user message that is the same on every
+    call; a route that has a prompt cache puts it there.
+    """
     if model.startswith("openai:"):
         return _chat_openai(model[len("openai:"):], messages, schema,
                             temperature, timeout)
     if model.startswith("claude:"):
         return _chat_claude(model[len("claude:"):], messages, schema, timeout)
+    if model.startswith("anthropic:"):
+        return _chat_anthropic(model[len("anthropic:"):], messages, schema, cache_prefix, timeout)
     payload = {
         "model": model,
         "messages": messages,
@@ -286,6 +294,42 @@ def _chat_claude(model: str, messages: list[dict], schema: dict | None,
     return content, time.perf_counter() - start
 
 
+def _chat_anthropic(model: str, messages: list[dict], schema: dict | None,
+                    cache_prefix: str, timeout: float) -> tuple[str, float]:
+    """The same call through the Claude API, with the key in ANTHROPIC_API_KEY.
+
+    The guidelines open every report and never change, so they go in the
+    prompt cache, read back at a tenth of the input price: Sonnet 5.5 on a
+    real report cost $0.039 the first time and $0.020 the second. No
+    temperature, since these models think and take no sampling settings, and
+    no schema, as on the CLI route. The usage line goes to the host log, so a
+    run's cost can be added up afterwards.
+    """
+    if schema:
+        raise RuntimeError("the anthropic route takes no schema; set X4_EXTRACT_MODEL to a local model")
+    import anthropic
+    system = "\n\n".join(m["content"] for m in messages if m["role"] == "system")
+    user = "\n\n".join(m["content"] for m in messages if m["role"] != "system")
+    content = user
+    if cache_prefix and user.startswith(cache_prefix):
+        content = [{"type": "text", "text": cache_prefix, "cache_control": {"type": "ephemeral"}},
+                   {"type": "text", "text": user[len(cache_prefix):]}]
+    start = time.perf_counter()
+    response = anthropic.Anthropic(timeout=timeout).messages.create(
+        model=model, max_tokens=16000, messages=[{"role": "user", "content": content}],
+        **({"system": system} if system else {}))
+    usage = response.usage
+    print(f"[planner] {model}: in {usage.input_tokens}, cache write {usage.cache_creation_input_tokens}, "
+          f"cache read {usage.cache_read_input_tokens}, out {usage.output_tokens}, "
+          f"stop {response.stop_reason}", flush=True)
+    if response.stop_reason == "refusal":
+        raise RuntimeError(f"{model} refused the request")
+    text = "".join(block.text for block in response.content if block.type == "text")
+    if not text.strip():
+        raise RuntimeError(f"{model} returned empty content")
+    return text, time.perf_counter() - start
+
+
 def reason(report: str, guidelines: str, model: str, catalog: bool = False) -> tuple[str, float]:
     """Call 1: reason freely, no schema.
 
@@ -297,7 +341,7 @@ def reason(report: str, guidelines: str, model: str, catalog: bool = False) -> t
     return _chat(model, [
         {"role": "system", "content": reason_system(catalog=catalog)},
         {"role": "user", "content": f"# GUIDELINES\n{guidelines}\n\n{report}"},
-    ], schema=None, temperature=0.0)
+    ], schema=None, temperature=0.0, cache_prefix=f"# GUIDELINES\n{guidelines}\n\n")
 
 
 ACTIONS_HEADING = "ACTIONS"

@@ -88,7 +88,10 @@ process can own a named pipe, and a stale host makes the next one die with
 than never having started.
 
 Point the planner at your own Ollama instance with `X4_OLLAMA_URL`, and pick a
-model with `X4_PLANNER_MODEL`.
+model with `X4_PLANNER_MODEL`: an Ollama model name, `openai:<name>` for an
+OpenAI-compatible endpoint, `claude:<model>` for the Claude Code CLI, or
+`anthropic:<model id>` for the Claude API (`pip install anthropic`, key in
+`ANTHROPIC_API_KEY`).
 
 ## Layout
 

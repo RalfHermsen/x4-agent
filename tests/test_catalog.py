@@ -490,3 +490,29 @@ def test_a_claude_planner_is_asked_through_the_cli_in_an_empty_directory(monkeyp
     assert seen["args"][seen["args"].index("--model") + 1] == "sonnet"
     assert seen["args"][seen["args"].index("--tools") + 1] == ""
     assert seen["args"][seen["args"].index("--setting-sources") + 1] == "local"
+
+
+def test_an_anthropic_planner_keeps_the_guidelines_in_the_prompt_cache(monkeypatch):
+    import types
+    import anthropic
+    import planner
+    seen = {}
+
+    class Messages:
+        def create(self, **kwargs):
+            seen.update(kwargs)
+            usage = types.SimpleNamespace(input_tokens=1, cache_creation_input_tokens=2,
+                                          cache_read_input_tokens=3, output_tokens=4)
+            return types.SimpleNamespace(usage=usage, stop_reason="end_turn",
+                                         content=[types.SimpleNamespace(type="text", text="DECISIONS:\nS1: 1")])
+
+    monkeypatch.setattr(anthropic, "Anthropic", lambda timeout: types.SimpleNamespace(messages=Messages()))
+    text, _ = planner._chat("anthropic:claude-sonnet-5-5",
+                            [{"role": "system", "content": "SYS"},
+                             {"role": "user", "content": "# GUIDELINES\nG\n\nREPORT"}],
+                            schema=None, temperature=0.0, cache_prefix="# GUIDELINES\nG\n\n")
+    assert text == "DECISIONS:\nS1: 1"
+    assert seen["model"] == "claude-sonnet-5-5" and seen["system"] == "SYS" and "temperature" not in seen
+    first, second = seen["messages"][0]["content"]
+    assert first == {"type": "text", "text": "# GUIDELINES\nG\n\n", "cache_control": {"type": "ephemeral"}}
+    assert second == {"type": "text", "text": "REPORT"}
