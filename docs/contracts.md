@@ -469,3 +469,18 @@ catalog adds nothing measurable to Python's rules (`docs/experiments.md`):
 its choices between options are mostly position and chance. A choice with
 weight should be ranked by Python (6.2's margins) and taken from the top,
 with the model at most able to decline it.
+
+**The same test with a Claude model (2026-10-24).** Twelve of the same
+reports (the first twelve of the same shuffled sample), each order answered
+by Claude Sonnet in a context of its own, with the planner's own system
+prompt and guidelines:
+
+| | gemma4, 16 choices | Claude Sonnet, 12 choices |
+|---|---|---|
+| The same option as the first time | 1 | 12 |
+| Another option | 15 | 0 |
+| of which at the same position | 9 | 0 |
+
+So the catalog's form is not what made the choices empty: a model that
+reads the options picks the same one in either order. Whether its choices
+also earn more is a question for the game, with that model as the planner.
