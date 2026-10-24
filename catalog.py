@@ -165,8 +165,12 @@ def _spare(state: dict) -> float:
 
 def _bought_recently(state: dict) -> bool:
     """A ship bought within the last PURCHASE_GAP game seconds, by the purchase
-    verb's own logbook line in the save."""
+    verb's own logbook line in the save, or by the send itself (agent.py,
+    `sent_at`): a cycle planning on a save from before the last purchase
+    bought the same miner again, twice in one run."""
     now = state.get("meta", {}).get("playtime_s", 0.0)
+    if now - (state.get("sent_at") or {}).get("buyship", -1e9) < PURCHASE_GAP:
+        return True
     return any(text and text.startswith(BOUGHT) and now - t < PURCHASE_GAP
                for t, text in state.get("logbook", []))
 
@@ -577,24 +581,21 @@ def mined_shortage(state: dict) -> list[Situation]:
     seller of ore, and the model kept asking for it under OTHER: QDA-703 short
     of methane with no liquid miner, in four of the 16 saves. The options are
     our miners of that kind, those working for nobody first, and one bought.
-    Miners in the station's mining group and in its sector are taken to be
-    its own already: which commander a subordinate has is not in the save,
-    only its group number (save_parser._assignment).
+    A miner already mining for a station of ours is not offered to another:
+    KYV-745 and GKL-870 were both short of ore and handed the same miners
+    back and forth every cycle, so neither got any ore.
     """
     out = []
     ships = _ships(state)
     for st in _stations(state):
-        mining = {int(i) for i, role in ((st.get("assignment") or {}).get("groups") or {}).items()
-                  if role == "mining"}
-        sector = (st.get("place") or {}).get("sector")
         for code, ware, have, target in sitrep.low_stock([st]):
             kind = next((k for k, wares in executor.MINABLE.items() if ware in wares), None)
             if not kind:
                 continue
             fleet = [s for s in ships if executor._miner_kind(s.get("macro")) == kind]
-            own = [s for s in fleet if (s.get("assignment") or {}).get("group") in mining
-                   and (s.get("place") or {}).get("sector") == sector]
-            free = sorted((s for s in fleet if s not in own),
+            work = {s["code"]: executor.serves(s, state) for s in fleet}
+            own = [s for s in fleet if work[s["code"]] == (code, "mining")]
+            free = sorted((s for s in fleet if work[s["code"]][1] != "mining"),
                           key=lambda s: (s.get("assignment") or {}).get("group") is not None)
             assigns = [o for o in (_option(f"assign {s['code']} to {code} as miner (now on {_order(s)})",
                                            {"type": "assign_ship", "ship_ref": s["code"],

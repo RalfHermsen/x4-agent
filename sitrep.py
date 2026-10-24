@@ -384,12 +384,6 @@ def build(state: dict, goals: list[str] | None = None,
     meta, player = state["meta"], state["player"]
     assets = state["assets"]
     ships = [a for a in assets if a["cls"] in SHIP_CLASSES]
-    # Which subordinate group means what, read off our own stations. Without
-    # this a ship assigned to a station and a freelancer look identical, because
-    # both carry TradeRoutine as their default behaviour.
-    groups = {}
-    for a in assets:
-        groups.update((a.get("assignment") or {}).get("groups") or {})
     stations = [a for a in assets if a["cls"] == "station"]
     known = state["known_stations"]
     # Sectors are called cluster_19_sector001_macro in the save. The model has
@@ -469,9 +463,11 @@ def build(state: dict, goals: list[str] | None = None,
             where = (f"docked at {sh['docked_at']}" if sh["connection"] == "dock"
                      else f"in {gamedata.pretty(sh['place'].get('sector'), names)}")
             extra = f", {', '.join(sh['software'])}" if sh["software"] else ""
-            job = (sh.get("assignment") or {}).get("group")
-            role = groups.get(job) or groups.get(str(job)) if job else None
-            duty = f", assigned as {role}" if role else ", working for itself"
+            # Per commander: GKL-870's group 1 is not KYV-745's (executor.serves).
+            commander, role = executor.serves(sh, state)
+            duty = (f", assigned as {role} for {commander}" if role
+                    else ", assigned, commander unknown" if (sh.get("assignment") or {}).get("group")
+                    else ", working for itself")
             add(f"{sh['code']} {ship_type(sh['macro'])} ({sh['cls']}){duty}: "
                 f"{status}, {where}{extra}")
     else:

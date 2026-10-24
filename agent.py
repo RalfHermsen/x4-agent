@@ -294,6 +294,8 @@ def cycle(model: str | None = None, save: Path | None = None, force: bool = Fals
             kept.append(c)
     commands = kept
     commands += job_commands
+    # The catalog and a standing rule can arrive at the same command.
+    commands = list(dict.fromkeys(commands))
 
     commands, repeats = memory.drop_repeats(remembered, commands)
 
@@ -306,6 +308,9 @@ def cycle(model: str | None = None, save: Path | None = None, force: bool = Fals
         elif c.startswith("cancelbuild "):
             # Keyed on the station alone: the ware it names changes.
             sent_at[" ".join(c.split()[:2])] = state.get("meta", {}).get("playtime_s", 0.0)
+        elif c.startswith("buyship "):
+            # One key for every purchase: the gap is between any two (catalog).
+            sent_at["buyship"] = state.get("meta", {}).get("playtime_s", 0.0)
     memory.start_expansions(remembered, commands, state,
                             lambda ware: executor.EXPANSION_MODULES.get(ware, ("?", False))[0])
     if model_ran:

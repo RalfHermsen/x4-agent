@@ -300,6 +300,18 @@ setting up a world (`apply_construction_sequence` appears in gamestarts and
 story set-ups) is no way to play it. Copy what the game's own logic does in
 play, here the faction logic, not the first action that works.
 
+**L27. A group number belongs to its commander.** The save gives a
+subordinate `<subordinate group="1"/>` and no commander, and each commander
+numbers its groups itself. With one station that never mattered; with two,
+group 1 was trade on KYV-745 and mining on GKL-870, and the fleet focus
+sent four miners and a fighter of GKL-870 to sell wafers, while the report
+told the model that KYV-745's traders were miners. And `set_object_commander`
+is not how the game assigns: it changes the commander and leaves the ship's
+order alone, where the player's menu and the faction logic use the
+`AssignCommander` order, which asks `lib.request.orders` for the matching
+one. Who a ship works for now comes from the bridge's own logbook line
+(`executor.serves`), and assignments go through `AssignCommander`.
+
 ## About working on this
 
 **L15. A log line must say whether it worked, not what happened.** "sending:

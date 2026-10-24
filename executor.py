@@ -389,6 +389,7 @@ def focus_fleet(state: dict) -> list[str]:
     if not volumes:
         return []
 
+    out: list[str] = []
     for station in state.get("assets", []):
         if station.get("cls") != "station":
             continue
@@ -401,15 +402,18 @@ def focus_fleet(state: dict) -> list[str]:
         if not total:
             continue
 
-        group = _trade_group(state)
+        # This station's own traders. A group number means something else on
+        # every commander, and reading it as "trade" everywhere sent four
+        # miners and a fighter of GKL-870 to sell KYV-745's wafers.
         traders = [a for a in state.get("assets", [])
-                   if (a.get("assignment") or {}).get("group") == group]
+                   if serves(a, state) == (station["code"], "trade")]
         if not traders:
             continue
 
         blocking, taken = max(room.items(), key=lambda kv: kv[1])
         if taken / total >= CROWDING:
-            return [f"sellware {a['code']} {blocking}" for a in traders]
+            out += [f"sellware {a['code']} {blocking}" for a in traders]
+            continue
 
         # Nothing is blocked. Go for the best paying cargo instead, but only
         # among wares there is enough of to be worth a trip: pointing the fleet
@@ -417,12 +421,13 @@ def focus_fleet(state: dict) -> list[str]:
         worth = {w: (offers[w].get("price") or 0) / volumes[w]
                  for w, m3 in room.items() if m3 >= WORTH_A_TRIP}
         if not worth:
-            return [f"autotrade {a['code']}" for a in traders
+            out += [f"autotrade {a['code']}" for a in traders
                     if _default_order(a) == "TradeRoutine_Basic"]
+            continue
 
         best = max(worth, key=worth.get)
-        return [f"sellware {a['code']} {best}" for a in traders]
-    return []
+        out += [f"sellware {a['code']} {best}" for a in traders]
+    return out
 
 
 def _default_order(ship: dict) -> str | None:
@@ -432,13 +437,48 @@ def _default_order(ship: dict) -> str | None:
     return None
 
 
-def _trade_group(state: dict) -> int | None:
-    """Which subordinate group number means 'trade' on our stations."""
-    for station in state.get("assets", []):
-        for index, role in ((station.get("assignment") or {}).get("groups") or {}).items():
-            if role == "trade":
-                return int(index)
-    return None
+def _groups_of(asset: dict) -> dict[int, str]:
+    """A commander's subordinate groups by number: {1: "trade", 2: "mining"}."""
+    return {int(i): role for i, role in ((asset.get("assignment") or {}).get("groups") or {}).items()}
+
+
+def serves(ship: dict, state: dict) -> tuple[str | None, str | None]:
+    """(commander, role) for a subordinate of ours, e.g. ("KYV-745", "mining").
+
+    The save gives a subordinate its group number only, and every commander
+    numbers its groups itself: group 1 was trade on KYV-745 and mining on
+    GKL-870. The bridge's logbook line for each assignment names the commander
+    (save_parser._assigned_to). A ship assigned before that is taken to work
+    for the one commander of ours with a group of that number, or the one
+    whose role there the hull can hold: a freighter in group 1 trades for
+    KYV-745, since it cannot mine for GKL-870. Otherwise nobody can say, and
+    the answer is (None, None).
+    """
+    group = (ship.get("assignment") or {}).get("group")
+    if group is None:
+        return None, None
+    having = {a.get("code"): _groups_of(a)[int(group)] for a in state.get("assets", [])
+              if int(group) in _groups_of(a)}
+    logged = (state.get("assigned_to") or {}).get(ship.get("code"))
+    if logged in having:
+        return logged, having[logged]
+    fitting = {c: r for c, r in having.items() if _can_hold(ship.get("macro"), r)}
+    for candidates in (having, fitting):
+        if len(candidates) == 1:
+            return next(iter(candidates.items()))
+    return None, None
+
+
+def _can_hold(macro: str | None, role: str) -> bool:
+    """Whether a hull can take this role at all: miners mine, guns defend."""
+    macro = (macro or "").lower()
+    if role == "mining":
+        return _miner_kind(macro) is not None
+    if role == "defence":
+        return any(h in macro for h in COMBAT_HINTS)
+    if role in ("trade", "tradeforbuildstorage"):
+        return "_trans_" in macro or _miner_kind(macro) is not None
+    return True
 
 
 # Roles under a commander ship, and the game's assignment for each.
@@ -739,15 +779,12 @@ def feed_build_storages(state: dict, feeders: dict) -> list[str]:
         if not (building and buying):
             continue
         station = assets.get(code) or {}
-        groups = (station.get("assignment") or {}).get("groups") or {}
-        trade_group = next((int(g) for g, role in groups.items() if role == "trade"), None)
         sector = (station.get("place") or {}).get("sector")
         freighters = [a for a in state.get("assets", [])
                       if sitrep.ship_type(a.get("macro")) in FREIGHTERS
                       and a.get("code") not in taken and a.get("code") != occupied]
         own = [a for a in freighters
-               if trade_group is not None
-               and (a.get("assignment") or {}).get("group") == trade_group
+               if serves(a, state) == (code, "trade")
                and (a.get("place") or {}).get("sector") == sector]
         idle = [a for a in freighters if (a.get("assignment") or {}).get("group") is None
                 and sitrep.role_of(a) == "IDLE"]
@@ -790,12 +827,11 @@ def transport_shortage(state: dict) -> list[str]:
     near its limit, and a report that looked healthy.
     """
     lines = []
-    group = _trade_group(state)
-    traders = [a for a in state.get("assets", [])
-               if group is not None and (a.get("assignment") or {}).get("group") == group]
     for station in state.get("assets", []):
         if station.get("cls") != "station":
             continue
+        traders = [a for a in state.get("assets", [])
+                   if serves(a, state) == (station["code"], "trade")]
         fill = storage_fill(station)
         if fill and all(share >= FULL for share in fill.values()):
             backing = sum(1 for o in station.get("offers", [])
@@ -996,12 +1032,7 @@ def _expansion_planned(action, state: dict) -> bool:
 
 
 def _assigned_already(action, state: dict) -> bool:
-    """True when the ship already sits in that station's group for that role.
-
-    The save gives a subordinate only its group number, not its commander
-    (save_parser._assignment). A number that means the same role on another
-    station of ours too could be either, and then this says no.
-    """
+    """True when the ship already works for that station in that role (`serves`)."""
     # Sent within the last half game hour: the save gives a subordinate only
     # its group number, and where that number means the same role on both our
     # stations it cannot say which one it serves. MYN-888 was assigned to
@@ -1012,17 +1043,8 @@ def _assigned_already(action, state: dict) -> bool:
     if sent is not None and now - sent < EXPANSION_SENT_WAIT:
         return True
     wanted = STATION_GROUPS.get(getattr(action, "role", ""))
-    assets = {a.get("code"): a for a in state.get("assets", [])}
-    ship, station = assets.get(action.ship_ref) or {}, assets.get(action.station_id) or {}
-    group = (ship.get("assignment") or {}).get("group")
-    if not wanted or group is None:
-        return False
-    def role_of(a: dict):
-        return ((a.get("assignment") or {}).get("groups") or {}).get(group)
-    if role_of(station) != wanted:
-        return False
-    return not any(role_of(a) == wanted for code, a in assets.items()
-                   if code != action.station_id and a.get("cls") == "station")
+    ship = next((a for a in state.get("assets", []) if a.get("code") == action.ship_ref), {})
+    return bool(wanted) and serves(ship, state) == (action.station_id, wanted)
 
 
 def _already_done(action, key, state: dict) -> bool:

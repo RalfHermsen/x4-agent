@@ -679,13 +679,24 @@
              product stays small.
 
              The commander check makes a repeat harmless: re-sending the same
-             assignment changes nothing and writes no logbook line. -->
+             assignment changes nothing and writes no logbook line.
+
+             Through the AssignCommander order, as the player's own menu does it
+             (menu_interactmenu.lua, orderAssignCommander: cancel orders, first
+             in the queue). set_object_commander alone changes the commander and
+             nothing else: the order a ship runs comes from lib.request.orders,
+             which only AssignCommander calls, so a miner that had been sent to
+             sell wafers went on trying to sell wafers as a "miner" of KYV-745,
+             and a fighter assigned to defend went on exploring. -->
         <do_for_each name="$agent_station" in="$agent_stations">
           <do_if value="event.param == 'assign %s %s trade'.[$agent_ship.idcode, $agent_station.idcode]">
             <set_value name="$agent_handled" exact="1"/>
             <do_if value="@$agent_ship.commander != $agent_station">
-              <set_object_commander object="$agent_ship" commander="$agent_station"
-                                    assignment="assignment.trade"/>
+              <create_order object="$agent_ship" id="'AssignCommander'" immediate="true">
+                <param name="commander" value="$agent_station"/>
+                <param name="assignment" value="assignment.trade"/>
+                <param name="cancelorders" value="true"/>
+              </create_order>
               <write_to_logbook category="general"
                 text="'[x4-agent] ORDER: %s now trades for %s'.[$agent_ship.idcode, $agent_station.idcode]"/>
               <!-- The ticker does not pause the game; opening the logbook does. -->
@@ -702,8 +713,11 @@
           <do_if value="event.param == 'assign %s %s defend'.[$agent_ship.idcode, $agent_station.idcode]">
             <set_value name="$agent_handled" exact="1"/>
             <do_if value="@$agent_ship.commander != $agent_station">
-              <set_object_commander object="$agent_ship" commander="$agent_station"
-                                    assignment="assignment.defence"/>
+              <create_order object="$agent_ship" id="'AssignCommander'" immediate="true">
+                <param name="commander" value="$agent_station"/>
+                <param name="assignment" value="assignment.defence"/>
+                <param name="cancelorders" value="true"/>
+              </create_order>
               <write_to_logbook category="general"
                 text="'[x4-agent] ORDER: %s now defends %s'.[$agent_ship.idcode, $agent_station.idcode]"/>
               <show_notification text="'[x4-agent] %s now defends %s'.[$agent_ship.idcode, $agent_station.idcode]"/>
@@ -717,17 +731,25 @@
                (libraries/common.xsd). -->
           <do_if value="event.param == 'assign %s %s buildstorage'.[$agent_ship.idcode, $agent_station.idcode]">
             <set_value name="$agent_handled" exact="1"/>
-            <set_object_commander object="$agent_ship" commander="$agent_station"
-                                  assignment="assignment.tradeforbuildstorage"/>
+            <create_order object="$agent_ship" id="'AssignCommander'" immediate="true">
+              <param name="commander" value="$agent_station"/>
+              <param name="assignment" value="assignment.tradeforbuildstorage"/>
+              <param name="cancelorders" value="true"/>
+            </create_order>
             <write_to_logbook category="general"
               text="'[x4-agent] ORDER: %s now supplies the build storage of %s'.[$agent_ship.idcode, $agent_station.idcode]"/>
           </do_if>
 
           <do_if value="event.param == 'assign %s %s mine'.[$agent_ship.idcode, $agent_station.idcode]">
             <set_value name="$agent_handled" exact="1"/>
-            <do_if value="@$agent_ship.commander != $agent_station">
-              <set_object_commander object="$agent_ship" commander="$agent_station"
-                                    assignment="assignment.mining"/>
+            <!-- Also when the commander is right but the order is not: that is
+                 the miner left selling wafers, and this is its way back. -->
+            <do_if value="@$agent_ship.commander != $agent_station or @$agent_ship.defaultorder.id != 'MiningRoutine'">
+              <create_order object="$agent_ship" id="'AssignCommander'" immediate="true">
+                <param name="commander" value="$agent_station"/>
+                <param name="assignment" value="assignment.mining"/>
+                <param name="cancelorders" value="true"/>
+              </create_order>
               <write_to_logbook category="general"
                 text="'[x4-agent] ORDER: %s now mines for %s'.[$agent_ship.idcode, $agent_station.idcode]"/>
               <!-- The ticker does not pause the game; opening the logbook does. -->

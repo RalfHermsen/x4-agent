@@ -15,6 +15,7 @@ import argparse
 import gzip
 import json
 import os
+import re
 import sys
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
@@ -729,7 +730,31 @@ def parse_save(path: str | os.PathLike) -> dict:
         # The last two game hours of the bridge's logbook lines, oldest first.
         "logbook": [e for e in logbook
                     if e[0] >= (meta.get("playtime_s") or 0) - LOGBOOK_WINDOW],
+        # Who the bridge last put each ship under, over the whole logbook.
+        "assigned_to": _assigned_to(logbook),
     }
+
+
+# The bridge's logbook line for each assignment it makes (md/x4_agent_bridge.xml).
+ASSIGNED = re.compile(r"^\[x4-agent\] ORDER: (\S+) (?:now (?:trades for|mines for|defends|"
+                      r"supplies the build storage of) (\S+)|under \S+ as \S+, commander now (\S+))$")
+
+
+def _assigned_to(logbook: list[list]) -> dict[str, str]:
+    """{ship: commander} from the bridge's own ORDER lines, the latest winning.
+
+    The save gives a subordinate its group number and nothing else, and every
+    commander numbers its groups itself: group 1 was trade on KYV-745 and
+    mining on GKL-870, so four miners of GKL-870 read as traders of KYV-745
+    and were sent to sell wafers they cannot carry. The bridge logs every
+    assignment it makes, and that line names the commander.
+    """
+    out: dict[str, str] = {}
+    for _, text in sorted(logbook, key=lambda e: e[0]):
+        m = ASSIGNED.match(text or "")
+        if m:
+            out[m.group(1)] = m.group(2) or m.group(3)
+    return out
 
 
 # --------------------------------------------------------------------------- #
