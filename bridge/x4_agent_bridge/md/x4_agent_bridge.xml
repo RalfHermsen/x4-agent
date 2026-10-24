@@ -744,9 +744,17 @@
 
           <do_if value="event.param == 'assign %s %s mine'.[$agent_ship.idcode, $agent_station.idcode]">
             <set_value name="$agent_handled" exact="1"/>
+            <!-- AssignCommander removes the commander of a ship whose new
+                 commander is not operational, and drops an assignment the ship
+                 cannot use there: say so, instead of an ORDER line for a ship
+                 that ends up working for nobody. -->
+            <do_if value="not $agent_station.isoperational or not $agent_ship.canuseassignment.{assignment.mining}.{$agent_station}">
+              <write_to_logbook category="general"
+                text="'[x4-agent] REFUSED: assign: %s cannot mine for %s (station operational: %s, assignment usable: %s)'.[$agent_ship.idcode, $agent_station.idcode, $agent_station.isoperational, $agent_ship.canuseassignment.{assignment.mining}.{$agent_station}]"/>
+            </do_if>
             <!-- Also when the commander is right but the order is not: that is
                  the miner left selling wafers, and this is its way back. -->
-            <do_if value="@$agent_ship.commander != $agent_station or @$agent_ship.defaultorder.id != 'MiningRoutine'">
+            <do_elseif value="@$agent_ship.commander != $agent_station or @$agent_ship.defaultorder.id != 'MiningRoutine'">
               <create_order object="$agent_ship" id="'AssignCommander'" immediate="true">
                 <param name="commander" value="$agent_station"/>
                 <param name="assignment" value="assignment.mining"/>
@@ -756,7 +764,7 @@
                 text="'[x4-agent] ORDER: %s now mines for %s'.[$agent_ship.idcode, $agent_station.idcode]"/>
               <!-- The ticker does not pause the game; opening the logbook does. -->
               <show_notification text="'[x4-agent] %s now mines for %s'.[$agent_ship.idcode, $agent_station.idcode]"/>
-            </do_if>
+            </do_elseif>
           </do_if>
         </do_for_each>
       </do_for_each>

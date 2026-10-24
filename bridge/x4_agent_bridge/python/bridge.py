@@ -57,6 +57,7 @@ LOG_PATH = os.environ.get("X4_AGENT_LOG")
 PLAN = os.environ.get("X4_AGENT_PLAN", "1") != "0"
 
 _agent = None
+_last_sent = 0.0   # wall time the last cycle's commands finished going out
 
 
 def load_agent():
@@ -209,6 +210,7 @@ def run_cycle(pipe, force: bool = False) -> None:
     # command before reading the next one, and the matching loop on the game
     # side walks every ship and station, so the pipe is not ready again
     # immediately.
+    global _last_sent
     for command in commands:
         print(f"[x4-agent] sending: {command}")
         try:
@@ -218,6 +220,7 @@ def run_cycle(pipe, force: bool = False) -> None:
                   f"{type(exc).__name__}: {exc}")
             break
         time.sleep(COMMAND_GAP)
+    _last_sent = time.time()
 
 
 def main(args):
@@ -286,7 +289,12 @@ def main(args):
         # does not turn into a request on every heartbeat.
         last_cycle = now
         age = save_age()
-        if age is not None and age < SAVE_MAX_AGE:
+        # Never one from before the last commands went out. A planner that
+        # thinks for minutes finishes with a save on disk younger than
+        # SAVE_MAX_AGE that it did not plan on, taken while it thought; the
+        # next cycle read its own assignments as failed ("not a subordinate
+        # afterwards") and gave the same miners to the other station.
+        if age is not None and age < SAVE_MAX_AGE and age < time.time() - _last_sent:
             print(f"[x4-agent] newest save is {age:.0f}s old, planning on that")
             run_cycle(pipe)
             continue
