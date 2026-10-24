@@ -98,6 +98,39 @@ Nothing here breaks this project, which ships no assets.
 * New actions around resource areas, recyclable yields, recycling station build
   tasks, and dynamic influence.
 
+## X4 9.0 changes for play, and what players say about funding
+
+The game these runs use is 9.00 (build 611726, released 2026-06-10, the
+"Empire Update"). From its [changelog](https://forum.egosoft.com/viewtopic.php?p=5318116#p5318116),
+the lines that touch what the agent does:
+
+* **Mining was reworked.** "Resource distribution overhaul for improved
+  prospecting and mining", "Added Prospect behaviour", "Removed effect of
+  resource probes on mining efficiency", "Improved mining ship behaviour to
+  not go to resource areas that will be empty before they arrive". Resources
+  are now local and areas run out, so a mining shortage can be depletion as
+  much as too few ships, and probes guide miners rather than speed them up.
+* "Fixed miners attempting to mine when cargo hold is full and no buyers can
+  be found for current cargo": the state HAQ-304 sat in for five game hours,
+  holding ice nobody would buy because GKL-870's account was empty.
+* "Fixed station construction stalling in certain situations due to missing
+  resource buy offers" and "Fixed construction material buy offers not
+  updating when planned station build changes".
+
+[Auto transfer funds to stations?](https://forum.egosoft.com/viewtopic.php?t=477355)
+confirms what the runs found: the game never tops up a station account by
+itself, and there is no setting for it. Players press "Accept all estimates"
+by hand every so often. Transfers between a player's own stations and ships
+move no money, so a station that supplies the others drains, while money
+above the maximum is swept back to the player. `standing.accounts` is that
+button, pressed when an account falls below half its minimum.
+
+[Interview with X4's economists](https://forum.egosoft.com/viewtopic.php?t=477519):
+the economy is meant to be out of balance ("controlled chaos"), with regional
+shortages and gluts on purpose, and destruction is its main source of demand.
+For a player that means local market data counts for more than general advice,
+and that ship parts are where demand comes from.
+
 ## Ideas this suggests for the project
 
 1. **Respect player orders.** Check `$order.$internalorder` before overriding.
