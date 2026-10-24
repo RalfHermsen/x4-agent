@@ -117,6 +117,20 @@ the lines that touch what the agent does:
   resource buy offers" and "Fixed construction material buy offers not
   updating when planned station build changes".
 
+How the new resource system works, from staff replies in the 9.00 beta
+[economy thread](https://forum.egosoft.com/viewtopic.php?t=474213) (page 3 for
+the resource system): resource areas "deplete more quickly and not replenish
+until some time later", with larger, richer areas taking longer to come back;
+no rates are given. A resource probe is "a simple, optional 'mine here!'
+marker": a miner with a matching probe goes there, one without searches by
+itself and takes "a little bit longer". Staff do not want sectors covered in
+probes, and a penalty for many probes found in the beta was called an
+oversight (the release removed probes' effect on efficiency). Players in the
+beta saw silicon yields fall sharply in some sectors and belts that could no
+longer keep their fabs running. For the agent: a refinery's supply is now a
+question of fresh areas within reach, and one probe on a good area near a
+station is a cheap way to point its miners there.
+
 [Auto transfer funds to stations?](https://forum.egosoft.com/viewtopic.php?t=477355)
 confirms what the runs found: the game never tops up a station account by
 itself, and there is no setting for it. Players press "Accept all estimates"

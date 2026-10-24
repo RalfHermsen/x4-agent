@@ -92,6 +92,23 @@ def restore(folder: Path, frm: Path, sums: dict[str, str]) -> list[str]:
     return restored
 
 
+def game_version(save: Path) -> str | None:
+    """"9.00 (611726)" from a save's header: the version of the game that wrote it.
+
+    Runs on different game versions are not comparable: the bridge calls the
+    game's own Lua and MD, and an update can change what a verb does.
+    """
+    import gzip
+    import re
+    try:
+        with gzip.open(save, "rt", encoding="utf-8", errors="replace") as handle:
+            head = handle.read(4096)
+    except OSError:
+        return None
+    m = re.search(r'<game [^>]*version="(\d+)"[^>]*build="(\d+)"', head)
+    return f"{int(m.group(1)) / 100:.2f} ({m.group(2)})" if m else None
+
+
 def log(run_dir: Path, message: str) -> None:
     line = f"[{datetime.now():%H:%M:%S}] {message}"
     print(line, flush=True)
@@ -191,6 +208,8 @@ def main() -> int:
         "rules_only": os.environ.get("X4_RULES_ONLY") == "1",
         "no_pricing": os.environ.get("X4_NO_PRICING") == "1",
         "rules_off": os.environ.get("X4_RULES_OFF", ""),
+        "planner_model": os.environ.get("X4_PLANNER_MODEL") or "default",
+        "baseline_game": game_version(Path(baseline)),
         "started": datetime.now().isoformat(timespec="seconds")}, indent=2), encoding="utf-8")
 
     if launch_game.running():
@@ -255,6 +274,11 @@ def main() -> int:
         if request_save(slot):
             log(run_dir, f"final state saved into {AGENT_SLOT}")
             shutil.copy2(slot, run_dir / f"result-{AGENT_SLOT}.xml.gz")
+            # The game that ran, from the save it wrote last.
+            record = json.loads((run_dir / "run.json").read_text(encoding="utf-8"))
+            record["game"] = game_version(slot)
+            (run_dir / "run.json").write_text(json.dumps(record, indent=2), encoding="utf-8")
+            log(run_dir, f"game {record['game']}")
             card = score.compare(score.score(parse_save(baseline)), score.score(parse_save(slot)))
             (run_dir / "score.txt").write_text(card, encoding="utf-8")
             log(run_dir, "scorecard:\n" + card)
