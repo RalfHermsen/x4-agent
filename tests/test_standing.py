@@ -286,6 +286,12 @@ def test_a_managed_station_with_an_empty_account_gets_the_estimate_once(small_st
     assert standing.accounts(state, {}) == []
     _station(state)["account"] = {"id": "[0x1]", "own": "1", "min": "4877115"}   # a min, no money
     assert standing.accounts(state, {}) == ["account KYV-745"]
+    # Spent down after one filling: GKL-870, 4,232 of a 624,000 minimum.
+    _station(state)["account"] = {"id": "[0x1]", "own": "1", "min": "624000", "amount": "4232"}
+    assert standing.accounts(state, {}) == ["account KYV-745"]
+    _station(state)["account"] = {"id": "[0x1]", "own": "1", "min": "624000", "amount": "400000"}
+    assert standing.accounts(state, {}) == []
+    _station(state)["account"] = {"id": "[0x1]", "own": "1", "min": "4877115"}
     now = state["meta"]["playtime_s"]
     assert standing.accounts(state, {"sent_at": {"account KYV-745": now - 600}}) == []
     _station(state)["manager"] = None

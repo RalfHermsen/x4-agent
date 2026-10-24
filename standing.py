@@ -441,14 +441,25 @@ def accounts(state: dict, data: dict) -> list[str]:
     for 17,828 ice and in 2.4 game hours no trader so much as reserved a
     trade, while KYV-745 beside it had eleven. And only once it makes
     something: before that the game recommends nothing.
+
+    Empty means below half the minimum, not zero. Filled once, GKL-870 spent
+    its account down to 4,232 Cr against a minimum of 624,000 and stayed
+    there: the game does not top it up, its manager could buy no ice, and a
+    miner of ours sailed with ice nobody would take for five game hours.
     """
     import catalog
     now = state.get("meta", {}).get("playtime_s") or 0
     sent_at = data.get("sent_at") or {}
+
+    def drained(st: dict) -> bool:
+        acct = st.get("account") or {}
+        amount = int(acct.get("amount", 0) or 0)
+        return not amount or amount < int(acct.get("min", 0) or 0) / 2
+
     return [f"account {st['code']}" for st in catalog._stations(state)
             if st.get("code") and st.get("manager") and catalog._has_dock(st)
             and any(m.startswith("prod_") for m in st.get("modules") or [])
-            and not int((st.get("account") or {}).get("amount", 0) or 0)
+            and drained(st)
             and now - sent_at.get(f"account {st['code']}", -1e9) > ACCOUNT_WAIT]
 
 
