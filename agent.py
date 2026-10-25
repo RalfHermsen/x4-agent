@@ -34,6 +34,7 @@ import planner
 import purchases
 import sitrep as sitrep_mod
 import standing
+import strategy
 from save_parser import latest_save, parse_save
 from schemas import PlannerResponse
 
@@ -165,6 +166,9 @@ def cycle(model: str | None = None, save: Path | None = None, force: bool = Fals
     # the errand from the moment the job opens, and the errand filter below
     # dropped the `dockat` of a job opened among the standing rules, six times.
     job_commands += standing.connectors(state, remembered)
+    # A strategist's plan, if there is one: the rules read it from memory.
+    failures += strategy.load(remembered, state)
+    job_commands += strategy.blueprints(state, remembered)
     # When each explore order went out, in game time: the bridge's logbook line
     # appears only once the game has carried it out, and a save taken before
     # that showed the scout on seen ground again (executor._exploring_nothing).
@@ -173,7 +177,8 @@ def cycle(model: str | None = None, save: Path | None = None, force: bool = Fals
     report = sitrep_mod.build(state, goals=remembered.get("goals"),
                               failures=failures,
                               refused=remembered.get("refused"),
-                              situations=catalog.render(found))
+                              situations=catalog.render(found),
+                              strategy=strategy.lines(state, remembered))
 
     # Skip the model when nothing it would look at has changed. The arithmetic
     # below (repricing, fleet focus) still runs: it is cheap, and prices move.

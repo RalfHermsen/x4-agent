@@ -396,3 +396,30 @@ class PlannerResponse(BaseModel):
         default_factory=list, description="Monitor, do not act on yet"
     )
     confidence: Literal["low", "medium", "high"] = "medium"
+
+
+# --------------------------------------------------------------------------- #
+# The strategist's plan (tasks/plan-strategy-2026-10.md)
+# --------------------------------------------------------------------------- #
+
+class StationGoal(BaseModel):
+    """Where one station should be by the end of the horizon, in absolute
+    numbers, so a plan read twice or after a restart asks for nothing twice."""
+    build: dict[str, int] = Field(
+        description="ware -> how many production modules of it the station should have; "
+                    "also storage_solid, storage_container, dock, habitation_<race>")
+    miners: dict[str, int] = Field(
+        description="'solid' or 'liquid' -> how many miners of that kind should work for the station")
+    traders: int = Field(description="how many freighters should trade for the station")
+
+
+class Strategy(BaseModel):
+    """Goals for the next hours, set by a strategist and carried out by the
+    rules: `grow` builds toward `build`, `fleet` assigns and buys toward the
+    miners and traders. Every gate a rule passes through still applies.
+
+    No defaults, for the reason PlannerResponse gives: a field with one leaves
+    `required`, and a model under a grammar may then skip it."""
+    horizon_hours: float = Field(description="How many game hours the plan is meant for")
+    stations: dict[str, StationGoal] = Field(description="Station code -> its goal")
+    rationale: str = Field(description="Why, in a few sentences. Logged.")

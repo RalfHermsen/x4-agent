@@ -380,7 +380,8 @@ def low_stock(stations: list[dict]) -> list[tuple[str, str, int, int]]:
 def build(state: dict, goals: list[str] | None = None,
           failures: list[str] | None = None,
           refused: list[dict] | None = None,
-          situations: list[str] | None = None) -> str:
+          situations: list[str] | None = None,
+          strategy: list[str] | None = None) -> str:
     meta, player = state["meta"], state["player"]
     assets = state["assets"]
     ships = [a for a in assets if a["cls"] in SHIP_CLASSES]
@@ -543,6 +544,14 @@ def build(state: dict, goals: list[str] | None = None,
         kind = executor._miner_kind(ship.get("macro"))
         if kind and not (wanted & executor.MINABLE[kind]):
             stuck_miners.append((ship["code"], kind))
+
+    if strategy:
+        # The strategist's plan and how far each station is; the rules build
+        # and buy toward it by themselves (strategy.py).
+        add("")
+        add("# STRATEGY (carried out by the rules)")
+        for line in strategy:
+            add(f"  {line}")
 
     if goals:
         add("")

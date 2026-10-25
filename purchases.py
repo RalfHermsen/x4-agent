@@ -194,6 +194,18 @@ def ships_in_use(data: dict) -> set[str]:
     return {job["ship"] for job in data.get("purchases", {}).values()}
 
 
+def first_commands(data: dict, ware: str, first: str, state: dict) -> list[str]:
+    """A new job's first command, with `clear` before it when its ship is on
+    an order of its own that is not its default: the MoveWait VSR-185 carried
+    kept it from the dock through three hours of `dockat` and `release`."""
+    code = ((data.get("purchases") or {}).get(ware) or {}).get("ship")
+    ship = next((a for a in state.get("assets", []) if code and a.get("code") == code), {})
+    head = (ship.get("orders") or [{}])[0]
+    if head.get("order") and not head.get("default"):
+        return [f"clear {code}", first]
+    return [first]
+
+
 def advance(data: dict, state: dict) -> tuple[list[str], list[str]]:
     """Move every job one step if the save allows it. (commands, report lines)."""
     now = state.get("meta", {}).get("playtime_s") or 0

@@ -389,6 +389,7 @@ def grow(state: dict, data: dict) -> list[str]:
     goes through. A builder is hired by `hire_builders` when the build needs one.
     """
     import catalog
+    import strategy
     if catalog._spare(state) < catalog.CAPITAL_FLOOR:
         return []
     margins = [w for w, m in catalog.expansion_margins(state) if m > 0]
@@ -396,10 +397,17 @@ def grow(state: dict, data: dict) -> list[str]:
     for st in state.get("assets", []):
         if st.get("cls") != "station" or not st.get("code"):
             continue
-        # A station with no modules yet (GKL-870) starts with a ware its first
-        # module can make alone (6.3); the bridge finds such stations since
-        # checkoperational="false".
-        for ware in catalog._growth_wares(st, margins):
+        # A strategist's plan comes first, once the station can work; with
+        # every target standing, or no plan for it, the margins decide.
+        planned = strategy.next_builds(st, data)
+        if planned and catalog._has_dock(st) and st.get("manager"):
+            wares = planned
+        else:
+            # A station with no modules yet (GKL-870) starts with a ware its
+            # first module can make alone (6.3); the bridge finds such
+            # stations since checkoperational="false".
+            wares = catalog._growth_wares(st, margins)
+        for ware in wares:
             command = catalog._through_gates({"type": "expand_station", "station_id": st["code"],
                                               "ware": ware}, state)
             if command:
@@ -484,15 +492,7 @@ def connectors(state: dict, data: dict) -> list[str]:
     first, _ = purchases.start(data, ware, state)
     if not first:
         return []
-    # A ship still on an order of its own that is not its default, such as
-    # the MoveWait VSR-185 carried, never got to the dock: three hours of
-    # `dockat` and `release`, a game hour each. Its orders are cleared first.
-    code = ((data.get("purchases") or {}).get(ware) or {}).get("ship")
-    ship = next((a for a in state.get("assets", []) if code and a.get("code") == code), {})
-    head = (ship.get("orders") or [{}])[0]
-    if head.get("order") and not head.get("default"):
-        return [f"clear {code}", first]
-    return [first]
+    return purchases.first_commands(data, ware, first, state)
 
 
 def empty_builds(state: dict, data: dict) -> list[str]:
@@ -548,8 +548,14 @@ ACCOUNT_WAIT = 3600
 # Game seconds before an empty build is asked to be cancelled again.
 CANCEL_WAIT = 3600
 
+def fleet(state: dict, data: dict) -> list[str]:
+    """Ships toward a strategist's numbers (strategy.fleet); nothing without a plan."""
+    import strategy
+    return strategy.fleet(state, data)
+
+
 RULES = (sell_limits, revisit, satellites, ledger, once, patrols, find_builds, hire_builders,
-         repairs, seminars, scouts, empty_builds, docks, managers, accounts, grow)
+         repairs, seminars, scouts, empty_builds, docks, managers, accounts, fleet, grow)
 
 
 def commands(state: dict, data: dict, off: set | frozenset = frozenset()) -> list[str]:
