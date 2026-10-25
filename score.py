@@ -80,6 +80,26 @@ def _modules_value(stations: list[dict]) -> int:
                    for s in stations for m in (s.get("modules") or [])))
 
 
+def _modules_cost(stations: list[dict]) -> int:
+    """Our stations' modules at what building them takes: the module ware's
+    construction resources at their minimum price, as stock is counted.
+
+    The module ware's own minimum price runs two to three times above that
+    (a microchip module 4.12 million, its resources about 2), so a run that
+    built expensive modules scored high whether they earned or not: lean2
+    built fifteen microchip modules, losing money at the prices it knew, and
+    led the rules runs after it by 25 % in net worth while trailing them in
+    credits and accounts."""
+    import gamedata
+    wares, modules = gamedata.wares(), gamedata.modules()
+
+    def cost(macro: str) -> float:
+        ware = (modules.get(macro) or {}).get("ware") or ""
+        recipe = ((wares.get(ware) or {}).get("recipes") or {}).get("default") or {}
+        return sum(n * ((wares.get(w) or {}).get("minprice") or 0) for w, n in (recipe.get("inputs") or {}).items())
+    return int(sum(cost(m) for s in stations for m in (s.get("modules") or [])))
+
+
 def score(state: dict) -> dict:
     meta, player = state["meta"], state["player"]
     assets = state["assets"]
@@ -91,6 +111,7 @@ def score(state: dict) -> dict:
     now = meta.get("playtime_s") or 0
     accounts, stock_min, stock_avg = _holdings(assets)
     modules_value = _modules_value(stations)
+    modules_cost = _modules_cost(stations)
     stock_sellable = _sellable_stock(assets, state.get("known_stations", []))
     return {
         "save": meta.get("save_name"),
@@ -106,6 +127,10 @@ def score(state: dict) -> dict:
         # What the empire holds in money, wares and modules, at the prices the
         # game never goes below. Ships are not in it.
         "net_worth": (player.get("money") or 0) + accounts + stock_min + modules_value,
+        # The same with modules at what they cost to build (`_modules_cost`):
+        # the measure from 2026-10-25 on; net_worth stays for older cards.
+        "modules_cost": modules_cost,
+        "net_worth_cost": (player.get("money") or 0) + accounts + stock_min + modules_cost,
         "stations": len(stations),
         "modules": sum(len(s.get("modules") or []) for s in stations),
         "ships": len(working),
@@ -119,7 +144,7 @@ def score(state: dict) -> dict:
 
 
 ROWS = ("game_hours", "credits", "accounts", "stock_min", "stock_avg", "stock_sellable", "modules_value",
-        "net_worth", "net_sellable",
+        "modules_cost", "net_worth", "net_worth_cost", "net_sellable",
         "stations", "modules", "ships", "idle", "failing", "builds")
 
 

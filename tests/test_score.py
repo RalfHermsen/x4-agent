@@ -54,3 +54,15 @@ def test_stock_counts_as_sellable_only_up_to_known_demand(small_state):
     one = card["stock_min"] // 1000
     assert card["stock_sellable"] == 300 * one
     assert card["net_sellable"] == card["credits"] + card["accounts"] + card["stock_sellable"] + card["modules_value"]
+
+
+def test_modules_are_also_counted_at_what_building_them_costs(small_state):
+    import gamedata
+    card = score.score(small_state)
+    assert card["net_worth_cost"] == (card["credits"] + card["accounts"] + card["stock_min"]
+                                      + card["modules_cost"])
+    wares, modules = gamedata.wares(), gamedata.modules()
+    recipe = wares[modules["prod_gen_microchips_macro"]["ware"]]["recipes"]["default"]["inputs"]
+    one = sum(n * wares[w]["minprice"] for w, n in recipe.items())
+    station = {"modules": ["prod_gen_microchips_macro"]}
+    assert score._modules_cost([station]) == int(one) < score._modules_value([station])

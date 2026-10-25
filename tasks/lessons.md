@@ -312,6 +312,13 @@ order alone, where the player's menu and the faction logic use the
 one. Who a ship works for now comes from the bridge's own logbook line
 (`executor.serves`), and assignments go through `AssignCommander`.
 
+**L28. Value what was built at what it cost.** Net worth counted modules at
+their module ware's minimum price, two to three times what building one
+takes, so the run that built fifteen expensive microchip modules looked 25 %
+better than two runs that ended with 29 million more in money. A score that
+counts an investment above its cost rewards spending; count it at cost (or
+at what it earns), and check a lead against the cash before believing it.
+
 ## About working on this
 
 **L15. A log line must say whether it worked, not what happened.** "sending:

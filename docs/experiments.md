@@ -680,3 +680,40 @@ run on this code decides before anything is built on either number.
 The model's value so far is as a reviewer, not a player. The strategist
 (tasks/plan-strategy-2026-10.md, branch `strategy`) is the attempt to give a
 model a lever the rules then carry out.
+
+## 2026-10-25: net worth overcounted modules, and the rules run repeated
+
+A second rules run on the same code (lean4-long) came out where the first
+did: 2.67 M per game hour over the whole run against 2.72, 3.02 in the last
+11 hours against 3.04. So the drop from lean2-long (3.38) was not noise. It
+was the measure.
+
+Net worth counted every module at the minimum price of its module ware, and
+that price runs two to three times above what the module takes to build. A
+microchip module counts 4.12 million; its construction resources cost about
+two. lean2-long had built fifteen of them (61.8 of its 71.6 million in module
+value), lean3 and lean4 none: they built silicon wafer modules instead, at
+0.40 million each. Which ware the margin ranking picks depends on how the
+market went: in lean2 wafers piled up, an input held in excess counts as
+free, and microchips came out on top, although at the prices the 88-hour
+save knew they lose money (`economics.py`). In money the newer runs ended
+richer: credits and station accounts 136 million against 107.
+
+`score.py` now also counts modules at their construction resources' minimum
+price (`modules_cost`, `net_worth_cost`), the way stock is counted. Every run
+again, from its final save, per game hour over the whole run:
+
+| Run | Net worth, modules at ware price | Net worth, modules at build cost |
+|---|---|---|
+| The game alone (builds nothing) | 1.82 M | 1.82 M |
+| Rules, before the fixes (lean2-long) | 3.38 M | 2.16 M |
+| Rules (lean3-long) | 2.72 M | 2.38 M |
+| Rules, repeated (lean4-long) | 2.67 M | 2.32 M |
+| Rules and gemma4, before the fixes (leancat2-long) | 1.93 M | 1.38 M |
+| Rules and Sonnet 5.5 (leansonnet55-long) | 1.62 M | 1.32 M |
+
+The order holds: the rules beat the game alone and beat every arm with a
+model in it, and the fixes made the rules a little better, not worse. But the
+rules do not nearly double the game alone: at build cost they add about 28 %
+(2.35 against 1.82). Earlier cards that compared growth by net worth carry the
+same inflation, in proportion to how much each arm built.
