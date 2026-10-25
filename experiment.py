@@ -48,6 +48,14 @@ from save_parser import documents_dir, parse_save
 REPO = Path(__file__).parent
 OUTBOX = REPO / "logs" / "outbox.txt"
 AGENT_SLOT = "save_008"
+# The game end of the pipe can go and not come back: "Pipe client garbage
+# collected" in the host log, the host serving again, and the game sending
+# nothing more. leanplan-test stood still for 80 of its 120 minutes so, and
+# leancat2-long for its last seven hours. Loading the run's newest save starts
+# the game's Lua and MD afresh, and they connect again. A planner thinking for
+# five minutes is the longest the host has been silent while working.
+STALL_AFTER = 600
+MAX_RELOADS = 3
 PROTECTED = ("autosave_01", "autosave_02", "autosave_03", "quicksave")
 
 
@@ -156,6 +164,12 @@ def request_save(slot: Path, timeout: float = 300) -> bool:
     return False
 
 
+def newest_save(folder: Path, since: float) -> Path | None:
+    """The newest save the game wrote into `folder` after `since` (epoch s)."""
+    saves = [p for p in folder.glob("*.xml.gz") if p.stat().st_mtime > since]
+    return max(saves, key=lambda p: p.stat().st_mtime) if saves else None
+
+
 def stop_host(proc: subprocess.Popen) -> None:
     import run_host
     proc.terminate()
@@ -248,10 +262,23 @@ def main() -> int:
         next_seta = time.monotonic()
         seen = slot.stat().st_mtime if slot.exists() else 0
         next_note = time.monotonic() + 600
+        started, reloads = time.time(), 0
         while time.monotonic() < end:
             time.sleep(20)
             if launch_game.restore_window():
                 log(run_dir, "the game window was minimized, so the game stood still; restored it")
+            quiet = time.time() - (run_dir / "host.log").stat().st_mtime
+            if quiet > STALL_AFTER and reloads < MAX_RELOADS:
+                save = newest_save(folder, started)
+                if save is None:
+                    log(run_dir, f"host log quiet for {quiet / 60:.0f} min and no save of this run to reload")
+                else:
+                    reloads += 1
+                    log(run_dir, f"host log quiet for {quiet / 60:.0f} min; reloading {save.name} "
+                                 f"({reloads} of {MAX_RELOADS})")
+                    if launch_game.load(save.name.removesuffix(".xml.gz"), 180) != 0:
+                        log(run_dir, f"reloading {save.name} failed")
+                    next_seta = time.monotonic()
             if args.seta and time.monotonic() >= next_seta:
                 OUTBOX.parent.mkdir(parents=True, exist_ok=True)
                 with OUTBOX.open("a", encoding="utf-8") as handle:
