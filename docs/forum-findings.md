@@ -184,6 +184,52 @@ board; these are the ones that held something for the agent.
   ([t=473817](https://forum.egosoft.com/viewtopic.php?t=473817)), which would
   show MD mistakes in the bridge during a run.
 
+## Community guides (Steam, 2026-10-24)
+
+The most read economy guides among Steam's top rated for X4, with their
+visitor counts then: [[9.0] Economy Primer](https://steamcommunity.com/sharedfiles/filedetails/?id=2968249103)
+(14,504, updated for 9.0 in June 2026), [The Path to Profit](https://steamcommunity.com/sharedfiles/filedetails/?id=2788767070)
+(14,008, version not stated), [[9.00] X4 In-Depth FAQ](https://steamcommunity.com/sharedfiles/filedetails/?id=3120616748)
+(10,547) and [Hidden Mechanics & Penalties](https://steamcommunity.com/sharedfiles/filedetails/?id=3463911140)
+(10,387). What holds for the agent:
+
+* **Mining silicon is a question of pilots and probes**, checked against the
+  game's own script (`aiscripts/lib.calculate.miningefficiency.xml`) and
+  parameters (`libraries/parameters.xml`): efficiency is the ware's factor
+  plus (1 minus it) times (combined skill / 100)^4, halved without a resource
+  probe of ours within 40 km, and the scan before each load takes
+  1.7 / efficiency times the base time. The factor is 0.9 for ore, ice and
+  the gases, so for them skill and probes barely matter, and 0.015 for
+  silicon: 0.016 with a one-star pilot, 0.08 with three stars (0.14 with a
+  probe), 0.51 with five stars (1.0 with a probe). Combined skill is about
+  80 % piloting and 20 % morale (FAQ).
+* **A station's traders and miners reach max(manager management, pilot
+  piloting) / 3 gates**, at most five (FAQ).
+* **Stations make money only where the market has a hole.** The Economy
+  Primer: "if you try to use station building for profit ONLY, you will end
+  up saturating the economy and not being able to sell wares". Ships are the
+  main sink; find what wharfs and shipyards wait for (hull parts first, then
+  weapon components) and supply it. Food, medical supplies, energy cells and
+  gases the AI fills itself; ice pays badly per volume. Its payback figures
+  agree with `economics.py`: energy cells about seven hours, hull parts about
+  fifty buying every input and fifteen buying only raw resources, blueprints
+  and ships not counted.
+* **High and low attention are different games** (Hidden Mechanics): within
+  roughly 100 km of the player or camera everything is fully simulated;
+  outside it, mining is "significantly more efficient" (no asteroids, no
+  collisions) and turrets fire with a 30 % chance, which leaves Xenon
+  destroyers much weaker. In our runs the player sits in KYV-745's sector, so
+  that station mines and is attacked at full fidelity, the same in every arm.
+* **Licences follow ceremonies** (FAQ): the friend ceremony unlocks
+  intermediate modules, the ally ceremony advanced and shipbuilding modules,
+  so a plan for advanced electronics or weapon components (licence
+  `station_gen_advanced`) needs ally standing with the faction selling it.
+* The Path to Profit, a player's practice: storage first and generous; a
+  first hull parts station of seven hull parts modules with energy, graphene
+  and teladianium, ore and methane within one jump, and about six medium
+  miners (four ore, two gas); a sell order for energy cells above 1.5 times
+  the hourly use.
+
 ## Ideas this suggests for the project
 
 1. **Respect player orders.** Check `$order.$internalorder` before overriding.
