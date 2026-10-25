@@ -209,6 +209,7 @@ def main() -> int:
         "no_pricing": os.environ.get("X4_NO_PRICING") == "1",
         "rules_off": os.environ.get("X4_RULES_OFF", ""),
         "planner_model": os.environ.get("X4_PLANNER_MODEL") or "default",
+        "strategy_file": os.environ.get("X4_STRATEGY_FILE"),
         "baseline_game": game_version(Path(baseline)),
         "started": datetime.now().isoformat(timespec="seconds")}, indent=2), encoding="utf-8")
 
