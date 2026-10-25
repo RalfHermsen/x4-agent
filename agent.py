@@ -34,6 +34,7 @@ import planner
 import purchases
 import sitrep as sitrep_mod
 import standing
+import strategist
 import strategy
 from save_parser import latest_save, parse_save
 from schemas import PlannerResponse
@@ -168,6 +169,8 @@ def cycle(model: str | None = None, save: Path | None = None, force: bool = Fals
     job_commands += standing.connectors(state, remembered)
     # A strategist's plan, if there is one: the rules read it from memory.
     failures += strategy.load(remembered, state)
+    # Or from the strategist model, when one is set and a plan is due (strategist.py).
+    failures += strategist.update(state, remembered, planner.GUIDELINES.read_text(encoding="utf-8"))
     job_commands += strategy.blueprints(state, remembered)
     # When each explore order went out, in game time: the bridge's logbook line
     # appears only once the game has carried it out, and a save taken before

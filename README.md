@@ -93,6 +93,11 @@ OpenAI-compatible endpoint, `claude:<model>` for the Claude Code CLI, or
 `anthropic:<model id>` for the Claude API (`pip install anthropic`, key in
 `ANTHROPIC_API_KEY`).
 
+A strategist sets goals for the rules every few game hours (modules, miners and
+traders per station, carried out by `strategy.py`): `X4_STRATEGIST_MODEL` names a
+Claude model on the API, or `X4_STRATEGY_FILE` points at a plan in the same form
+(`schemas.Strategy`).
+
 ## Layout
 
 ```
