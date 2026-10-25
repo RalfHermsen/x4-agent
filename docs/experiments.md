@@ -635,3 +635,48 @@ counts as done for half a game hour).
 One run per arm, and growth runs spread widely (L23). The rules' lead is
 large enough to stand without a second run before the next change; the
 catalog's deficit has the same cause it had before, purchases.
+
+## 2026-10-24/25: Claude Sonnet 5.5 as the planner, against the rules on the same code
+
+Before this pair, a day of faults found by the Claude runs themselves, all
+fixed: group numbers read on each subordinate's own commander (the fleet
+focus had turned four miners and a fighter of GKL-870 into wafer traders,
+and the catalog handed miners between the stations every cycle), station
+roles assigned through `AssignCommander` as the game does it, a drained
+station account topped up again, no cycle planning on a save older than its
+own last commands, and a purchase counted as soon as it is sent. Three Claude
+runs were stopped on the way. The npm Claude CLI turned out to map "sonnet"
+to Sonnet 4.6, 93 seconds a call; this pair used Sonnet 5.5 through the newer
+CLI, about 12 seconds a call, on the subscription.
+
+| Net worth per game hour | Whole run | 85 to 96 h | Last 11 h | Ships bought | Modules | Credits at the end |
+|---|---|---|---|---|---|---|
+| Sonnet 5.5 and rules (leansonnet55-long, 33.5 game h) | 1.62 M | 0.78 M | 2.38 M | 25 (6 scouts) | 25 to 104 | 29.4 M |
+| Rules only (lean3-long, 33.3 game h) | 2.72 M | 3.08 M | 3.04 M | 0 | 25 to 136 | 75.9 M |
+| Rules only, before the fixes (lean2-long) | 3.38 M | 4.43 M | 3.41 M | 0 | 25 to 104 | 78.2 M |
+
+Rates are interpolated between the hourly snapshots over the same game-time
+windows; `timeline.py` sorts snapshots by file name, which puts a run across
+midnight out of order, and the Sonnet run missed the snapshot at 96 hours.
+
+**A strong model in the catalog still loses to the rules.** Its one lever
+that the rules do not pull is buying ships: nineteen miners and freighters
+at about a million each plus six scouts, not in net worth and not earning it
+back within the run, and the money went out of credits rather than into
+modules (104 against 136). Counted at cost the ships would not close the
+gap. Its notes were the best fault-finding of the project, but in catalog
+mode it chooses from about one situation a cycle. A buy option for a station
+short of silicon is the wrong answer since 9.00 anyway: a silicon miner's
+efficiency goes with its pilot's skill to the fourth power and doubles with
+a probe of ours within 40 km (`docs/forum-findings.md`), so more miners with
+one-star pilots add little.
+
+**The rules arm ran lower after the fixes** than before them, 2.72 against
+3.38 over the whole run, while building more modules. One run each and
+growth runs spread widely (L23): this may be noise, or a fix (defenders that
+now really protect, accounts topped up) may cost something. A second rules
+run on this code decides before anything is built on either number.
+
+The model's value so far is as a reviewer, not a player. The strategist
+(tasks/plan-strategy-2026-10.md, branch `strategy`) is the attempt to give a
+model a lever the rules then carry out.
