@@ -76,6 +76,8 @@ class Asset:
     software: list[str] = field(default_factory=list)
     account: dict[str, str] = field(default_factory=dict)
     offers: list[Offer] = field(default_factory=list)
+    # Prices fixed by hand or by us, which the manager no longer moves: {ware: {buy, sell}}.
+    price_overrides: dict[str, dict[str, int]] = field(default_factory=dict)
     production_queue: list[str] = field(default_factory=list)
     production: list[dict] = field(default_factory=list)
     manager: dict | None = None     # stations: the manager and their skill
@@ -223,6 +225,18 @@ def _failures(elem) -> list[dict]:
                     "message": failed.get("message"),
                     "time": float(failed.get("time") or 0)})
     out.sort(key=lambda f: f["time"])
+    return out
+
+
+def _price_overrides(elem) -> dict[str, dict[str, int]]:
+    """trade/prices/override/ware: the prices a station keeps fixed, in Cr,
+    0 for a side that follows the manager. Kept in the save until cleared."""
+    out = {}
+    for ware in elem.iterfind("trade/prices/override/ware"):
+        name = ware.get("ware")
+        sides = {s: _int(ware.get(s)) or 0 for s in ("buy", "sell")}
+        if name and any(sides.values()):
+            out[name] = sides
     return out
 
 
@@ -462,6 +476,7 @@ def _asset(elem, ancestors: list[dict]) -> Asset:
                        elem.iterfind(".//connection[@connection='buildanchor']/connected")
                        if c.get("connection")]
         asset.offers = _offers(elem)
+        asset.price_overrides = _price_overrides(elem)
         asset.build = _build_tasks(elem)
         asset.build["builders"] = _builders(elem)
         asset.build["processor"] = _processor(elem)
@@ -483,6 +498,7 @@ def _asset(elem, ancestors: list[dict]) -> Asset:
         asset.builds = _shipyard(elem)
         asset.manager = _manager(elem)
         asset.offers = _offers(elem)
+        asset.price_overrides = _price_overrides(elem)
         asset.production = _production(elem)
         asset.production_queue = [line["ware"] for line in asset.production]
         asset.modules = _built_modules(elem)

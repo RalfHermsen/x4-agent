@@ -97,3 +97,12 @@ def test_a_mined_input_is_not_bought_for_more_than_it_earns(small_state):
     worth = (419.0 * recipe["amount"] - recipe["inputs"]["energycells"] * gamedata.wares()["energycells"]["minprice"]) \
         / recipe["inputs"]["silicon"]
     assert f"price KYV-745 silicon buy {int(worth * executor.INPUT_MARGIN)}" in executor.input_caps(state)
+
+
+def test_a_fixed_price_is_handed_back_to_the_manager(small_state):
+    state = copy.deepcopy(small_state)
+    _station(state)["price_overrides"] = {"siliconwafers": {"buy": 0, "sell": 176},
+                                          "medicalsupplies": {"buy": 88, "sell": 68}}
+    assert sorted(executor.automatic_prices(state)) == ["price KYV-745 medicalsupplies buy auto",
+                                                        "price KYV-745 medicalsupplies sell auto",
+                                                        "price KYV-745 siliconwafers sell auto"]

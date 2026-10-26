@@ -776,3 +776,13 @@ Measured next (leanfloor-long).
 The trade log does not hold all of our income: over the same window credits
 and accounts grew by 2.67 million an hour, the logged trades by about 0.2. So
 it is read for what is bought and sold, not as a profit.
+
+Correction, the same day: the floor and caps never ran in the rules runs,
+because our pricing has been off by default since 6.8. The prices the trade
+log shows are not the rule's either. They are price overrides frozen into the
+73-hour baseline by the pricing of that time (`<prices><override>` in the
+station: water 51, refined metals 87, wafers 176, microchips 788 and six
+more), which the managers never move, so every run since sold at them. The
+bridge now hands a price back to the manager (`price <station> <ware>
+<buy|sell> auto`, the menu's automatic price checkbox), and while our pricing
+is off the rules do that for every fixed price (`executor.automatic_prices`).

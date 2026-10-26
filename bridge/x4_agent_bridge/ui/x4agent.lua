@@ -169,12 +169,27 @@ end
 -- its own, so UpdateProductionTradeOffers has to be asked for.
 local function set_price(station, args)
     local ware, side, value = args[1], args[2], tonumber(args[3])
-    if not (ware and side and value) then
-        log("price needs: price <IDCODE> <ware> <buy|sell> <value>")
-        return false
-    end
     if side ~= "buy" and side ~= "sell" then
         log("price side must be buy or sell, got " .. tostring(side))
+        return false
+    end
+    -- "auto" hands the price back to the station manager, as the map menu's
+    -- automatic price checkbox does (menu_map.lua, checkboxStorageWarePriceOverride).
+    -- An override stays in the save for good: the baseline carried the prices
+    -- an old rule had set, wafers at 176 and refined metals at 87, through every
+    -- run after that rule was switched off.
+    if ware and args[3] == "auto" then
+        local id = ConvertStringTo64Bit(tostring(station))
+        local buyside = (side == "buy")
+        local before = GetContainerWarePrice(id, ware, buyside)
+        ClearContainerWarePriceOverride(id, ware, buyside)
+        C.UpdateProductionTradeOffers(station)
+        log(string.format("price on %s: %s %s was %s, now automatic at %s",
+                          args.code, ware, side, tostring(before), tostring(GetContainerWarePrice(id, ware, buyside))))
+        return true
+    end
+    if not (ware and side and value) then
+        log("price needs: price <IDCODE> <ware> <buy|sell> <value|auto>")
         return false
     end
 

@@ -321,6 +321,20 @@ def repricing(state: dict) -> list[str]:
     return out
 
 
+def automatic_prices(state: dict) -> list[str]:
+    """Hand every fixed price back to the station manager, as the map menu's
+    automatic price checkbox does.
+
+    With our own pricing off since 6.8 the managers were meant to price, but
+    a fixed price stays fixed: the 73-hour baseline carried ten that an old
+    rule had set (wafers 176, refined metals 87, microchips 788, below the
+    game's own minimum of 805), and every run since sold at them."""
+    return [f"price {st['code']} {ware} {side} auto"
+            for st in state.get("assets", []) if st.get("cls") == "station" and st.get("code")
+            for ware, sides in (st.get("price_overrides") or {}).items()
+            for side, value in sides.items() if value]
+
+
 INPUT_MARGIN = 0.9   # a mined input is bought for at most this share of what it earns
 
 
