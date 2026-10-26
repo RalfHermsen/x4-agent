@@ -582,6 +582,7 @@ def parse_save(path: str | os.PathLike) -> dict:
     market: list[Asset] = []
     eyes: set[str] = set()   # sectors holding a satellite or beacon of ours
     logbook: list[list] = []
+    trades: list[tuple] = []   # (time, ware, buyer id, seller id, price in cents, amount)
     # Hostile ships and stations the player has seen, per sector: what a
     # threat assessment can honestly know (knownto="player", as for markets).
     hostiles: dict[str, dict[str, dict[str, int]]] = {}
@@ -617,6 +618,12 @@ def parse_save(path: str | os.PathLike) -> dict:
                 # prices and unlike player.money on the Mission Director side.
                 player.update({"name": elem.get("name"),
                                "money": _int(elem.get("money"))})
+            elif elem.tag == "log" and elem.get("type") == "trade" and elem.get("seller"):
+                # A completed trade: who sold what to whom, at what price (in
+                # hundredths of a credit). Kept for our stations' own books
+                # (_trade_book), resolved to codes after the pass.
+                trades.append((float(elem.get("time") or 0), elem.get("ware"), elem.get("buyer"),
+                               elem.get("seller"), _int(elem.get("price")), _int(elem.get("v"))))
             elif (elem.tag == "entry" and len(stack) > 1 and stack[-2] == "log"
                   and (elem.get("text") or "").startswith("[x4-agent")):
                 # What the bridge wrote into the player's logbook: its orders, and
@@ -732,7 +739,44 @@ def parse_save(path: str | os.PathLike) -> dict:
                     if e[0] >= (meta.get("playtime_s") or 0) - LOGBOOK_WINDOW],
         # Who the bridge last put each ship under, over the whole logbook.
         "assigned_to": _assigned_to(logbook),
+        # What our stations really sold and bought, from the game's trade log.
+        "trades": _trade_book(trades, assets),
     }
+
+
+def _trade_book(trades: list[tuple], assets: list) -> dict:
+    """Per station of ours and ware: what it sold to others and bought from
+    them, in units and credits, over the span the save's trade log covers.
+
+    The prices a model reasons on are offers; this is what changed hands. In
+    the strategist's run KYV-745 sold 33.7 million of water while buying 31.0
+    million of ice. Trades between two of our own stations or ships move no
+    money and are left out; build storages count as their station.
+
+    Not the whole of our income: over the same 24 game hours of lean4-long,
+    credits and accounts grew by 2.67 million an hour while these trades, our
+    ships' included, come to about 0.2. Which flows the log leaves out is not
+    known yet, so read it for what is bought and sold, not as a profit."""
+    ours = {}
+    for a in assets:
+        if a.id and a.cls == "station":
+            ours[a.id] = a.code
+    for a in assets:
+        if a.id and a.cls == "buildstorage" and a.station:
+            ours[a.id] = a.station
+    book: dict[str, dict[str, dict[str, float]]] = {}
+    times = []
+    for time_, ware, buyer, seller, price, amount in trades:
+        if not ware or not amount or (seller in ours) == (buyer in ours):
+            continue
+        side, code = ("sold", ours[seller]) if seller in ours else ("bought", ours[buyer])
+        entry = book.setdefault(code, {}).setdefault(ware, {"sold": 0, "sold_cr": 0.0,
+                                                            "bought": 0, "bought_cr": 0.0})
+        entry[side] += amount
+        entry[side + "_cr"] += amount * (price or 0) / 100
+        times.append(time_)
+    return {"since": min(times) if times else None, "until": max(times) if times else None,
+            "stations": book}
 
 
 # The bridge's logbook line for each assignment it makes (md/x4_agent_bridge.xml).

@@ -93,3 +93,20 @@ def test_a_module_still_being_built_is_not_counted():
         '<connection><component class="controlroom" macro="control_room_macro"/></connection>'
         '</connections></component>')
     assert _built_modules(elem) == ["dockarea_arg_m_station_01_lowtech_macro"]
+
+
+def test_the_trade_book_keeps_our_trades_with_others_only():
+    from types import SimpleNamespace as S
+    import save_parser
+    assets = [S(id="[st]", cls="station", code="KYV-745", station=None),
+              S(id="[bs]", cls="buildstorage", code="XQL-000", station="KYV-745"),
+              S(id="[st2]", cls="station", code="GKL-870", station=None)]
+    trades = [(10.0, "water", "[npc]", "[st]", 5000, 100),      # sold 100 at 50 Cr
+              (20.0, "ice", "[st]", "[npc]", 2500, 200),        # bought 200 at 25 Cr
+              (30.0, "claytronics", "[bs]", "[npc]", 200000, 2),  # the build storage buys for its station
+              (40.0, "water", "[st2]", "[st]", 5000, 999)]      # between two of ours: no money moves
+    book = save_parser._trade_book(trades, assets)
+    kyv = book["stations"]["KYV-745"]
+    assert kyv["water"]["sold"] == 100 and kyv["water"]["sold_cr"] == 5000
+    assert kyv["ice"]["bought_cr"] == 5000 and kyv["claytronics"]["bought_cr"] == 4000
+    assert "GKL-870" not in book["stations"] and (book["since"], book["until"]) == (10.0, 30.0)
