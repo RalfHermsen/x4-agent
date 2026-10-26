@@ -70,3 +70,30 @@ def test_full_everywhere_is_a_transport_shortage(small_state):
 
 def test_partly_full_is_not_a_shortage(large_state):
     assert executor.transport_shortage(large_state) == []
+
+
+def test_a_ware_is_never_priced_below_what_its_inputs_cost(small_state):
+    station = copy.deepcopy(_station(small_state))
+    station["modules"] = ["prod_gen_siliconwafers_macro"]
+    station["offers"] = [{"ware": "silicon", "side": "buy", "price": 149.0, "amount": 240},
+                         {"ware": "energycells", "side": "buy", "price": 16.0, "amount": 90}]
+    recipe = gamedata.wares()["siliconwafers"]["recipes"]["default"]
+    cost = (recipe["inputs"]["silicon"] * 149.0 + recipe["inputs"]["energycells"] * 16.0) / recipe["amount"]
+    assert executor.sell_floor(station, "siliconwafers") == int(cost + 0.999)
+    station["offers"] = []                                  # nothing bought: the game's minimum is the floor
+    assert executor.sell_floor(station, "siliconwafers") >= gamedata.wares()["siliconwafers"]["minprice"]
+
+
+def test_a_mined_input_is_not_bought_for_more_than_it_earns(small_state):
+    state = copy.deepcopy(small_state)
+    station = _station(state)
+    station["modules"] = ["prod_gen_siliconwafers_macro"]
+    station["offers"] = [{"ware": "silicon", "side": "buy", "price": 150.0, "amount": 240},
+                         {"ware": "siliconwafers", "side": "sell", "price": 176.0, "amount": 100}]
+    # Wafers at 176 cannot pay for silicon above its minimum: the cap is the minimum.
+    assert f"price KYV-745 silicon buy {gamedata.wares()['silicon']['minprice']}" in executor.input_caps(state)
+    station["offers"][1]["price"] = 419.0                   # at the maximum they can
+    recipe = gamedata.wares()["siliconwafers"]["recipes"]["default"]
+    worth = (419.0 * recipe["amount"] - recipe["inputs"]["energycells"] * gamedata.wares()["energycells"]["minprice"]) \
+        / recipe["inputs"]["silicon"]
+    assert f"price KYV-745 silicon buy {int(worth * executor.INPUT_MARGIN)}" in executor.input_caps(state)

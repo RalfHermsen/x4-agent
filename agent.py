@@ -279,6 +279,9 @@ def cycle(model: str | None = None, save: Path | None = None, force: bool = Fals
     priced = {c.rsplit(" ", 1)[0] for c in commands if c.startswith("price ")}
     commands += [c for c in ([] if NO_PRICING or "pricing" in RULES_OFF else executor.repricing(state))
                  if c.rsplit(" ", 1)[0] not in priced]
+    # And no mined input bought for more than it earns (executor.input_caps).
+    commands += [c for c in ([] if NO_PRICING or "pricing" in RULES_OFF else executor.input_caps(state))
+                 if c.rsplit(" ", 1)[0] not in priced]
 
     # A ship on an errand belongs to its job until released: nothing else may
     # give it an order meanwhile, Python's own arithmetic included. A ship the

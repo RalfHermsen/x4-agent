@@ -307,12 +307,94 @@ def repricing(state: dict) -> list[str]:
             # its own energy. Almost any price is profit; an unsold pile is not.
             rivals = _rival_prices(known, offer["ware"])
             target = int(min(rivals) * UNDERCUT) if rivals else int(top * UNDERCUT)
+            # But never below what it costs to make. The near-zero marginal
+            # cost above held while miners fed the station; once expansions
+            # outgrew them, KYV-745 bought silicon at 149 and sold the wafers
+            # it made at 176, 347 Cr of silicon in each (the save's trade log).
+            target = max(target, sell_floor(station, offer["ware"]))
 
             if abs(target - offer["price"]) < offer["price"] * PRICE_DEADBAND:
                 continue
             if target < offer["price"] and buyers < MIN_BUYERS_TO_CUT:
                 continue
             out.append(f"price {station['code']} {offer['ware']} sell {target}")
+    return out
+
+
+INPUT_MARGIN = 0.9   # a mined input is bought for at most this share of what it earns
+
+
+def _recipe_at(station: dict, ware: str, table: dict) -> dict:
+    """The recipe a station makes `ware` by: its producing module's race's
+    where the ware has one (catalog.RECIPE_RACE), else the default."""
+    import economics
+    from catalog import RECIPE_RACE
+    recipes = (table.get(ware) or {}).get("recipes") or {}
+    for macro in station.get("modules") or []:
+        if economics.product_of(macro) == ware:
+            race = RECIPE_RACE.get(macro.split("_")[1])
+            if race in recipes:
+                return recipes[race]
+    return recipes.get("default") or {}
+
+
+def _paying(station: dict, table: dict) -> dict[str, float]:
+    """What the station offers for each ware it buys, else the ware's lowest price."""
+    offers = {o["ware"]: o.get("price") for o in station.get("offers", [])
+              if o.get("side") == "buy" and o.get("price")}
+    return {w: offers.get(w) or (table.get(w) or {}).get("minprice") or 0 for w in table}
+
+
+def sell_floor(station: dict, ware: str, table: dict | None = None) -> int:
+    """The least a station should ask for `ware`: the game's own minimum, or
+    what its inputs cost at the prices the station is paying for them."""
+    import gamedata
+    table = table if table is not None else gamedata.wares()
+    recipe = _recipe_at(station, ware, table)
+    paying = _paying(station, table)
+    cost = (sum(n * paying.get(w, 0) for w, n in (recipe.get("inputs") or {}).items())
+            / recipe["amount"]) if recipe.get("amount") else 0
+    return int(max((table.get(ware) or {}).get("minprice") or 0, cost) + 0.999)
+
+
+def input_caps(state: dict) -> list[str]:
+    """Buy prices for mined inputs no higher than what they earn.
+
+    The game raises a station's buy price toward the maximum as its store of an
+    input runs low, and once expansions outgrew our miners it bought ore at 58
+    of 58 and silicon at 149 of 150 for products that sold below their cost.
+    For each mined ware a station buys, the cap is the best that any product it
+    makes from it can pay: that product's asking price times its output, less
+    the other inputs, per unit of the ware, times INPUT_MARGIN; never below the
+    ware's minimum, the lowest offer the game knows. What our own miners bring
+    costs nothing either way."""
+    import gamedata
+    table = gamedata.wares()
+    mined = set().union(*MINABLE.values())
+    out = []
+    for station in state.get("assets", []):
+        if station.get("cls") != "station":
+            continue
+        selling = {o["ware"]: o.get("price") for o in station.get("offers", [])
+                   if o.get("side") == "sell" and o.get("price")}
+        paying = _paying(station, table)
+        for offer in station.get("offers", []):
+            ware = offer.get("ware")
+            if offer.get("side") != "buy" or ware not in mined or not offer.get("price"):
+                continue
+            worth = []
+            for product, price in selling.items():
+                recipe = _recipe_at(station, product, table)
+                need = (recipe.get("inputs") or {}).get(ware)
+                if not need or not recipe.get("amount"):
+                    continue
+                others = sum(n * paying.get(w, 0) for w, n in recipe["inputs"].items() if w != ware)
+                worth.append((price * recipe["amount"] - others) / need)
+            if not worth:
+                continue
+            cap = int(max(max(worth) * INPUT_MARGIN, (table.get(ware) or {}).get("minprice") or 0))
+            if abs(cap - offer["price"]) >= offer["price"] * PRICE_DEADBAND:
+                out.append(f"price {station['code']} {ware} buy {cap}")
     return out
 
 

@@ -751,3 +751,28 @@ and no fleet targets unless a station visibly lacks ships.
 
 Nineteen of the 28 purchase commands bought nothing and wrote no refusal;
 to be looked into.
+
+## 2026-10-26: the stations sold below cost
+
+The save's trade log (now in `save_parser`, `trades`) shows what changed
+hands. Over the last 24 game hours of lean4-long, KYV-745 sold silicon wafers
+at 176 Cr and bought the silicon for them at 149 of a 150 maximum; with 240
+silicon in 107 wafers that is 347 Cr of silicon in each. Refined metals went
+at 87 for 174 Cr of ore apiece, microchips at 788, below the game's own
+minimum of 805. The repricing rule undercut the cheapest rival on everything,
+on the reasoning that "the station's marginal cost is near zero anyway: mined
+inputs and its own energy". That held while miners fed the station; once
+expansions outgrew them, the game raised the buy prices toward their maximum
+and the station bought most of its ore, silicon and ice.
+
+Two rules now (`executor.sell_floor`, `executor.input_caps`): a ware is never
+priced below the game's minimum or what its inputs cost at the prices the
+station pays for them, and a mined input is bought for no more than 90 % of
+what the best product made from it earns, the ware's minimum at the least.
+On lean4's final save that raises wafers from 176 to 345 and refined metals
+from 87 to 169, and lowers ore from 58 to 43 and silicon from 150 to 111.
+Measured next (leanfloor-long).
+
+The trade log does not hold all of our income: over the same window credits
+and accounts grew by 2.67 million an hour, the logged trades by about 0.2. So
+it is read for what is bought and sold, not as a profit.
