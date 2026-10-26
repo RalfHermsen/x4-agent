@@ -117,6 +117,27 @@ def player_piloting(save: Path) -> bool | None:
     return None
 
 
+def player_ship(save: Path) -> str | None:
+    """The code of the ship the player last controlled, None if not found.
+    The ship's component line comes before the player's, who sits inside it."""
+    import gzip
+    import re
+    codes = {}
+    try:
+        with gzip.open(save, "rt", encoding="utf-8", errors="replace") as handle:
+            for line in handle:
+                if '<component class="ship_' in line:
+                    code, ident = re.search(r' code="([^"]+)"', line), re.search(r' id="([^"]+)"', line)
+                    if code and ident:
+                        codes[ident.group(1)] = code.group(1)
+                elif '<component class="player"' in line:
+                    last = re.search(r' lastcontrolled="([^"]+)"', line)
+                    return codes.get(last.group(1)) if last else None
+    except OSError:
+        return None
+    return None
+
+
 def game_version(save: Path) -> str | None:
     """"9.00 (611726)" from a save's header: the version of the game that wrote it.
 
@@ -285,8 +306,22 @@ def main() -> int:
         seen = slot.stat().st_mtime if slot.exists() else 0
         next_note = time.monotonic() + 600
         started, reloads = time.time(), 0
+        # The player's own ship can be shot down while the run goes on around
+        # it. The player then floats in a spacesuit, without SETA, and in three
+        # runs (2026-10-23 to 10-26) the game ended about half an hour of game
+        # time later; a reload replays the same death. So the run stops there,
+        # while the game can still save.
+        ship, read_to = player_ship(Path(baseline)), 0
         while time.monotonic() < end:
             time.sleep(20)
+            if ship:
+                with (run_dir / "host.log").open(encoding="utf-8", errors="replace") as handle:
+                    handle.seek(read_to)
+                    news = handle.read()
+                    read_to = handle.tell()
+                if f"event destroyed {ship}" in news:
+                    log(run_dir, f"the player's ship {ship} was destroyed; stopping the run while the game can save")
+                    break
             if launch_game.restore_window():
                 log(run_dir, "the game window was minimized, so the game stood still; restored it")
             quiet = time.time() - (run_dir / "host.log").stat().st_mtime
