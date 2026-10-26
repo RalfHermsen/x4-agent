@@ -717,3 +717,37 @@ model in it, and the fixes made the rules a little better, not worse. But the
 rules do not nearly double the game alone: at build cost they add about 28 %
 (2.35 against 1.82). Earlier cards that compared growth by net worth carry the
 same inflation, in proportion to how much each arm built.
+
+## 2026-10-26: the strategist (Opus 5.5) and the rules, against the rules alone
+
+leanstrat-long: rules only, with `strategist.py` asking Opus 5.5 through the
+API for a plan whenever the last one's horizon had passed, 33.2 game hours
+from the 73-hour baseline. Nine plans, 11 to 17 seconds and about $0.07 each.
+Compared with the two rules runs on the same baseline and code:
+
+| Per game hour, whole run, modules at build cost | Net worth | Credits at the end | Modules added | Ships bought |
+|---|---|---|---|---|
+| Rules (lean3-long) | 2.38 M | 75.9 M | 111 | 0 |
+| Rules (lean4-long) | 2.32 M | 84.2 M | 120 | 0 |
+| Rules and the strategist (leanstrat-long) | 1.21 M | 36.2 M | 100 | 9 |
+
+**The strategist halved the rules' result.** Two rules runs differ by 2 %;
+this one is half of either. Its plans grew each time a horizon passed
+(refined metals and water from 2 to 7 modules at KYV-745, medical supplies
+from 2 to 7, energy cells to 4, teladianium to 5 at GKL-870) and gave both
+stations fleet targets, so the fleet rule bought six miners and three
+freighters. It chose energy cells and medical supplies for their "demand
+hours", which add up what other stations' buy offers ask for: that is the
+room in their stores, not what they take, and these are the wares the NPC
+economy fills itself (the Economy Primer says as much). Money left credits
+for modules dearer than the rules' wafers and refineries, for ships, and for
+stock that did not sell (24 million at the end against 15).
+
+Its reasoning read well every time; the numbers it reasoned on were the
+weak part. What it would need before another run: realised sales per ware
+(the save keeps a trade log), the outcome of its previous plan beside the new
+report, plans that add to what stands rather than restate a growing total,
+and no fleet targets unless a station visibly lacks ships.
+
+Nineteen of the 28 purchase commands bought nothing and wrote no refusal;
+to be looked into.
