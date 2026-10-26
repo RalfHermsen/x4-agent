@@ -516,3 +516,19 @@ def test_an_anthropic_planner_keeps_the_guidelines_in_the_prompt_cache(monkeypat
     first, second = seen["messages"][0]["content"]
     assert first == {"type": "text", "text": "# GUIDELINES\nG\n\n", "cache_control": {"type": "ephemeral"}}
     assert second == {"type": "text", "text": "REPORT"}
+
+
+def test_a_ship_on_order_holds_a_purchase_of_its_kind_until_its_wharf_is_stuck(small_state):
+    state = copy.deepcopy(small_state)
+    _with_a_yard_and_money(state)
+    now = state["meta"]["playtime_s"]
+    freighter = (("container freighter", "ship_{race}_m_trans_container_01_a_macro"),)
+    miner = (("liquid miner", "ship_{race}_m_miner_liquid_01_a_macro"),)
+    order = {"wharf": "YRD-001", "macro": "ship_arg_m_trans_container_01_a_macro",
+             "since": now - 600, "paid": 980_000, "missing": []}
+    state["ships_on_order"] = [order]
+    assert catalog._buy_options(state, freighter) == []
+    assert catalog._buy_options(state, miner)                            # not its kind
+    order["since"] = now - catalog.ORDER_STUCK - 1
+    assert catalog._buy_options(state, freighter) == []                  # the only wharf is stuck
+    assert catalog._buy_options(state, miner) == []

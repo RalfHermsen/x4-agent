@@ -51,6 +51,7 @@ MAX_DANGER = 4                 # of which at most this many about ships at risk
 SHIP_CAP = 3_000_000           # the most one bought M ship may cost
 CAPITAL_FLOOR = 5_000_000      # below this after the reserve, money is not idle
 PURCHASE_GAP = 3600            # game seconds between two ship purchases
+ORDER_STUCK = 7200             # game seconds after which an undelivered ship is not coming
 BOUGHT = "[x4-agent lua] ORDER: bought"   # the purchase verb's logbook line
 MAX_OPTIONS = 4
 
@@ -175,6 +176,22 @@ def _bought_recently(state: dict) -> bool:
                for t, text in state.get("logbook", []))
 
 
+def _orders(state: dict) -> tuple[set[str], set[str]]:
+    """Wharfs where a ship we paid for has waited longer than ORDER_STUCK, and
+    the kinds of ship on order at any other: those are coming.
+
+    A purchase is paid when it is placed and delivered when the wharf has the
+    wares to build it. The strategist run of 2026-10-26 saw neither: it bought
+    a miner at SCY-867 every game hour, the wharf built none of them for want
+    of advanced electronics, and 24 ships, 22.7 M Cr, sat in its queue.
+    """
+    now = state.get("meta", {}).get("playtime_s", 0.0)
+    orders = state.get("ships_on_order") or []
+    stuck = {o["wharf"] for o in orders if now - o["since"] > ORDER_STUCK}
+    coming = {sitrep.ship_type(o["macro"]) for o in orders if o["wharf"] not in stuck}
+    return stuck, coming
+
+
 def _idle_ship(state: dict, kind: str | None = None) -> str | None:
     """A ship of ours with no orders and no commander, of `kind` if given.
 
@@ -212,15 +229,19 @@ def _buy_options(state: dict, roles: tuple[tuple[str, str], ...], size: str = "m
     cycle: two ships in six minutes, on course for forty in two hours. And
     no ship of a kind of which one of ours is idle (`_idle_ship`). Only the
     entries that show a need call this (5.6): a shortage of a mined ware,
-    products piling up with no freighter free.
+    products piling up with no freighter free. A ship of the kind on order
+    holds the purchase too, and a wharf that has sat on one of ours for
+    ORDER_STUCK is not offered (`_orders`).
     """
     import gamedata
     from purchases import _graph, jumps
     spare = _spare(state)
     if spare < CAPITAL_FLOOR or (gap and _bought_recently(state)):
         return []
+    stuck, coming = _orders(state)
     roles = tuple((role, pattern) for role, pattern in roles
-                  if not _idle_ship(state, sitrep.ship_type(pattern.format(race="arg"))))
+                  if not _idle_ship(state, sitrep.ship_type(pattern.format(race="arg")))
+                  and sitrep.ship_type(pattern.format(race="arg")) not in coming)
     if not roles:
         return []
     home = next((a for a in _stations(state) if a.get("modules")), None)
@@ -230,6 +251,7 @@ def _buy_options(state: dict, roles: tuple[tuple[str, str], ...], size: str = "m
     sector = (home.get("place") or {}).get("sector")
     yards = sorted((k for k in state.get("known_stations", [])
                     if size in (k.get("builds") or []) and RACE.get(k.get("owner"))
+                    and k.get("code") not in stuck
                     and jumps(graph, sector, (k.get("place") or {}).get("sector")) < UNKNOWN_ROUTE),
                    key=lambda k: jumps(graph, sector, (k.get("place") or {}).get("sector")))
     cap = int(min(SHIP_CAP, spare))

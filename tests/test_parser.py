@@ -110,3 +110,19 @@ def test_the_trade_book_keeps_our_trades_with_others_only():
     assert kyv["water"]["sold"] == 100 and kyv["water"]["sold_cr"] == 5000
     assert kyv["ice"]["bought_cr"] == 5000 and kyv["claytronics"]["bought_cr"] == 4000
     assert "GKL-870" not in book["stations"] and (book["since"], book["until"]) == (10.0, 30.0)
+
+
+def test_ships_paid_for_and_not_delivered_are_read_from_the_wharf_queue():
+    from lxml import etree
+
+    from save_parser import _ships_on_order
+    elem = etree.fromstring(
+        '<component><buildtasks><queue>'
+        '<build id="[0x1]" type="buildship" faction="player" macro="ship_par_m_miner_solid_01_a_macro" '
+        'time="309643.2" price="912950" transferred="912950"><resources><insufficient>'
+        '<ware ware="advancedelectronics" amount="12"/></insufficient></resources></build>'
+        '<build id="[0x2]" type="buildship" faction="paranid" macro="ship_par_m_fighter_01_a_macro" time="1"/>'
+        '</queue></buildtasks></component>')
+    assert _ships_on_order(elem, "SCY-867") == [
+        {"wharf": "SCY-867", "macro": "ship_par_m_miner_solid_01_a_macro", "since": 309643.2,
+         "paid": 912950, "missing": ["advancedelectronics"]}]

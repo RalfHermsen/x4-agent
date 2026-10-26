@@ -240,6 +240,23 @@ def _price_overrides(elem) -> dict[str, dict[str, int]]:
     return out
 
 
+def _ships_on_order(elem, wharf: str | None) -> list[dict]:
+    """Ships the player paid for at this wharf that it has not delivered.
+
+    A purchase is a build task in the wharf's own queue, paid in full when it
+    is placed: `buildtasks/queue/build type="buildship" faction="player"` with
+    the order's time and `transferred`, and `resources/insufficient` naming
+    what the wharf still lacks. In the strategist run of 2026-10-26, 24 of the
+    28 ships bought at SCY-867 were still queued at the end, 22.7 M Cr paid,
+    the wharf short of advanced electronics; the next one was bought anyway.
+    """
+    return [{"wharf": wharf, "macro": b.get("macro"), "since": float(b.get("time") or 0),
+             "paid": _int(b.get("transferred")) or 0,
+             "missing": [w.get("ware") for w in b.iterfind("resources/insufficient/ware") if w.get("ware")]}
+            for b in elem.iterfind("buildtasks/*/build")
+            if b.get("type") == "buildship" and b.get("faction") == "player"]
+
+
 def _offers(elem) -> list[Offer]:
     """A station's trade offers: trade/offers/production/trade."""
     node = elem.find("trade/offers")
@@ -599,6 +616,7 @@ def parse_save(path: str | os.PathLike) -> dict:
     eyes: set[str] = set()   # sectors holding a satellite or beacon of ours
     logbook: list[list] = []
     trades: list[tuple] = []   # (time, ware, buyer id, seller id, price in cents, amount)
+    on_order: list[dict] = []   # ships we paid for that their wharf has not delivered
     # Hostile ships and stations the player has seen, per sector: what a
     # threat assessment can honestly know (knownto="player", as for markets).
     hostiles: dict[str, dict[str, dict[str, int]]] = {}
@@ -687,6 +705,8 @@ def parse_save(path: str | os.PathLike) -> dict:
                     if sector:
                         counts = hostiles.setdefault(sector, {}).setdefault(owner, {})
                         counts[cls] = counts.get(cls, 0) + 1
+                if cls == "station":
+                    on_order += _ships_on_order(elem, current["code"])
                 if cls in ASSET_CLASSES:
                     if current["owner"] == "player":
                         assets.append(_asset(elem, comps))
@@ -757,6 +777,7 @@ def parse_save(path: str | os.PathLike) -> dict:
         "assigned_to": _assigned_to(logbook),
         # What our stations really sold and bought, from the game's trade log.
         "trades": _trade_book(trades, assets),
+        "ships_on_order": on_order,
     }
 
 

@@ -66,3 +66,12 @@ def test_modules_are_also_counted_at_what_building_them_costs(small_state):
     one = sum(n * wares[w]["minprice"] for w, n in recipe.items())
     station = {"modules": ["prod_gen_microchips_macro"]}
     assert score._modules_cost([station]) == int(one) < score._modules_value([station])
+
+
+def test_ships_on_order_are_shown_and_not_counted_in_net_worth(small_state):
+    state = copy.deepcopy(small_state)
+    before = score.score(state)
+    state["ships_on_order"] = [{"wharf": "SCY-867", "macro": "m", "since": 0, "paid": 900_000, "missing": []}]
+    card = score.score(state)
+    assert card["on_order"] == 900_000 and before["on_order"] == 0
+    assert card["net_worth_cost"] == before["net_worth_cost"]

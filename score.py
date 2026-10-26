@@ -139,13 +139,16 @@ def score(state: dict) -> dict:
         "failing": len(sitrep.failing_ships(working, now)),
         "builds": sum((b.get("build") or {}).get("in_progress", 0)
                       + (b.get("build") or {}).get("queued", 0) for b in storages),
+        # Paid for at a wharf and not delivered. Not in the net worth, as ships
+        # are not: shown because 22.7 M Cr sat there unseen in one run.
+        "on_order": sum(o.get("paid") or 0 for o in state.get("ships_on_order") or []),
         "fleet": sorted(s["code"] for s in working if s.get("code")),
     }
 
 
 ROWS = ("game_hours", "credits", "accounts", "stock_min", "stock_avg", "stock_sellable", "modules_value",
         "modules_cost", "net_worth", "net_worth_cost", "net_sellable",
-        "stations", "modules", "ships", "idle", "failing", "builds")
+        "stations", "modules", "ships", "idle", "failing", "builds", "on_order")
 
 
 def render(card: dict) -> str:
