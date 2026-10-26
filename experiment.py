@@ -100,6 +100,23 @@ def restore(folder: Path, frm: Path, sums: dict[str, str]) -> list[str]:
     return restored
 
 
+def player_piloting(save: Path) -> bool | None:
+    """Whether the save has the player in a pilot seat (controlgroup
+    "pilotcontrol"), None if the player is not found. SETA is offered only
+    from a pilot seat: the ceremony baseline had the player aboard NBO-436
+    but standing, and two runs on it went at normal speed, 5.8 game hours in
+    six real ones."""
+    import gzip
+    try:
+        with gzip.open(save, "rt", encoding="utf-8", errors="replace") as handle:
+            for line in handle:
+                if '<component class="player"' in line:
+                    return 'controlgroup="pilotcontrol"' in line
+    except OSError:
+        return None
+    return None
+
+
 def game_version(save: Path) -> str | None:
     """"9.00 (611726)" from a save's header: the version of the game that wrote it.
 
@@ -230,6 +247,10 @@ def main() -> int:
 
     if launch_game.running():
         log(run_dir, "X4 is already running; not starting an experiment on top of it")
+        return 2
+    if args.seta and player_piloting(Path(baseline)) is False:
+        log(run_dir, f"{Path(baseline).name} has the player out of the pilot seat, where SETA is not "
+                     f"offered; not starting a run that would go at normal speed")
         return 2
     # The run tests the bridge in this checkout, not whatever a proof left in
     # the game folder: a run on 2026-10-23 spent half an hour on a probe build
