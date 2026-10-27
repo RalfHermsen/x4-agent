@@ -786,3 +786,73 @@ more), which the managers never move, so every run since sold at them. The
 bridge now hands a price back to the manager (`price <station> <ware>
 <buy|sell> auto`, the menu's automatic price checkbox), and while our pricing
 is off the rules do that for every fixed price (`executor.automatic_prices`).
+
+## 2026-10-26/27: the player's own ship, and ships paid for that never came
+
+Three runs ended early with the game itself: leanplan-test, leanauto-long and
+leanauto2-long (leancat2-long had the same event). In each the player's ship,
+the Falcon NBO-436, was shot down. The player then floats in a spacesuit,
+where SETA does not work, and about half an hour of game time later the game
+was over: the pipe client was garbage collected and never came back, and the
+stall reload only replayed the death. `experiment.py` now reads from the
+baseline which ship the player last controlled and stops the run, while the
+game can still save, when the host log reports that ship destroyed.
+
+The baselines were saved again by hand with the player seated and stopped near
+KYV-745 and only a Wait order in the queue (the 73-hour one had carried a
+stale DockAndWait). The ship still left. In leanauto2-long the hourly saves
+put it near KYV-745, then 3 km from the gate to the next cluster 340 km away,
+then back, then at the gate again, standing still for hours in between, under
+Wait with the player in the pilot seat; lean4-long had ended at that gate as
+well. At 104.5 h it was shot down by a Xenon raiding party in Hewa's Twin II.
+What flies it is not known. Not the lockbox and abandoned ship responses (each
+find writes a logbook line, and none names it), not the Wait order (its idle
+flying is patched off), and none of our commands names it. The state line the
+bridge sends every 30 seconds now carries the player's ship, its sector, zone,
+position, speed and order, so the next run shows when it moves and under what.
+
+The nineteen purchases of leanstrat-long that seemed to do nothing were paid
+for. `buy_ship` pays up front and the ship then waits in the wharf's build
+queue until the wharf has the wares for it: at SCY-867 24 of our ships, 22.7
+million Cr, waited for advanced electronics. The parser reads these
+(`ships_on_order`), the catalog buys no ship of a kind while one is coming and
+none at a wharf whose order has waited more than two game hours, and the card
+shows them as `on_order`. They are not in net worth, as ships are not.
+
+## 2026-10-27: prices handed back to the managers
+
+leanauto2-long: rules only, with the ten fixed prices of the baseline handed
+back to the station managers (`executor.automatic_prices`), 30.2 game hours
+until the player's ship was lost. It started from the parked baseline, the
+same game 45 game minutes after lean3's and lean4's, so the runs are compared
+over the same hours counted from each start, interpolated between the
+baseline, the hourly snapshots and the result save:
+
+| Per game hour, first 30 hours | Net worth | Credits | Station accounts | Stock | Modules |
+|---|---|---|---|---|---|
+| Fixed prices (lean3-long) | 2.34 M | 0.90 M | 1.57 M | -0.38 M | 0.25 M |
+| Fixed prices (lean4-long) | 2.27 M | 0.93 M | 1.41 M | -0.33 M | 0.25 M |
+| Managers' prices (leanauto2-long) | 2.74 M | 0.30 M | 2.46 M | -0.22 M | 0.20 M |
+
+**The managers' prices earned 18 to 21 % more.** The money stayed on the
+stations' accounts rather than coming to the player, which is why credits
+grew less. The trade log of the last 24 game hours shows where it came from:
+
+| Last 24 game hours | Sold | Bought | Net |
+|---|---|---|---|
+| lean3-long | 4.10 M/h | 4.93 M/h | -0.82 M/h |
+| lean4-long | 4.28 M/h | 5.00 M/h | -0.72 M/h |
+| leanauto2-long | 4.97 M/h | 3.81 M/h | +1.15 M/h |
+
+KYV-745 sold wafers at 305 instead of 176 (half as many), refined metals at 142
+instead of 87 (more of them), microchips at 1,028 instead of 788, and bought
+half the silicon. The first run of this arm, leanauto-long, lost the player's
+ship at 79.9 h; over its first six hours it was behind both rules runs (1.56
+against 1.76 and 1.95), so early hours say little.
+
+The strategist changed before its next run: a plan says what to add to what
+stands, at most two modules of a ware and four at a station, one miner of each
+kind and one trader; the report shows what changed hands per game hour at the
+average price and the ships on order; and each plan that ends is shown in the
+next report with how far it got and what net worth, credits, accounts, stock
+and modules did while it held.
