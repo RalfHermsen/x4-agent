@@ -79,13 +79,50 @@ methane, hydrogen and helium.
 
 | # | Step | Status |
 |---|------|--------|
-| 1 | Read in the game what the bays' blueprints cost at the Teladi representative, what a ship blueprint costs, whether S/M engines and shields are still fitted as wares in 9.00, and how a ship is ordered at our own wharf (who pays, what it draws from the station's store). Manual and the game's scripts first, a probe for what they leave open | open |
+| 1 | Read in the game what the bays' blueprints cost at the Teladi representative, what a ship blueprint costs, whether S/M engines and shields are still fitted as wares in 9.00, and how a ship is ordered at our own wharf (who pays, what it draws from the station's store). Manual and the game's scripts first, a probe for what they leave open | scripts read (below); two points left for a probe once a wharf stands |
 | 2 | The gas chain in the bridge and the rules: graphene, antimatter cells, superfluid coolant, plasma conductors and liquid storage as expansions; gas miners bought and assigned like solid ones; the first module that eats a gas adds a liquid store, as solid and container do | open |
 | 3 | Hull parts first: the one end product the wharf, the bays and every hull need, and the usual shortage. A station that makes hull parts from our own refined metals and graphene | open |
 | 4 | The wharf: an S/M Ship Fabrication Bay and Maintenance Bay at a station of ours, supplied with hull parts; the first ship built there, a freighter or a miner, from a blueprint we hold | open |
 | 5 | The equipment chain, in the order the first ships need it: engine parts, then shields, then weapons | open |
 | 6 | The strategist plans toward this, on a horizon of game weeks: the milestones above as its goal, its history judged against what the rules alone did over the same hours (the ceremony series showed it credits plans with the growth time brings) | open |
 | 7 | Measure on that horizon: runs of a game week (about 30 hours of wall time under SETA), scored by the milestones reached and by sales, with net worth beside them rather than above them | open |
+
+## Step 1: what the game's scripts say
+
+* **Blueprint prices.** The representative's menu
+  (`menu_trader_blueprintsorlicences.lua`) asks a module's maximum price and
+  ten times the average price for a ship or a piece of equipment, with no
+  discount; the connector blueprint was bought for exactly its maximum,
+  88,348 Cr. So: S/M Ship Fabrication Bay 116.4 M, S/M Maintenance Bay
+  35.2 M, hull parts 4.52 M, graphene 0.21 M, antimatter cells 0.51 M,
+  superfluid coolant 0.19 M, quantum tubes 2.80 M, engine parts 2.86 M,
+  claytronics 20.8 M, Teladi M liquid store 0.57 M. Teladi ships: M solid or
+  liquid miner 1.19 M each, M container freighter 2.66 M, S fighter 1.64 M;
+  Teladi M all-round engine 0.13 M. We hold two Teladi M shields and two M
+  turrets already.
+* **Our own wharf charges nothing.** The ship menu places the build with a
+  price of 0 when the wharf is ours (`menu_ship_configuration.lua`:
+  `menu.isplayerowned and 0`), so no money moves and the station builds from
+  its own store. The bridge's `buyship` pays a faction's wharf; building at
+  our own needs a variant without the transfer. Which ships a wharf offers
+  comes from the engine (`GetContainerBuilderMacros`); the manual says ship
+  and equipment blueprints are needed.
+* **Equipment is still fitted in 9.00.** The Teladi and Paranid M container
+  freighters keep their engine, shield and turret connections, and engines
+  and shields are wares with recipes (an M engine is engine parts and
+  antimatter converters, an M shield shield components and field coils).
+* **The bill for the first ship we build.** Blueprints: the fabrication bay
+  116.4 M, a Teladi M miner 1.19 M, an engine 0.13 M, and for hull parts the
+  module, graphene and a liquid store, 5.3 M: about 123 M, before the bay's
+  construction (12,112 hull parts, 3,312 claytronics, 6,620 energy cells;
+  the claytronics bought). The empire held 38 to 40 M in credits and 70 to 78
+  M on station accounts at the end of the ceremony series, so most of it
+  sits on accounts, and the bridge has no verb to move money back to the
+  player.
+* **Left for a probe:** whether the fabrication bay fits equipment itself or
+  needs the maintenance bay beside it, and how the station comes by the
+  wares a build takes (buy offers, as at a faction's wharf, or only what is
+  in store).
 
 ## Late game, besides building ships
 
