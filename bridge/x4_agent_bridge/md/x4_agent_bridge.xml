@@ -859,13 +859,23 @@
 
   <!-- Outbound: a minimal state every 30 seconds. Deliberately small; the real
        sitrep only goes through once this loop is proven. Note that cues with a
-       checkinterval do not fire while the game is paused. -->
+       checkinterval do not fire while the game is paused.
+       The player's ship rides along: in runs of 2026-10-25 and 10-26 it left
+       its parking place under a Wait order with the player seated, a few
+       trips of hundreds of kilometres between hourly saves, and was shot down
+       in the next sector. Every 30 seconds shows when it moves and under which
+       order. ship=null means the player is no longer in a pilot seat. -->
   <cue name="Send_State" instantiate="true" checkinterval="30s">
     <actions>
       <signal_cue_instantly
         cue="md.Named_Pipes.Write"
         param="table[$pipe = 'x4_agent',
-                     $msg  = 'state money=%s time=%s'.[player.money, player.age],
+                     $msg  = 'state money=%s time=%s ship=%s sector=%s zone=%s x=%s y=%s z=%s speed=%s order=%s'.[
+                       player.money, player.age, @player.occupiedship.idcode,
+                       @player.occupiedship.sector.macro.id, @player.occupiedship.zone.macro.id,
+                       @player.occupiedship.position.x, @player.occupiedship.position.y,
+                       @player.occupiedship.position.z, @player.occupiedship.speed,
+                       @player.occupiedship.order.id],
                      $cue  = Write_Callback]"/>
     </actions>
   </cue>
