@@ -150,9 +150,9 @@ player's ship taking to its own defence.
 116.4 M, and the purchase job keeps a 20 % reserve, so it is bought once the
 player holds 146 M. The player held 45 M at the baseline; station accounts
 now flow back to the player above twice their maximum. At the 2 M a game
-hour the rules earn, that is a matter of tens of game hours. *Decision for
-Ralf:* keep the reserve for a purchase the plan sets as its goal, or lower it
-for that one. *Proof:* the blueprint held.
+hour the rules earn, that is a matter of tens of game hours. *Decision:*
+keep the reserve for a purchase the plan sets as its goal, or lower it for
+that one. *Proof:* the blueprint held.
 
 **D. The wharf.** The bay at KYV-745 (its 5 km plot has room; GKL-870's 2 km
 plot is crowded). Its construction takes 12,112 hull parts, about ten game
