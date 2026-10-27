@@ -531,12 +531,24 @@
                  only when the station has none at all: adding one on every
                  expansion would stack storage modules for ever. That does mean
                  an existing but undersized store is left alone, which the agent
-                 cannot yet judge. -->
+                 cannot yet judge.
+
+                 The same goes for container storage, which every production
+                 module needs: each ware the bridge builds is a container ware,
+                 and so are the energy cells each one eats. GKL-870 grew from
+                 an empty plot to eleven production modules with a dock and a
+                 solid store only (2026-10-27); it filled the store with ice
+                 and ore, could not hold an energy cell, and made nothing. -->
             <set_value name="$agent_macros" exact="[$agent_module]"/>
             <do_if value="$agent_solidinput and $agent_station.cargo.capacity.solid == 0">
               <append_to_list name="$agent_macros" exact="macro.storage_tel_m_solid_01_macro"/>
               <write_to_logbook category="general"
                 text="'[x4-agent] %s has no solid storage, adding one to the plan'.[$agent_station.idcode]"/>
+            </do_if>
+            <do_if value="$agent_module.isclass.production and $agent_station.cargo.capacity.container == 0">
+              <append_to_list name="$agent_macros" exact="macro.storage_tel_m_container_01_macro"/>
+              <write_to_logbook category="general"
+                text="'[x4-agent] %s has no container storage, adding one to the plan'.[$agent_station.idcode]"/>
             </do_if>
             <create_construction_sequence station="$agent_station"
                                           macros="$agent_macros"

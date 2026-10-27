@@ -245,8 +245,10 @@ def start_expansions(data: dict, commands: list[str], state: dict,
 def _observed_stage(entry: dict, station: dict, storage: dict, ware: str) -> int:
     """The furthest stage the save shows, judged from the far end backwards."""
     built = (station.get("modules") or []).count(entry["module"]) > entry["modules_before"]
-    # A habitat produces nothing; it is done when it stands.
-    if built and (ware.startswith("habitation") or ware in (station.get("production_queue") or [])):
+    # A habitat, a store or a dock produces nothing; it is done when it stands.
+    # GKL-870's dock stood for 20 game hours while the report called it queued.
+    if built and (not entry["module"].startswith("prod_")
+                  or ware in (station.get("production_queue") or [])):
         return _STAGE["done"]
     build = storage.get("build") or {}
     if not (build.get("queued") or build.get("in_progress")):

@@ -99,3 +99,18 @@ def test_sent_expansion_is_tracked_by_the_cycle(run_cycle, fake_planner, small_s
     assert "expand KYV-745 water" in result["commands"]
     stored = json.loads(isolated_memory.read_text(encoding="utf-8"))
     assert stored["expansions"]["KYV-745 water"]["stage"] == "planned"
+
+
+def test_a_dock_is_done_when_it_stands(small_state):
+    # GKL-870's dock stood for 20 game hours while the report called it queued:
+    # a dock or a store produces nothing, so it never showed in production.
+    import executor
+    data = {"expansions": {}}
+    memory.start_expansions(data, ["expand KYV-745 dock"], small_state,
+                            lambda w: executor.EXPANSION_MODULES[w][0])
+    later = copy.deepcopy(small_state)
+    later["meta"]["playtime_s"] += 600
+    station = next(a for a in later["assets"] if a["code"] == "KYV-745")
+    station["modules"] = station["modules"] + ["dockarea_arg_m_station_01_lowtech_macro"]
+    (line,) = memory.track_expansions(data, later)
+    assert "finished" in line and not data["expansions"]
