@@ -468,6 +468,16 @@
           <set_value name="$agent_module" exact="macro.storage_tel_l_container_01_macro"/>
         </do_if>
 
+        <!-- Shipbuilding step 4: a wharf of our own, and its maintenance bay. -->
+        <do_if value="event.param == 'expand %s wharf'.[$agent_station.idcode]">
+          <set_value name="$agent_ware" exact="ware.module_gen_build_dockarea_m_01"/>
+          <set_value name="$agent_module" exact="macro.buildmodule_gen_ships_m_dockarea_01_macro"/>
+        </do_if>
+        <do_if value="event.param == 'expand %s maintenance'.[$agent_station.idcode]">
+          <set_value name="$agent_ware" exact="ware.module_gen_equip_dockarea_m_01"/>
+          <set_value name="$agent_module" exact="macro.buildmodule_gen_equip_m_dockarea_01_macro"/>
+        </do_if>
+
         <!-- 6.10: an M dock, for a station that has none. -->
         <do_if value="event.param == 'expand %s dock'.[$agent_station.idcode]">
           <set_value name="$agent_ware" exact="ware.module_arg_dock_m_01_lowtech"/>

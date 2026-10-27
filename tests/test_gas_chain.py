@@ -52,3 +52,11 @@ def test_a_planned_gas_module_buys_the_liquid_store_blueprint_too(small_state, m
     monkeypatch.setattr(purchases, "first_commands", lambda data, ware, first, state: [f"buy {ware}"])
     data = {"strategy": {"plan": {"stations": {"KYV-745": {"build": {"graphene": 1}, "miners": {}, "traders": 0}}}}}
     assert strategy.blueprints(state, data) == [f"buy {store}"]
+
+
+def test_a_plan_counts_a_wharf_by_its_bay(small_state):
+    station = copy.deepcopy(_station(small_state))
+    assert strategy.built(station, "wharf") == 0
+    station["modules"] = list(station["modules"]) + [executor.EXPANSION_MODULES["wharf"][0]]
+    assert strategy.built(station, "wharf") == 1
+    assert strategy.built(station, "maintenance") == 0

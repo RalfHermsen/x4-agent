@@ -50,7 +50,10 @@ def built(st: dict, ware: str) -> int:
     race; storage, docks and habitats count by their kind, of any size.
     """
     import economics
+    import executor
     mods = st.get("modules") or []
+    if ware in ("wharf", "maintenance"):
+        return mods.count(executor.EXPANSION_MODULES[ware][0])
     if ware == "dock":
         return sum(1 for m in mods if m.startswith("dockarea_"))
     if ware.startswith("storage_"):

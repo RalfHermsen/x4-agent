@@ -106,6 +106,11 @@ EXPANSION_MODULES = {
     # 6.10: the M dock KYV-745 is built with, whose blueprint is held. Ships
     # trade at a dock; a station without one is out of their reach.
     "dock": ("dockarea_arg_m_station_01_lowtech_macro", None),
+    # Shipbuilding step 4: a wharf of our own, the S/M Ship Fabrication Bay,
+    # and the S/M Ship Maintenance Bay that fits and repairs (licence
+    # station_equip_sm, held from Teladi on the ally ceremony).
+    "wharf": ("buildmodule_gen_ships_m_dockarea_01_macro", None),
+    "maintenance": ("buildmodule_gen_equip_m_dockarea_01_macro", None),
     # 3.7: a small habitat of the race the station is built from. The model
     # asks for "habitation"; Python picks the race (habitation_race below).
     "habitation_arg": ("hab_arg_s_01_macro", None),

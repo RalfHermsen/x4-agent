@@ -99,6 +99,9 @@ declare [[ void SellPlayerShip(UniverseID shipid, UniverseID shipyardid); ]]
 declare [[ int64_t GetBuildWarePrice(UniverseID containerid, const char* warename); ]]
 -- 3.6: copied from menu_ship_configuration.lua.
 declare [[ float GetContainerBuildPriceFactor(UniverseID containerid); ]]
+-- Shipbuilding step 4: copied from menu_ship_configuration.lua.
+declare [[ uint32_t GetNumContainerBuilderMacros(UniverseID containerid); ]]
+declare [[ uint32_t GetContainerBuilderMacros(const char** result, uint32_t resultlen, UniverseID containerid); ]]
 -- 4.9: copied from menu_ship_configuration.lua and menu_map.lua.
 declare [[ int64_t GetRepairPrice(UniverseID componenttorepairid, UniverseID containerid); ]]
 declare [[ uint32_t GetNumOrders(UniverseID controllableid); ]]
@@ -1504,6 +1507,59 @@ local function buy_ship(args)
     return true
 end
 
+--- "buildship KYV-745 ship_tel_m_miner_liquid_01_a_macro x4-agent-gas" -> a
+--- wharf of ours builds that ship for us. The ship menu places such a build
+--- with a price of 0 (menu_ship_configuration.lua: `menu.isplayerowned and
+--- 0`): no money moves, and the station builds from the wares in its own
+--- store. Only a ship the wharf offers, from the menu's own list
+--- (GetContainerBuilderMacros), with the generated loadout `buyship` uses.
+local function build_own_ship(station, args)
+    local macro, name = args[1], args[2]
+    if not (macro and name) then
+        return refuse("buildship needs: buildship <STATION> <macro> <name>")
+    end
+    local okmacros, offered = pcall(function()
+        local n = C.GetNumContainerBuilderMacros(station)
+        local buf = ffi.new("const char*[?]", math.max(n, 1))
+        n = C.GetContainerBuilderMacros(buf, n, station)
+        for i = 0, n - 1 do
+            if ffi.string(buf[i]) == macro then
+                return true
+            end
+        end
+        return false
+    end)
+    if not okmacros then
+        return refuse("buildship: could not read what " .. args.code .. " builds: " .. tostring(offered))
+    end
+    if not offered then
+        return refuse("buildship: " .. args.code .. " does not build " .. macro)
+    end
+    if not (Helper and Helper.getLoadoutHelper2) then
+        return refuse("buildship: the menu helpers are not loaded")
+    end
+    local ok, loadout = pcall(Helper.getLoadoutHelper2, C.GenerateShipLoadout2,
+                              C.GenerateShipLoadoutCounts2, "UILoadout2", station, 0, macro, 0.5)
+    if not ok then
+        return refuse("buildship: no loadout for " .. macro .. ": " .. tostring(loadout))
+    end
+    local okstructs, crew, info = pcall(function()
+        return ffi.new("CrewTransferInfo2"), ffi.new("AddBuildTask6Container")
+    end)
+    if not okstructs then
+        return refuse("buildship: the ship menu's types are not available: " .. tostring(crew))
+    end
+    local oktask, task = pcall(C.AddBuildTask6, station, 0, macro, loadout, 0, crew, false, name, info)
+    if not oktask then
+        return refuse("buildship: AddBuildTask6 failed: " .. tostring(task))
+    end
+    if task == 0 then
+        return refuse(string.format("buildship: %s would not build %s", args.code, macro))
+    end
+    log(string.format("ORDER: %s builds %s for us as %s, task %s", args.code, macro, name, tostring(task)))
+    return true
+end
+
 --- "panel clear" / "panel <text>" -> one line of the in-game panel (3.9).
 --- MD keeps the list and renders it; this only takes the string apart.
 local function panel(args)
@@ -1601,6 +1657,7 @@ local HANDLERS = {
     buildfund = fund_build,
     plot = extend_plot,
     cancelbuild = cancel_build,
+    buildship = build_own_ship,
 }
 
 -- Commands that are not about one station. The station handlers above all take
