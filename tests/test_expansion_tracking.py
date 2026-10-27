@@ -113,4 +113,4 @@ def test_a_dock_is_done_when_it_stands(small_state):
     station = next(a for a in later["assets"] if a["code"] == "KYV-745")
     station["modules"] = station["modules"] + ["dockarea_arg_m_station_01_lowtech_macro"]
     (line,) = memory.track_expansions(data, later)
-    assert "finished" in line and not data["expansions"]
+    assert line.endswith("finished: the module stands") and not data["expansions"]

@@ -294,7 +294,8 @@ def track_expansions(data: dict, state: dict) -> list[str]:
             entry["stage"], entry["since"] = EXPANSION_STAGES[seen][0], now
         if entry["stage"] == "done":
             lines.append(f"expansion of {ware} at {station_code} finished: "
-                         f"the station produces {ware}")
+                         + (f"the station produces {ware}" if entry["module"].startswith("prod_")
+                            else "the module stands"))
             del data["expansions"][key]
             continue
         _, limit, observation = EXPANSION_STAGES[_STAGE[entry["stage"]]]
