@@ -100,7 +100,7 @@ def test_stall_then_give_up(small_state):
 
 
 @pytest.mark.parametrize("change,expected", [
-    (lambda s: s["player"].__setitem__("money", 80_000), "would leave less than 20%"),
+    (lambda s: s["player"].__setitem__("money", 75_000), "would leave less than 5%"),
     (lambda s: s["player"].__setitem__("blueprints", [WARE]), "already ours"),
     (lambda s: s.__setitem__("known_stations", []), "no station of teladi is known"),
 ])

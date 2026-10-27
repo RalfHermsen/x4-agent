@@ -40,6 +40,10 @@ STALL_AFTER = {"docking": 1800, "licensing": 600, "buying": 600}
 GIVE_UP_AFTER = {"docking": 3600, "licensing": 1800, "buying": 1800}
 # Never leave less than this share of player money behind (as for funding).
 RESERVE = 0.20
+# A blueprint is bought once and kept, so it may go down to 5 %: the wharf's
+# is 116.4 M, and at 20 % it waited for 146 M. Income refills the player's
+# money, and station accounts above twice their maximum flow back to it.
+BLUEPRINT_RESERVE = 0.05
 
 
 def _graph() -> dict[str, list[str]]:
@@ -179,9 +183,9 @@ def start(data: dict, ware: str, state: dict, table: dict | None = None,
     entry = next((m for m in table.values() if m.get("ware") == ware), {})
     price = entry.get("maxprice") or 0
     money = state.get("player", {}).get("money") or 0
-    if price and price > money * (1 - RESERVE):
+    if price and price > money * (1 - BLUEPRINT_RESERVE):
         return None, (f"{ware} costs about {price:,} Cr and would leave less than "
-                      f"{RESERVE:.0%} of {money:,} Cr")
+                      f"{BLUEPRINT_RESERVE:.0%} of {money:,} Cr")
     pick, reason = choose(ware, state, data, table, graph, defs)
     if reason:
         return None, reason
