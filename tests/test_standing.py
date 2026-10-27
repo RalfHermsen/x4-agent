@@ -298,6 +298,16 @@ def test_a_managed_station_with_an_empty_account_gets_the_estimate_once(small_st
     assert standing.accounts(state, {}) == []
 
 
+def test_an_overfull_account_is_set_back_to_the_estimate(small_state):
+    # The ceremony series ended with 70 to 78 million on station accounts.
+    state = copy.deepcopy(small_state)
+    _station(state)["account"] = {"id": "[0x1]", "own": "1", "min": "3821640", "max": "5732460",
+                                  "amount": "26036332"}
+    assert standing.accounts(state, {}) == ["account KYV-745"]
+    _station(state)["account"]["amount"] = "9000000"               # above the max, not twice it
+    assert standing.accounts(state, {}) == []
+
+
 def test_a_build_still_waiting_long_after_a_hire_hires_again(small_state):
     state = copy.deepcopy(small_state)
     bs = next(a for a in state["assets"] if a["code"] == "XQL-000")

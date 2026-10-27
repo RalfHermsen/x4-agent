@@ -82,14 +82,19 @@ def blueprints(state: dict, data: dict) -> list[str]:
         return []
     held = set((state.get("player") or {}).get("blueprints") or [])
     modules = gamedata.modules()
-    for goal in goals(data).values():
+    stations = {a.get("code"): a for a in state.get("assets", []) if a.get("cls") == "station"}
+    for code, goal in goals(data).items():
         for ware in goal.get("build") or {}:
-            macro = (executor.EXPANSION_MODULES.get(ware) or (None,))[0]
-            bp = (modules.get(macro) or {}).get("ware") if macro else None
-            if bp and bp not in held:
-                first, _ = purchases.start(data, bp, state)
-                if first:
-                    return purchases.first_commands(data, bp, first, state)
+            if ware not in executor.EXPANSION_MODULES:
+                continue
+            # The stores the bridge adds with it too: a gas module without the
+            # liquid store's blueprint would never be built.
+            for macro in executor.modules_needed(stations.get(code) or {}, ware):
+                bp = (modules.get(macro) or {}).get("ware")
+                if bp and bp not in held:
+                    first, _ = purchases.start(data, bp, state)
+                    if first:
+                        return purchases.first_commands(data, bp, first, state)
     return []
 
 

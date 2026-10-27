@@ -318,10 +318,12 @@
         <!-- $agent_solidinput: does this ware eat a mined solid? ore, silicon and
              ice are all transport="solid" in libraries/wares.xml, and a station
              with no solid storage cannot take delivery of any of them. Water is
-             not liquid in X4; liquid is only hydrogen, helium and methane. -->
+             not liquid in X4; liquid is only hydrogen, helium and methane.
+             $agent_liquidinput: does it eat one of those three? -->
         <set_value name="$agent_ware" exact="null"/>
         <set_value name="$agent_module" exact="null"/>
         <set_value name="$agent_solidinput" exact="false"/>
+        <set_value name="$agent_liquidinput" exact="false"/>
         <do_if value="event.param == 'expand %s energycells'.[$agent_station.idcode]">
           <set_value name="$agent_ware" exact="ware.energycells"/>
           <set_value name="$agent_module" exact="macro.prod_gen_energycells_macro"/>
@@ -438,6 +440,22 @@
           <set_value name="$agent_ware" exact="ware.weaponcomponents"/>
           <set_value name="$agent_module" exact="macro.prod_gen_weaponcomponents_macro"/>
         </do_if>
+        <!-- Shipbuilding step 2: the gas chain, methane, hydrogen and helium in. -->
+        <do_if value="event.param == 'expand %s graphene'.[$agent_station.idcode]">
+          <set_value name="$agent_ware" exact="ware.graphene"/>
+          <set_value name="$agent_module" exact="macro.prod_gen_graphene_macro"/>
+          <set_value name="$agent_liquidinput" exact="true"/>
+        </do_if>
+        <do_if value="event.param == 'expand %s antimattercells'.[$agent_station.idcode]">
+          <set_value name="$agent_ware" exact="ware.antimattercells"/>
+          <set_value name="$agent_module" exact="macro.prod_gen_antimattercells_macro"/>
+          <set_value name="$agent_liquidinput" exact="true"/>
+        </do_if>
+        <do_if value="event.param == 'expand %s superfluidcoolant'.[$agent_station.idcode]">
+          <set_value name="$agent_ware" exact="ware.superfluidcoolant"/>
+          <set_value name="$agent_module" exact="macro.prod_gen_superfluidcoolant_macro"/>
+          <set_value name="$agent_liquidinput" exact="true"/>
+        </do_if>
 
         <!-- 6.6: a large store of the kind that is full. $agent_ware is the
              module's own ware, as for habitats. -->
@@ -544,6 +562,11 @@
               <append_to_list name="$agent_macros" exact="macro.storage_tel_m_solid_01_macro"/>
               <write_to_logbook category="general"
                 text="'[x4-agent] %s has no solid storage, adding one to the plan'.[$agent_station.idcode]"/>
+            </do_if>
+            <do_if value="$agent_liquidinput and $agent_station.cargo.capacity.liquid == 0">
+              <append_to_list name="$agent_macros" exact="macro.storage_tel_m_liquid_01_macro"/>
+              <write_to_logbook category="general"
+                text="'[x4-agent] %s has no liquid storage, adding one to the plan'.[$agent_station.idcode]"/>
             </do_if>
             <do_if value="$agent_module.isclass.production and $agent_station.cargo.capacity.container == 0">
               <append_to_list name="$agent_macros" exact="macro.storage_tel_m_container_01_macro"/>

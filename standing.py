@@ -437,8 +437,8 @@ def managers(state: dict, data: dict) -> list[str]:
 
 
 def accounts(state: dict, data: dict) -> list[str]:
-    """6.11: a station with a manager and an empty account gets money: the
-    game's own estimate, as its "Accept Estimate" button moves it.
+    """6.11: a station with a manager and an empty or overfull account is set
+    to the game's own estimate, as its "Accept Estimate" button moves it.
 
     `budget` sets a minimum and a maximum and moves nothing. A station that
     sells nothing yet never fills its account itself: GKL-870 sat for two game
@@ -454,20 +454,27 @@ def accounts(state: dict, data: dict) -> list[str]:
     its account down to 4,232 Cr against a minimum of 624,000 and stayed
     there: the game does not top it up, its manager could buy no ice, and a
     miner of ours sailed with ice nobody would take for five game hours.
+
+    Overfull means above twice the maximum, and the same button then moves the
+    rest back to the player: the ceremony series ended with 70 to 78 million
+    on station accounts, against a few million the game recommended, while
+    the player, who pays for blueprints and ships, held 38 to 40.
     """
     import catalog
     now = state.get("meta", {}).get("playtime_s") or 0
     sent_at = data.get("sent_at") or {}
 
-    def drained(st: dict) -> bool:
+    def off_estimate(st: dict) -> bool:
         acct = st.get("account") or {}
         amount = int(acct.get("amount", 0) or 0)
-        return not amount or amount < int(acct.get("min", 0) or 0) / 2
+        drained = not amount or amount < int(acct.get("min", 0) or 0) / 2
+        overfull = int(acct.get("max", 0) or 0) > 0 and amount > 2 * int(acct["max"])
+        return drained or overfull
 
     return [f"account {st['code']}" for st in catalog._stations(state)
             if st.get("code") and st.get("manager") and catalog._has_dock(st)
             and any(m.startswith("prod_") for m in st.get("modules") or [])
-            and drained(st)
+            and off_estimate(st)
             and now - sent_at.get(f"account {st['code']}", -1e9) > ACCOUNT_WAIT]
 
 

@@ -55,56 +55,64 @@ def _automine(action) -> str:
 # Shorter than it was: graphene and hullparts were listed while the bridge only
 # had a ware for them and no module, which was harmless only because the whole
 # expansion path was silently doing nothing.
-# Ware -> (production module macro, does it eat a mined solid). Keep this in
-# step with the do_if list of the expand cue in bridge/.../x4_agent_bridge.xml:
-# the MD side builds exactly these macros, and adds SOLID_STORAGE when the
-# station has no solid storage yet. A ware here that MD does not know is
+# Ware -> (production module macro, the mined kind it eats: "solid", "liquid"
+# or None). Keep this in step with the do_if list of the expand cue in
+# bridge/.../x4_agent_bridge.xml: the MD side builds exactly these macros, and
+# adds the store a module needs when the station has none of that kind
+# (SOLID_STORAGE or LIQUID_STORAGE for what it eats, CONTAINER_STORAGE for
+# what every production module makes). A ware here that MD does not know is
 # refused there; a ware MD knows that is missing here is never sent.
 EXPANSION_MODULES = {
-    "energycells": ("prod_gen_energycells_macro", False),
-    "water": ("prod_gen_water_macro", True),
-    "refinedmetals": ("prod_gen_refinedmetals_macro", True),
-    "siliconwafers": ("prod_gen_siliconwafers_macro", True),
+    "energycells": ("prod_gen_energycells_macro", None),
+    "water": ("prod_gen_water_macro", "solid"),
+    "refinedmetals": ("prod_gen_refinedmetals_macro", "solid"),
+    "siliconwafers": ("prod_gen_siliconwafers_macro", "solid"),
     # 6.2: every other production ware a blueprint was held for in the 73-hour
     # save. None of them eats a mined solid.
-    "microchips": ("prod_gen_microchips_macro", False),
-    "smartchips": ("prod_gen_smartchips_macro", False),
-    "spices": ("prod_gen_spices_macro", False),
-    "medicalsupplies": ("prod_tel_medicalsupplies_macro", False),
-    "nostropoil": ("prod_tel_nostropoil_macro", False),
-    "sunriseflowers": ("prod_tel_sunriseflowers_macro", False),
+    "microchips": ("prod_gen_microchips_macro", None),
+    "smartchips": ("prod_gen_smartchips_macro", None),
+    "spices": ("prod_gen_spices_macro", None),
+    "medicalsupplies": ("prod_tel_medicalsupplies_macro", None),
+    "nostropoil": ("prod_tel_nostropoil_macro", None),
+    "sunriseflowers": ("prod_tel_sunriseflowers_macro", None),
     # Strategy step 3: what a strategist may plan; the same list as the bridge's.
-    "advancedcomposites": ("prod_gen_advancedcomposites_macro", False),
-    "advancedelectronics": ("prod_gen_advancedelectronics_macro", False),
-    "antimatterconverters": ("prod_gen_antimatterconverters_macro", False),
-    "claytronics": ("prod_gen_claytronics_macro", False),
-    "dronecomponents": ("prod_gen_dronecomponents_macro", False),
-    "engineparts": ("prod_gen_engineparts_macro", False),
-    "fieldcoils": ("prod_gen_fieldcoils_macro", False),
-    "hullparts": ("prod_gen_hullparts_macro", False),
-    "missilecomponents": ("prod_gen_missilecomponents_macro", False),
-    "plasmaconductors": ("prod_gen_plasmaconductors_macro", False),
-    "quantumtubes": ("prod_gen_quantumtubes_macro", False),
-    "scanningarrays": ("prod_gen_scanningarrays_macro", False),
-    "shieldcomponents": ("prod_gen_shieldcomponents_macro", False),
-    "swampplant": ("prod_tel_swampplant_macro", False),
-    "teladianium": ("prod_tel_teladianium_macro", True),
-    "turretcomponents": ("prod_gen_turretcomponents_macro", False),
-    "weaponcomponents": ("prod_gen_weaponcomponents_macro", False),
+    "advancedcomposites": ("prod_gen_advancedcomposites_macro", None),
+    "advancedelectronics": ("prod_gen_advancedelectronics_macro", None),
+    "antimatterconverters": ("prod_gen_antimatterconverters_macro", None),
+    "claytronics": ("prod_gen_claytronics_macro", None),
+    "dronecomponents": ("prod_gen_dronecomponents_macro", None),
+    "engineparts": ("prod_gen_engineparts_macro", None),
+    "fieldcoils": ("prod_gen_fieldcoils_macro", None),
+    "hullparts": ("prod_gen_hullparts_macro", None),
+    "missilecomponents": ("prod_gen_missilecomponents_macro", None),
+    "plasmaconductors": ("prod_gen_plasmaconductors_macro", None),
+    "quantumtubes": ("prod_gen_quantumtubes_macro", None),
+    "scanningarrays": ("prod_gen_scanningarrays_macro", None),
+    "shieldcomponents": ("prod_gen_shieldcomponents_macro", None),
+    "swampplant": ("prod_tel_swampplant_macro", None),
+    "teladianium": ("prod_tel_teladianium_macro", "solid"),
+    "turretcomponents": ("prod_gen_turretcomponents_macro", None),
+    "weaponcomponents": ("prod_gen_weaponcomponents_macro", None),
+    # Shipbuilding step 2: the gas chain. Hull parts need graphene, claytronics
+    # and engine parts antimatter cells, quantum tubes and plasma conductors
+    # superfluid coolant; these three eat methane, hydrogen and helium.
+    "graphene": ("prod_gen_graphene_macro", "liquid"),
+    "antimattercells": ("prod_gen_antimattercells_macro", "liquid"),
+    "superfluidcoolant": ("prod_gen_superfluidcoolant_macro", "liquid"),
     # 6.6: a large store of the kind that is full (Teladi, whose blueprints
     # are held). Liquid storage is left out: no blueprint for it.
-    "storage_solid": ("storage_tel_l_solid_01_macro", False),
-    "storage_container": ("storage_tel_l_container_01_macro", False),
+    "storage_solid": ("storage_tel_l_solid_01_macro", None),
+    "storage_container": ("storage_tel_l_container_01_macro", None),
     # 6.10: the M dock KYV-745 is built with, whose blueprint is held. Ships
     # trade at a dock; a station without one is out of their reach.
-    "dock": ("dockarea_arg_m_station_01_lowtech_macro", False),
+    "dock": ("dockarea_arg_m_station_01_lowtech_macro", None),
     # 3.7: a small habitat of the race the station is built from. The model
     # asks for "habitation"; Python picks the race (habitation_race below).
-    "habitation_arg": ("hab_arg_s_01_macro", False),
-    "habitation_tel": ("hab_tel_s_01_macro", False),
-    "habitation_par": ("hab_par_s_01_macro", False),
-    "habitation_spl": ("hab_spl_s_01_macro", False),
-    "habitation_ter": ("hab_ter_s_01_macro", False),
+    "habitation_arg": ("hab_arg_s_01_macro", None),
+    "habitation_tel": ("hab_tel_s_01_macro", None),
+    "habitation_par": ("hab_par_s_01_macro", None),
+    "habitation_spl": ("hab_spl_s_01_macro", None),
+    "habitation_ter": ("hab_ter_s_01_macro", None),
 }
 HABITAT_RACES = ("arg", "tel", "par", "spl", "ter")
 
@@ -123,6 +131,8 @@ def habitation_race(station: dict) -> str:
             counts[parts[1]] = counts.get(parts[1], 0) + 1
     return max(counts, key=counts.get) if counts else "arg"
 SOLID_STORAGE = "storage_tel_m_solid_01_macro"
+CONTAINER_STORAGE = "storage_tel_m_container_01_macro"
+LIQUID_STORAGE = "storage_tel_m_liquid_01_macro"
 # The connector without which no production module or habitat attached to an
 # existing station of ours (the bridge's create_construction_sequence call).
 CONNECTOR = "struct_arg_cross_01_macro"
@@ -695,18 +705,30 @@ def _missing_blueprints(action, state: dict) -> str | None:
                     if a.get("code") == action.station_id), {})
     ware = (f"habitation_{habitation_race(station)}" if action.ware == "habitation"
             else action.ware)
-    macro, solid_input = EXPANSION_MODULES[ware]
-    needed = [macro]
-    if solid_input and not (station.get("capacity") or {}).get("solid"):
-        needed.append(SOLID_STORAGE)
-    if macro.startswith(("prod_", "hab_")):
-        needed.append(CONNECTOR)
     held = set(state.get("player", {}).get("blueprints") or [])
-    missing = [(table.get(m) or {}).get("ware") or m for m in needed
+    missing = [(table.get(m) or {}).get("ware") or m for m in modules_needed(station, ware)
                if (table.get(m) or {}).get("ware") not in held]
     if missing:
         return f"no blueprint for {', '.join(missing)}"
     return None
+
+
+def modules_needed(station: dict, ware: str) -> list[str]:
+    """The macros the bridge builds for this expansion: the module, the stores
+    the station lacks for it (as the expand cue adds them), and the connector a
+    production module or habitat attaches with. Each needs its blueprint."""
+    macro, eats = EXPANSION_MODULES[ware]
+    capacity = station.get("capacity") or {}
+    needed = [macro]
+    if eats == "solid" and not capacity.get("solid"):
+        needed.append(SOLID_STORAGE)
+    if eats == "liquid" and not capacity.get("liquid"):
+        needed.append(LIQUID_STORAGE)
+    if macro.startswith("prod_") and not capacity.get("container"):
+        needed.append(CONTAINER_STORAGE)
+    if macro.startswith(("prod_", "hab_")):
+        needed.append(CONNECTOR)
+    return needed
 
 
 def _expansion_refused(action, state: dict) -> str | None:

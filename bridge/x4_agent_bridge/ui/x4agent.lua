@@ -1211,7 +1211,10 @@ end
 --- ware budgets. Min becomes the estimate, max half as much again, and what is
 --- missing moves from the player. `budget` sets min and max only, so a
 --- station with no sales of its own kept an empty account and bought nothing.
---- Only tops up: a station holding more keeps it.
+--- Both ways, as the menu's button does: what a station holds above the
+--- estimate goes back to the player. The ceremony series ended with 70 to 78
+--- million on station accounts and 38 to 40 with the player, who pays for
+--- blueprints and ships.
 local function set_account(station, args)
     local s64 = ConvertStringTo64Bit(tostring(station))
     local money, estimate = GetComponentData(s64, "money", "productionmoney")
@@ -1234,9 +1237,11 @@ local function set_account(station, args)
     SetMinBudget(s64, estimate)
     if amount > 0 then
         TransferPlayerMoneyTo(amount, s64)
+    else
+        TransferMoneyToPlayer(-amount, s64)
     end
-    log(string.format("ORDER: account of %s set to the estimate %d Cr, %d Cr moved from the player",
-                      args.code, estimate, math.max(amount, 0)))
+    log(string.format("ORDER: account of %s set to the estimate %d Cr, %d Cr moved %s the player",
+                      args.code, estimate, math.abs(amount), amount > 0 and "from" or "to"))
     return true
 end
 
