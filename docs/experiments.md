@@ -856,3 +856,80 @@ kind and one trader; the report shows what changed hands per game hour at the
 average price and the ships on order; and each plan that ends is shown in the
 next report with how far it got and what net worth, credits, accounts, stock
 and modules did while it held.
+
+## 2026-10-27: a station that could hold nothing, and the ceremony series
+
+The rules arm on the ceremony baseline (leancer2-long) was stopped by hand at
+22.6 game hours. GKL-870, an empty plot at the start, had grown to a dock, a
+solid store and eleven production modules (five water, two refined metals,
+two wafers, two microchips) and made nothing: its solid store was full with
+45,000 ice, 12,000 ore and 1,000 silicon, and it had no container store.
+Every ware the bridge builds is a container ware, and so are the energy cells
+each module eats, so it could not buy a cell or keep a product. The expand
+cue added a solid store with the first module that eats a mined solid; it now
+adds an M container store with the first production module of a station that
+has none (`$agent_module.isclass.production`, as the game's own
+`finalisestations` uses it). In the rerun GKL-870 got both stores with its
+first water module, sold 1,544 water within the hour and ended both arms with
+13 and 14 production lines selling water, metals, wafers and chips.
+
+The expansion tracker also called a dock or a store done only once it showed
+in production, which it never does: GKL-870's dock stood for 20 game hours
+while the report said it was queued.
+
+Then both arms ran on that code from the same baseline, 33.8 and 33.6 game
+hours, compared over the same hours from each start:
+
+| Per game hour | 0-12 h | 0-20 h | 0-30 h |
+|---|---|---|---|
+| leancer2-long (rules, GKL-870 dead, stopped at 22.6 h) | 2.08 M | 2.24 M | |
+| leancer3-long (rules) | 1.74 M | 1.84 M | 1.94 M |
+| leancstrat3-long (rules and strategist) | 1.60 M | 1.78 M | 1.79 M |
+
+**The station that made nothing scored best, and the reason is the measure.**
+The trade log of the last 25 game hours of each run:
+
+| | Sold | Bought | Net |
+|---|---|---|---|
+| leancer2-long | 3.23 M/h | 3.14 M/h | +0.10 M/h |
+| leancer3-long | 5.20 M/h | 4.24 M/h | +0.96 M/h |
+| leancstrat3-long | 4.28 M/h | 3.44 M/h | +0.84 M/h |
+
+Fixed, the rules sold 60 % more. But `net_worth_cost` counts a module at its
+construction resources at their minimum price, while building one costs
+those resources at market price and the builder's fee: over the first 20
+hours leancer3 put 0.29 M/h more into modules than leancer2 and had 0.57 M/h
+less in credits. Every module built early lowers the score until it has
+earned back the difference, so a run that builds more trails in net worth
+for a while whether the modules pay or not.
+
+Ships are not counted at all. The strategist arm bought twelve M container
+freighters at SCY-867, about 1.07 M each (the player's money fell by that much
+within three minutes of each `buyship`), 12.8 M in all, against none in the
+rules arm. Counted at what they cost it would lead (about 2.1 M/h against
+1.9); counted as the score counts them it trails. Its traders did not sell
+more: 4.28 M/h against the rules' 5.20. It built 112 modules to the rules' 95,
+cheaper ones (9.8 M against 14.8 M at cost).
+
+The strategist read its own history as intended: after plans returning 1.3
+to 1.7 M/h it cut each plan to one cheap module, and the next four returned
+1.29, 2.21, 2.42 and 3.02 M/h, which it took as proof that small plans pay.
+But a run earns more per hour later on whatever the plan, because more
+stands; the history shows each plan's outcome without what the rules alone
+did over the same hours, and so credits the plan with the growth.
+
+The scorecard's role counts are what each ship was doing in the last save:
+the strategist arm's four miners were docked at that moment and counted as
+"other". The rules arm lost freighter IJK-742 to Xenon raiders at KYV-745 and
+fighter KGZ-352 in The Void; the strategist arm lost KGZ-352.
+
+The player's ship stayed put in leancer2 and leancstrat3. In leancer3 it
+flew twice: at 77.46 h, from its parking place in zone001 through a temporary
+zone at 2,870 m/s into zone003, and at 78.43 h on into zone002, where it
+stayed to the end. The state line showed `order=Wait` at every 30-second
+sample, before, during and after. Xenon were attacking our ships at KYV-745
+then (MCX-254 at 77.25 h, EMJ-300 at 77.50 h). The game's own flight
+responses, to an attack (`interrupt.attacked`) and to a tide
+(`interrupt.tide`), both create a `Flee` order, which the samples would have
+shown over a three-minute flight, so neither is confirmed; what flies it is
+still open.
