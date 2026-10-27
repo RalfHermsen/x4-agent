@@ -24,25 +24,32 @@ from pydantic import BaseModel, Field
 
 STRATEGIST_MODEL = os.environ.get("X4_STRATEGIST_MODEL")   # e.g. "claude-opus-5-5"
 DEFAULT_HORIZON = 3.0                                       # game hours, when a plan names none
+# What one plan may add, on top of what stands. In leanstrat-long the plans
+# restated totals that grew every horizon and bought nine ships; a plan says
+# what to add now, and more than this is cut to it (`to_strategy`).
+MODULES_PER_WARE = 2
+MODULES_PER_STATION = 4
+SHIPS_PER_KIND = 1          # miners of one kind, or traders, per station
+HISTORY = 4                 # earlier plans shown with what followed them
 
 
 class BuildTarget(BaseModel):
     ware: str = Field(description="A ware the bridge can build (see BUILDABLE), or storage_solid, "
                                   "storage_container, dock, habitation_<race>")
-    modules: int = Field(description="How many modules of it the station should have in all, "
-                                     "counting those it has")
+    add: int = Field(description=f"How many modules of it to add on top of those standing, at most "
+                                 f"{MODULES_PER_WARE}; {MODULES_PER_STATION} at one station in all")
 
 
 class MinerTarget(BaseModel):
     kind: Literal["solid", "liquid"]
-    count: int = Field(description="How many miners of this kind should work for the station")
+    add: int = Field(description=f"How many miners of this kind to add for the station, 0 to {SHIPS_PER_KIND}")
 
 
 class StationPlan(BaseModel):
     station: str = Field(description="Station code, e.g. KYV-745")
     build: list[BuildTarget]
     miners: list[MinerTarget]
-    traders: int = Field(description="How many freighters should trade for the station")
+    traders_add: int = Field(description=f"How many freighters to add for the station, 0 to {SHIPS_PER_KIND}")
 
 
 class StrategistPlan(BaseModel):
@@ -53,19 +60,28 @@ class StrategistPlan(BaseModel):
     stations: list[StationPlan]
 
 
-SYSTEM = """You are the strategist of an X4: Foundations empire that is played by
-deterministic rules. Every few game hours you set where each station should be
-by the end of the next few game hours: how many production modules of which
-ware, how many miners of each kind and how many traders work for it. The rules
-then build and assign toward those numbers by themselves. They buy a planned
-module's blueprint, refuse what cannot be built (no blueprint for sale, no
-room on the plot, not enough money), and never sell or demolish anything:
-numbers below what a station has change nothing.
+SYSTEM = f"""You are the strategist of an X4: Foundations empire that is played by
+deterministic rules. Without a plan the rules grow each station by the best
+margin they know. Every few game hours you say what each station should add
+over the next few game hours: production modules of which ware, and miners or
+traders only where a station visibly lacks them. A plan goes first while it is
+unmet; then the margins decide again. The rules buy a planned module's
+blueprint, refuse what cannot be built (no blueprint for sale, no room on the
+plot, not enough money), and never sell or demolish anything. One plan adds
+at most {MODULES_PER_WARE} modules of a ware and {MODULES_PER_STATION} at a station,
+and at most {SHIPS_PER_KIND} miner of each kind and {SHIPS_PER_KIND} trader per
+station; more is cut to that. Adding nothing is a valid plan.
 
 What experience and our own runs say:
+* In our runs the rules with no plan grew net worth by about 2.3 M per game
+  hour; plans that set growing totals and bought nine ships got 1.2. Your
+  earlier plans and what followed them are in the report: where they did not
+  pay, change course or add less.
 * Build only where the market has a hole. A station built for profit alone
-  saturates its market and then cannot sell; check the known demand and what
-  we already hold in hours of a module's output before adding a module.
+  saturates its market and then cannot sell. "demand h" adds up other
+  stations' buy offers, which is the room in their stores, not what they take;
+  WHAT CHANGED HANDS shows what buyers took and at what price. Trust it over
+  demand h, and check what we already hold before adding a module.
 * Ships are the economy's main sink: wharfs and shipyards wait for hull parts,
   weapon components and the like. Food, medical supplies, energy cells and
   gases the NPC economy usually fills itself.
@@ -92,8 +108,61 @@ def due(data: dict, state: dict) -> bool:
     return now - (held.get("since") or 0) >= 3600 * (plan.get("horizon_hours") or DEFAULT_HORIZON)
 
 
+def _working(state: dict, code: str) -> dict[str, int]:
+    """Solid and liquid miners and traders working for a station."""
+    import catalog
+    import executor
+    ships = catalog._ships(state)
+    out = {kind: sum(1 for s in ships if executor.serves(s, state) == (code, "mining")
+                     and executor._miner_kind(s.get("macro")) == kind) for kind in ("solid", "liquid")}
+    out["traders"] = sum(1 for s in ships if executor.serves(s, state) == (code, "trade"))
+    return out
+
+
+def _outcome(state: dict) -> dict:
+    """The scorecard figures a plan is judged by afterwards."""
+    import score
+    card = score.score(state)
+    return {k: card[k] for k in ("game_hours", "net_worth_cost", "credits", "accounts", "stock_min",
+                                 "modules_cost")}
+
+
+def _earlier(data: dict) -> list[str]:
+    """Earlier plans, how far each got, and what the empire did while it held."""
+    out = []
+    for h in data.get("strategy_history") or []:
+        a, b = h["start"], h["end"]
+        hours = max(b["game_hours"] - a["game_hours"], 0.01)
+
+        def rate(key: str) -> str:
+            return f"{(b[key] - a[key]) / hours / 1e6:+.2f}"
+        out += [f"  set at {a['game_hours']:.1f} h, held {hours:.1f} h: net worth {rate('net_worth_cost')} M/h "
+                f"(credits {rate('credits')}, station accounts {rate('accounts')}, stock {rate('stock_min')}, "
+                f"modules {rate('modules_cost')})",
+                f"    why: {h['rationale'][:400]}"] + [f"    {p}" for p in h["progress"]]
+    return out
+
+
+def _changed_hands(state: dict) -> list[str]:
+    """What our stations sold to and bought from others, per game hour of the
+    span the save's trade log covers (save_parser._trade_book)."""
+    book = state.get("trades") or {}
+    span = ((book.get("until") or 0) - (book.get("since") or 0)) / 3600
+    if span <= 0:
+        return []
+    out = []
+    for code, wares in sorted((book.get("stations") or {}).items()):
+        for ware, e in sorted(wares.items(), key=lambda kv: -(kv[1]["sold_cr"] + kv[1]["bought_cr"]))[:10]:
+            parts = [f"sold {e['sold'] / span:,.0f}/h at {e['sold_cr'] / e['sold']:,.0f}" if e["sold"] else "",
+                     f"bought {e['bought'] / span:,.0f}/h at {e['bought_cr'] / e['bought']:,.0f}" if e["bought"] else ""]
+            out.append(f"  {code} {ware}: " + ", ".join(p for p in parts if p))
+    return [f"# WHAT CHANGED HANDS over the last {span:.0f} game hours (the save's trade log: our stations "
+            "with other factions, units per game hour at the average price)"] + out
+
+
 def report(state: dict, data: dict) -> str:
-    """What the strategist plans on: stations, fleets, economics, the plan so far."""
+    """What the strategist plans on: stations, fleets, economics, what sold,
+    earlier plans and what followed, the plan so far."""
     import catalog
     import economics
     import executor
@@ -104,7 +173,6 @@ def report(state: dict, data: dict) -> str:
     modules = gamedata.modules()
     lines = [f"# EMPIRE at {(meta.get('playtime_s') or 0) / 3600:.1f} game hours",
              f"Credits {player.get('money') or 0:,} Cr."]
-    ships = catalog._ships(state)
     for st in catalog._stations(state):
         code = st.get("code")
         mods = st.get("modules") or []
@@ -112,9 +180,7 @@ def report(state: dict, data: dict) -> str:
         counts = {w: strategy.built(st, w) for w in made}
         acct = st.get("account") or {}
         fill = executor.storage_fill(st)
-        mined = {kind: sum(1 for s in ships if executor.serves(s, state) == (code, "mining")
-                           and executor._miner_kind(s.get("macro")) == kind) for kind in ("solid", "liquid")}
-        traders = sum(1 for s in ships if executor.serves(s, state) == (code, "trade"))
+        work = _working(state, code)
         top = sorted((st.get("cargo") or {}).items(), key=lambda kv: -kv[1])[:6]
         lines += ["", f"## {code}: {len(mods)} modules; production " +
                   (", ".join(f"{w} x{n}" for w, n in counts.items()) or "none"),
@@ -122,7 +188,13 @@ def report(state: dict, data: dict) -> str:
                   f"account {int(acct.get('amount') or 0):,} Cr of {int(acct.get('min') or 0):,} minimum",
                   f"  stores " + ", ".join(f"{k} {v:.0%}" for k, v in fill.items()),
                   f"  holds " + ", ".join(f"{w} {n:,}" for w, n in top),
-                  f"  works for it: solid miners {mined['solid']}, liquid miners {mined['liquid']}, traders {traders}"]
+                  f"  works for it: solid miners {work['solid']}, liquid miners {work['liquid']}, "
+                  f"traders {work['traders']}"]
+    orders = state.get("ships_on_order") or []
+    if orders:
+        lines.append(f"Ships paid for and not delivered: {len(orders)}, "
+                     f"{sum(o.get('paid') or 0 for o in orders):,} Cr, at " +
+                     ", ".join(sorted({o['wharf'] or '?' for o in orders})))
     lines += ["", "# ONE MORE MODULE, at the prices we know (build cost at average prices; "
                   "payback in game hours; demand and holdings in hours of one module's output)",
               "ware | margin/h | build | blueprint | payback | w/o blueprint | demand h | held h | inputs we buy"]
@@ -149,21 +221,41 @@ def report(state: dict, data: dict) -> str:
         lines.append(f"  {w}: " + (f"blueprint for sale by {pick['faction']}, "
                                     f"{(modules.get(m) or {}).get('maxprice') or 0:,} Cr" if pick
                                     else f"blueprint not obtainable now: {why}"))
+    sold = _changed_hands(state)
+    if sold:
+        lines += [""] + sold
+    earlier = _earlier(data)
+    if earlier:
+        lines += ["", "# YOUR EARLIER PLANS AND WHAT FOLLOWED (per game hour while each held; net worth is "
+                      "money, station accounts, stock at minimum prices and modules at build cost, no ships)"] + earlier
     current = strategy.lines(state, data)
     if current:
         lines += ["", "# CURRENT PLAN AND PROGRESS"] + [f"  {line}" for line in current]
     return "\n".join(lines)
 
 
-def to_strategy(answer: StrategistPlan) -> dict:
-    """The model's lists as the plan's maps (schemas.Strategy), validated."""
+def to_strategy(answer: StrategistPlan, state: dict) -> dict:
+    """The model's additions as the plan's totals (schemas.Strategy), validated:
+    what stands now plus what it adds, cut to MODULES_PER_WARE,
+    MODULES_PER_STATION and SHIPS_PER_KIND."""
+    import catalog
+    import strategy
     from schemas import Strategy
-    return Strategy.model_validate({
-        "horizon_hours": answer.horizon_hours,
-        "rationale": answer.rationale,
-        "stations": {p.station: {"build": {b.ware: b.modules for b in p.build},
-                                 "miners": {m.kind: m.count for m in p.miners},
-                                 "traders": p.traders} for p in answer.stations}}).model_dump()
+    stations = {st.get("code"): st for st in catalog._stations(state)}
+    goals = {}
+    for p in answer.stations:
+        st, room = stations.get(p.station) or {}, MODULES_PER_STATION
+        build = {}
+        for b in p.build:
+            add = max(0, min(b.add, MODULES_PER_WARE, room))
+            room -= add
+            build[b.ware] = strategy.built(st, b.ware) + add
+        work = _working(state, p.station)
+        goals[p.station] = {"build": build,
+                            "miners": {m.kind: work[m.kind] + max(0, min(m.add, SHIPS_PER_KIND)) for m in p.miners},
+                            "traders": work["traders"] + max(0, min(p.traders_add, SHIPS_PER_KIND))}
+    return Strategy.model_validate({"horizon_hours": answer.horizon_hours, "rationale": answer.rationale,
+                                    "stations": goals}).model_dump()
 
 
 def ask(state: dict, data: dict, model: str | None = None, guidelines: str = "") -> tuple[dict, str]:
@@ -180,7 +272,7 @@ def ask(state: dict, data: dict, model: str | None = None, guidelines: str = "")
     u = response.usage
     usage = (f"[strategist] {model}: {time.perf_counter() - start:.0f}s, in {u.input_tokens}, "
              f"out {u.output_tokens}, stop {response.stop_reason}")
-    return to_strategy(response.parsed_output), usage
+    return to_strategy(response.parsed_output, state), usage
 
 
 def update(state: dict, data: dict, guidelines: str = "") -> list[str]:
@@ -189,11 +281,20 @@ def update(state: dict, data: dict, guidelines: str = "") -> list[str]:
     # A plan file wins: the two writing one memory would undo each other.
     if not STRATEGIST_MODEL or strategy.STRATEGY_FILE or not due(data, state):
         return []
+    # The plan that ends goes into the history with how far it got and what
+    # the empire did while it held, so the report for the next one shows it.
+    now, old = _outcome(state), data.get("strategy") or {}
+    history = list(data.get("strategy_history") or [])
+    if old.get("plan") and old.get("start"):
+        history = (history + [{"rationale": old["plan"].get("rationale") or "",
+                               "progress": strategy.lines(state, data)[1:],
+                               "start": old["start"], "end": now}])[-HISTORY:]
     try:
-        plan, usage = ask(state, data, guidelines=guidelines)
+        plan, usage = ask(state, {**data, "strategy": None, "strategy_history": history}, guidelines=guidelines)
     except Exception as exc:  # noqa: BLE001 - a failed call keeps the old plan
         return [f"strategist call failed: {type(exc).__name__}: {str(exc)[:200]}"]
     print(usage, flush=True)
+    data["strategy_history"] = history
     data["strategy"] = {"plan": plan, "since": (state.get("meta") or {}).get("playtime_s") or 0,
-                        "source": f"model {STRATEGIST_MODEL}"}
+                        "source": f"model {STRATEGIST_MODEL}", "start": now}
     return []
