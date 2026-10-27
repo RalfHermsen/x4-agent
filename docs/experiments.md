@@ -886,8 +886,8 @@ hours, compared over the same hours from each start:
 | leancer3-long (rules) | 1.74 M | 1.84 M | 1.94 M |
 | leancstrat3-long (rules and strategist) | 1.60 M | 1.78 M | 1.79 M |
 
-**The station that made nothing scored best, and the reason is the measure.**
-The trade log of the last 25 game hours of each run:
+**The station that made nothing scored best, because 30 game hours is too
+short a window.** The trade log of the last 25 game hours of each run:
 
 | | Sold | Bought | Net |
 |---|---|---|---|
@@ -899,9 +899,13 @@ Fixed, the rules sold 60 % more. But `net_worth_cost` counts a module at its
 construction resources at their minimum price, while building one costs
 those resources at market price and the builder's fee: over the first 20
 hours leancer3 put 0.29 M/h more into modules than leancer2 and had 0.57 M/h
-less in credits. Every module built early lowers the score until it has
-earned back the difference, so a run that builds more trails in net worth
-for a while whether the modules pay or not.
+less in credits. A module that has not yet earned back that difference
+shows as a loss at this horizon, and a run that builds more trails for a
+while. Building is an investment: production modules pay more the longer
+they run, and from the middle of the game on a fleet has to be built from
+our own production, from the raw materials up, because buying it cannot be
+paid for. Self-built fleets are a goal on a horizon of weeks of game time,
+and runs and plans are weighed against that, not against 30 hours.
 
 Ships are not counted at all. The strategist arm bought twelve M container
 freighters at SCY-867, about 1.07 M each (the player's money fell by that much
