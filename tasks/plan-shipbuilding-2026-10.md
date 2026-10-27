@@ -124,6 +124,82 @@ methane, hydrogen and helium.
   wares a build takes (buy offers, as at a faction's wharf, or only what is
   in store).
 
+## The stages after hull parts
+
+Each stage names what it builds, what it costs, what has to be written, and
+what proves it in the game. Runs from here on continue from the last result
+save (a campaign, game weeks long), so the empire keeps what it built; the
+ceremony baseline stays for comparing two versions of a rule.
+
+**A. Hull parts running (step 3).** One hull parts module at KYV-745 makes
+1,176 an hour from 1,120 refined metals, 160 graphene and 320 energy cells:
+half the output of one refined metals module and a ninth of one graphene
+module, so the methane two gas miners bring is plenty. Surplus is sold:
+wharfs and shipyards are where the economy's hull parts go. *Proof:* hull
+parts in store and sold, the module not short of graphene.
+
+**B. Defence at KYV-745.** A Teladi defence disc (0.72 M blueprint; 359 hull
+parts, 98 claytronics, 196 energy cells to build), then a second if the
+first holds. Whether the build fits turrets in its mounts is the first thing
+to look at: we hold blueprints for Teladi M gatlings and M shields, none for
+L turrets. *Written:* the `defence` expansion (done). *Proof:* turrets on the
+disc in the save, and Xenon raiders at KYV-745 driven off without the
+player's ship taking to its own defence.
+
+**C. Money for the wharf.** The S/M Ship Fabrication Bay's blueprint is
+116.4 M, and the purchase job keeps a 20 % reserve, so it is bought once the
+player holds 146 M. The player held 45 M at the baseline; station accounts
+now flow back to the player above twice their maximum. At the 2 M a game
+hour the rules earn, that is a matter of tens of game hours. *Decision for
+Ralf:* keep the reserve for a purchase the plan sets as its goal, or lower it
+for that one. *Proof:* the blueprint held.
+
+**D. The wharf.** The bay at KYV-745 (its 5 km plot has room; GKL-870's 2 km
+plot is crowded). Its construction takes 12,112 hull parts, about ten game
+hours of one module, 3,312 claytronics, bought at about 2,000 each (6.8 M),
+and 6,620 energy cells. A second hull parts module halves the wait and
+serves the ships after it. *Written:* a plan entry `wharf: 1` (the expansion
+exists). *Proof:* the bay in the save, and what it offers to build
+(`GetContainerBuilderMacros`).
+
+**E. The first ship of our own.** A Teladi M gas or solid miner: blueprint
+1.19 M, a Teladi M all-round engine 0.13 M. Its hull is 109 hull parts; its
+engine is engine parts and antimatter converters, its shields shield
+components and field coils, its turrets turret components and advanced
+electronics. At average prices that is tens of thousands of credits in wares,
+against 1.07 M for a freighter bought at SCY-867. *Written:* `strategy.fleet`
+asks our wharf (`buildship`) before a faction's; the save's view of what our
+wharf offers. *Open:* whether the station buys the equipment wares itself and
+whether a ship we build needs crew from the station's workforce. *Proof:*
+the ship delivered, and what left the store for it.
+
+**F. The equipment chain**, in the order the first ships need it, each a
+blueprint and a module: engine parts (2.86 M; antimatter cells from
+hydrogen, refined metals), antimatter converters (advanced composites from
+graphene and refined metals, microchips), then shield components and field
+coils (plasma conductors and quantum tubes, from graphene and superfluid
+coolant, from helium), then turret components and advanced electronics
+(microchips, quantum tubes, scanning arrays). Until a ware is made, it is
+bought. *Proof:* a ship built from equipment we made.
+
+**G. Claytronics.** 20.8 M for the blueprint; antimatter cells, microchips
+and quantum tubes in. Every station module and every L or XL hull needs it,
+so it is the step that frees station building from the market.
+
+**H. Building, not buying.** Miners and traders come from our wharf; NPC
+factions buy from it too, which turns our hull parts into sales where the
+economy has its largest sink (`docs/forum-findings.md`). Defence fighters
+for the stations follow. *Proof:* a game week in which the fleet grew
+without a ship bought.
+
+**I. L and XL.** An L fabrication bay is about 244 M. Carriers and
+destroyers are what the guides name against the Xenon later in the game;
+this is the stage the long horizon is for, and it is planned when H stands.
+
+Through all of it the strategist gets the next unmet stage as its goal
+(step 6), and each campaign run is reported by the stages reached, sales,
+and the fleet's growth without purchases, with net worth beside them.
+
 ## Late game, besides building ships
 
 What the research found (thin: the wiki gave little detail, the 9.00
