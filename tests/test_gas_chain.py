@@ -60,3 +60,10 @@ def test_a_plan_counts_a_wharf_by_its_bay(small_state):
     station["modules"] = list(station["modules"]) + [executor.EXPANSION_MODULES["wharf"][0]]
     assert strategy.built(station, "wharf") == 1
     assert strategy.built(station, "maintenance") == 0
+
+
+def test_a_plan_counts_defence_modules(small_state):
+    station = copy.deepcopy(_station(small_state))
+    assert strategy.built(station, "defence") == 0
+    station["modules"] = list(station["modules"]) + [executor.EXPANSION_MODULES["defence"][0]]
+    assert strategy.built(station, "defence") == 1

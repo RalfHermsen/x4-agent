@@ -478,6 +478,12 @@
           <set_value name="$agent_module" exact="macro.buildmodule_gen_equip_m_dockarea_01_macro"/>
         </do_if>
 
+        <!-- A Teladi defence disc, turret and shield mounts. -->
+        <do_if value="event.param == 'expand %s defence'.[$agent_station.idcode]">
+          <set_value name="$agent_ware" exact="ware.module_tel_def_disc_01"/>
+          <set_value name="$agent_module" exact="macro.defence_tel_disc_01_macro"/>
+        </do_if>
+
         <!-- 6.10: an M dock, for a station that has none. -->
         <do_if value="event.param == 'expand %s dock'.[$agent_station.idcode]">
           <set_value name="$agent_ware" exact="ware.module_arg_dock_m_01_lowtech"/>

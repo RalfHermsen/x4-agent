@@ -111,6 +111,10 @@ EXPANSION_MODULES = {
     # station_equip_sm, held from Teladi on the ally ceremony).
     "wharf": ("buildmodule_gen_ships_m_dockarea_01_macro", None),
     "maintenance": ("buildmodule_gen_equip_m_dockarea_01_macro", None),
+    # A Teladi defence disc: 8 M and 10 L turret mounts, 4 M and 4 L shield
+    # mounts, 0.72 M for the blueprint (station_gen_intermediate). KYV-745 had
+    # two M turrets in all, on its docks, when Xenon came through.
+    "defence": ("defence_tel_disc_01_macro", None),
     # 3.7: a small habitat of the race the station is built from. The model
     # asks for "habitation"; Python picks the race (habitation_race below).
     "habitation_arg": ("hab_arg_s_01_macro", None),

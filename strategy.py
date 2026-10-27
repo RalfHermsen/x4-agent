@@ -54,6 +54,8 @@ def built(st: dict, ware: str) -> int:
     mods = st.get("modules") or []
     if ware in ("wharf", "maintenance"):
         return mods.count(executor.EXPANSION_MODULES[ware][0])
+    if ware == "defence":
+        return sum(1 for m in mods if m.startswith("defence_"))
     if ware == "dock":
         return sum(1 for m in mods if m.startswith("dockarea_"))
     if ware.startswith("storage_"):
