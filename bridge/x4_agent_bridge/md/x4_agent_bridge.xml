@@ -909,7 +909,13 @@
        its parking place under a Wait order with the player seated, a few
        trips of hundreds of kilometres between hourly saves, and was shot down
        in the next sector. Every 30 seconds shows when it moves and under which
-       order. ship=null means the player is no longer in a pilot seat. -->
+       order. ship=null means the player is no longer in a pilot seat.
+       In the runs of 2026-10-27 it flew at travel speed and manoeuvred as in
+       a fight while `order` read Wait each time. `order` is the queue's
+       current order only while the queue is enabled, else the default order
+       (scriptproperties), and the game's attack response creates an internal
+       Attack order. So `order` is now order/queue length/first in the
+       queue/the order's script, which shows an order the queue holds. -->
   <cue name="Send_State" instantiate="true" checkinterval="30s">
     <actions>
       <signal_cue_instantly
@@ -920,7 +926,8 @@
                        @player.occupiedship.sector.macro.id, @player.occupiedship.zone.macro.id,
                        @player.occupiedship.position.x, @player.occupiedship.position.y,
                        @player.occupiedship.position.z, @player.occupiedship.speed,
-                       @player.occupiedship.order.id],
+                       '%s/%s/%s/%s'.[@player.occupiedship.order.id, @player.occupiedship.orders.count,
+                                      @player.occupiedship.orders.{1}.id, @player.occupiedship.order.script]],
                      $cue  = Write_Callback]"/>
     </actions>
   </cue>
