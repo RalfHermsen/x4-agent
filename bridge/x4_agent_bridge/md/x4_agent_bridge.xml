@@ -631,7 +631,12 @@
                    player.blueprints.{$ware}.any.exists.
                    Any other expansion starts from the station's own sequence,
                    shields included, so there every entry that has equipment
-                   gets the same turrets and no shield. -->
+                   gets the same turrets and no shield. In ship6-camp the
+                   third disc's plan took them off KYV-745 altogether: the 48
+                   built shields went with the ones still to come, and the
+                   turrets stood at 692. The discs got nothing again with the
+                   list of wares ("0 of 3 defence modules"), so it is not the
+                   faction's default items; what they need is not known yet. -->
               <get_ware_definition result="$agent_candidates" tags="tag.turret"/>
               <set_value name="$agent_equipment" exact="[]"/>
               <do_for_each name="$agent_w" in="$agent_candidates">
