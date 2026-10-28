@@ -67,3 +67,11 @@ def test_a_plan_counts_defence_modules(small_state):
     assert strategy.built(station, "defence") == 0
     station["modules"] = list(station["modules"]) + [executor.EXPANSION_MODULES["defence"][0]]
     assert strategy.built(station, "defence") == 1
+
+
+def test_a_defence_module_is_armed_from_blueprints_we_hold():
+    text = BRIDGE.read_text(encoding="utf-8")
+    block = text[text.index('<do_if value="$agent_module.isclass.defencemodule">'):]
+    block = block[:block.index("</do_if>")]
+    assert 'faction="faction.player"' in block and 'requireblueprints="true"' in block
+    assert "<apply_loadout" in block
