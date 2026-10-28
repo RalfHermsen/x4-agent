@@ -60,6 +60,22 @@ def test_builders_read_from_build_tasks():
     assert _builders(elem) == ["[0x2e1acd44]"]
 
 
+def test_a_running_build_is_read_with_its_start_and_its_sequence():
+    from lxml import etree
+
+    from save_parser import _build_tasks
+    elem = etree.fromstring(
+        '<component><buildtasks><inprogress>'
+        '<build id="[0x110e]" type="expand" time="561482.53"><sequence>'
+        '<entry index="1" macro="pier_tel_harbor_02_macro"/>'
+        '<entry index="2" macro="defence_tel_disc_01_macro"/>'
+        '</sequence></build></inprogress></buildtasks></component>')
+    tasks = _build_tasks(elem)
+    assert tasks["in_progress"] == 1 and tasks["queue"] == []
+    assert tasks["running"] == [{"since": 561482.53,
+                                 "sequence": ["pier_tel_harbor_02_macro", "defence_tel_disc_01_macro"]}]
+
+
 def test_a_player_build_naming_its_own_storage_has_no_builder():
     from lxml import etree
 

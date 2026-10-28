@@ -69,14 +69,17 @@ def test_a_plan_counts_defence_modules(small_state):
     assert strategy.built(station, "defence") == 1
 
 
-def test_a_defence_module_is_armed_from_blueprints_we_hold():
+def test_a_plan_is_armed_from_turret_blueprints_we_hold_and_never_with_shields():
     text = BRIDGE.read_text(encoding="utf-8")
-    block = text[text.index('<do_if value="$agent_module.isclass.defencemodule">'):]
+    block = text[text.index('<get_ware_definition result="$agent_candidates"'):]
     block = block[:block.index("<write_to_logbook")]
-    # A list of wares, not requireblueprints: without one the player
-    # faction's default items are used, and it has none. Turrets only, as
-    # shield components are not to be had yet.
+    # Turrets only: 270 shields made of wares nobody sells held KYV-745's
+    # every expansion for 54 game hours.
     assert 'tags="tag.turret"' in block and 'tags="tag.shield"' not in block
     assert "player.blueprints.{$agent_w}.any.exists" in block
     assert 'wares="$agent_equipment"' in block and "requireblueprints" not in block
-    assert "<apply_loadout" in block
+    # A disc arms every entry; any other expansion re-arms only the entries
+    # that already carry equipment, which drops their planned shields.
+    guard = block[:block.index("<apply_loadout")].rsplit("<do_if", 1)[1]
+    assert "$agent_module.isclass.defencemodule" in guard
+    assert "@$agent_plan.{$agent_l}.loadout.wares.count" in guard

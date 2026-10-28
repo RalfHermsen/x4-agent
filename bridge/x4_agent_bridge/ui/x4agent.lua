@@ -1315,6 +1315,56 @@ local function cancel_build(station, args)
                                 args.code, ware))
 end
 
+--- "abortbuild KYV-745" -> the station's running expansion is cancelled where
+--- the game allows it: the map lists a build in progress with
+--- GetBuildTasks(..., true, false), and the interact menu offers "Cancel
+--- construction" on it after CanCancelConstruction. Python sends it only for
+--- a build whose modules all stand and that has run for hours since
+--- (executor._waits_for_equipment). A task the station runs for something
+--- other than itself, a ship at its wharf, is left alone.
+local function abort_build(station, args)
+    local own = tostring(ConvertStringTo64Bit(tostring(station)))
+    local containers = { { id = station, own_only = true } }
+    local bsid = GetComponentData(ConvertStringTo64Bit(tostring(station)), "buildstorage")
+    if bsid and bsid ~= 0 then
+        containers[#containers + 1] = { id = ConvertIDTo64Bit(bsid), own_only = false }
+    end
+    local ok, result = pcall(function()
+        local done, found, kept = {}, 0, 0
+        for _, container in ipairs(containers) do
+            local n = C.GetNumBuildTasks(container.id, 0, true, false)
+            if n > 0 then
+                local buf = ffi.new("BuildTaskInfo[?]", n)
+                n = C.GetBuildTasks(buf, n, container.id, 0, true, false)
+                for i = 0, n - 1 do
+                    local key = tostring(buf[i].id)
+                    local subject = tostring(ConvertStringTo64Bit(tostring(buf[i].component)))
+                    if not done[key] and (not container.own_only or subject == own) then
+                        found = found + 1
+                        if C.CanCancelConstruction(container.id, buf[i].id) then
+                            C.CancelConstruction(container.id, buf[i].id)
+                            done[key] = true
+                        else
+                            kept = kept + 1
+                        end
+                    end
+                end
+            end
+        end
+        return { found = found, kept = kept }
+    end)
+    if not ok then
+        return refuse("abortbuild: the map menu's functions are not available: " .. tostring(result))
+    end
+    if result.found == result.kept then
+        return refuse(string.format("abortbuild: %s has %d running build(s), and the game lets go of none",
+                                    args.code, result.found))
+    end
+    log(string.format("ORDER: %d running build(s) of %s cancelled, %d kept by the game",
+                      result.found - result.kept, args.code, result.kept))
+    return true
+end
+
 --- "plot GKL-870 3 2000000" -> the station's plot grown to 3 km a side, both
 --- ways along each axis, at the Plan Build menu's price and not above the
 --- given cap: ExtendBuildPlot, the price GetBuildPlotPrice for the new size
@@ -1657,6 +1707,7 @@ local HANDLERS = {
     buildfund = fund_build,
     plot = extend_plot,
     cancelbuild = cancel_build,
+    abortbuild = abort_build,
     buildship = build_own_ship,
 }
 

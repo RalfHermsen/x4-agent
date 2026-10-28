@@ -612,44 +612,56 @@
                    high 1.0); generate_loadout does the same, and
                    apply_loadout puts it in the plan, as the game's own
                    Apply_Loadout_To_Stations does (md/finalisestations.xml).
-                   Every entry of the plan, so a disc that stands empty is
-                   armed with the next one. The build buys what the
-                   equipment needs like any other ware.
-                   The turrets and shields come as a list of wares: without
-                   one, generate_loadout takes the faction's default items,
-                   and the player has none, so with requireblueprints both
-                   discs of ship4-camp (2026-10-28) were planned with no
-                   <upgrades> at all. The list is the game's own way of
-                   asking (md/diplomacy.xml): get_ware_definition by tag,
-                   then player.blueprints.{$ware}.any.exists.
-                   Turrets only for now: a shield is built from shield
+                   A disc expansion arms every entry of the plan, so a disc
+                   that stands empty is armed with the next one. The build
+                   buys what the equipment needs like any other ware.
+                   With requireblueprints (ship4-camp, 2026-10-28) the 129
+                   entries came out with a Teladi M shield and two M gatlings
+                   in every group of every production and storage module,
+                   636 turrets in all, and the two discs with nothing, though
+                   four of a disc's five groups take M equipment.
+                   Turrets only since: a shield is built from shield
                    components and field coils, which no station we know
-                   sells, and a build waits for every ware it lacks; at the
-                   end of ship4-camp a build of ours still wanted 3,504
-                   field coils and 2,773 shield components. Turret
-                   components came in the thousands. -->
-              <do_if value="$agent_module.isclass.defencemodule">
-                <get_ware_definition result="$agent_candidates" tags="tag.turret"/>
-                <set_value name="$agent_equipment" exact="[]"/>
-                <do_for_each name="$agent_w" in="$agent_candidates">
-                  <do_if value="player.blueprints.{$agent_w}.any.exists">
-                    <append_to_list name="$agent_equipment" exact="$agent_w"/>
-                  </do_if>
-                </do_for_each>
-                <generate_loadout sequence="$agent_plan" faction="faction.player"
-                                  wares="$agent_equipment" level="1.0" variation="0"
-                                  result="$agent_loadouts"/>
-                <set_value name="$agent_armed" exact="0"/>
-                <do_all exact="$agent_loadouts.count" counter="$agent_l">
+                   sells, and a build waits for every ware it lacks. The
+                   turrets came; 270 shields stayed in construction from game
+                   hour 156, and every expansion of KYV-745 was refused behind
+                   them to the end of ship5-camp. The list of wares is the
+                   game's own way of asking (md/diplomacy.xml):
+                   get_ware_definition by tag, then
+                   player.blueprints.{$ware}.any.exists.
+                   Any other expansion starts from the station's own sequence,
+                   shields included, so there every entry that has equipment
+                   gets the same turrets and no shield. -->
+              <get_ware_definition result="$agent_candidates" tags="tag.turret"/>
+              <set_value name="$agent_equipment" exact="[]"/>
+              <do_for_each name="$agent_w" in="$agent_candidates">
+                <do_if value="player.blueprints.{$agent_w}.any.exists">
+                  <append_to_list name="$agent_equipment" exact="$agent_w"/>
+                </do_if>
+              </do_for_each>
+              <generate_loadout sequence="$agent_plan" faction="faction.player"
+                                wares="$agent_equipment" level="1.0" variation="0"
+                                result="$agent_loadouts"/>
+              <set_value name="$agent_armed" exact="0"/>
+              <set_value name="$agent_discs" exact="0"/>
+              <set_value name="$agent_discs_armed" exact="0"/>
+              <do_all exact="$agent_loadouts.count" counter="$agent_l">
+                <do_if value="$agent_module.isclass.defencemodule or @$agent_plan.{$agent_l}.loadout.wares.count">
                   <apply_loadout sequence="$agent_plan" index="$agent_l"
                                  loadout="$agent_loadouts.{$agent_l}"/>
-                  <do_if value="@$agent_loadouts.{$agent_l}.wares.count">
-                    <set_value name="$agent_armed" operation="add" exact="1"/>
+                </do_if>
+                <do_if value="@$agent_plan.{$agent_l}.loadout.wares.count">
+                  <set_value name="$agent_armed" operation="add" exact="1"/>
+                </do_if>
+                <do_if value="$agent_plan.{$agent_l}.macro.isclass.defencemodule">
+                  <set_value name="$agent_discs" operation="add" exact="1"/>
+                  <do_if value="@$agent_plan.{$agent_l}.loadout.wares.count">
+                    <set_value name="$agent_discs_armed" operation="add" exact="1"/>
                   </do_if>
-                </do_all>
-                <write_to_logbook category="general"
-                  text="'[x4-agent] %s: equipment from our blueprints %s for %s of %s entries of the plan'.[$agent_station.idcode, $agent_equipment, $agent_armed, $agent_loadouts.count]"/>
-              </do_if>
+                </do_if>
+              </do_all>
+              <write_to_logbook category="general"
+                text="'[x4-agent] %s: equipment from our blueprints %s for %s of %s entries of the plan, %s of %s defence modules'.[$agent_station.idcode, $agent_equipment, $agent_armed, $agent_loadouts.count, $agent_discs_armed, $agent_discs]"/>
               <!-- The plan goes to the build storage as a build, as the
                    faction logic does it (md/factionlogic_economy.xml), and is
                    not applied to the station: apply_construction_sequence on a

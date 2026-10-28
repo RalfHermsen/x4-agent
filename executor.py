@@ -1099,6 +1099,9 @@ def _budget_already_set(action, state: dict) -> bool:
 
 EXPLORE_GAP = 3600   # game seconds a scout gets to sweep the sector it was sent to
 EXPANSION_SENT_WAIT = 1800   # game seconds an expansion we sent counts as planned
+# Game seconds a build may run with every module standing. In ship4-camp the
+# expansions of KYV-745 came one to two game hours apart, equipment included.
+STUCK_BUILD_AFTER = 6 * 3600
 
 
 def _exploring_nothing(ship: dict, state: dict | None = None) -> bool:
@@ -1155,6 +1158,27 @@ def _adds_nothing(bs: dict, state: dict) -> bool:
     station = next((a for a in state.get("assets", []) if a.get("code") == bs.get("station")), {})
     built = Counter(station.get("modules") or [])
     return all(not (Counter(seq) - built) for seq in build["queue"])
+
+
+def _waits_for_equipment(bs: dict, state: dict) -> bool:
+    """A build storage whose running build has every module standing and has
+    run for STUCK_BUILD_AFTER since: what is left is equipment.
+
+    KYV-745's refined metals expansion of game hour 156 carried the shields
+    and turrets planned for every module. The turrets came, 636 of them; 270
+    shields stayed in construction, made of field coils and shield components
+    that no station we know sells, and every expansion of KYV-745 was refused
+    behind it for the 54 game hours to the end of ship5-camp (2026-10-28).
+    """
+    from collections import Counter
+    build = bs.get("build") or {}
+    now = state.get("meta", {}).get("playtime_s") or 0
+    station = next((a for a in state.get("assets", []) if a.get("code") == bs.get("station")), {})
+    built = Counter(station.get("modules") or [])
+    running = build.get("running") or []
+    return bool(running) and all(
+        now - run["since"] > STUCK_BUILD_AFTER and not (Counter(run["sequence"]) - built)
+        for run in running)
 
 
 def _expansion_planned(action, state: dict) -> bool:
