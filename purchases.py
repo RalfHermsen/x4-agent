@@ -42,7 +42,8 @@ GIVE_UP_AFTER = {"docking": 3600, "licensing": 1800, "buying": 1800}
 RESERVE = 0.20
 # A blueprint is bought once and kept, so it may go down to 5 %: the wharf's
 # is 116.4 M, and at 20 % it waited for 146 M. Income refills the player's
-# money, and station accounts above twice their maximum flow back to it.
+# money: the game itself moves a station account's surplus back to it
+# (`standing.accounts`).
 BLUEPRINT_RESERVE = 0.05
 
 

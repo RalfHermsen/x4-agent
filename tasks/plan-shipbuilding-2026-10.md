@@ -152,7 +152,10 @@ waiting for 146 M; for a blueprint it now keeps 5 % (`BLUEPRINT_RESERVE`), so
 122.5 M will do, while ship purchases keep 20 %. The player held 45 M at the
 baseline; station accounts now flow back to the player above twice their
 maximum. At the 2 M a game hour the rules earn, that is a matter of tens of
-game hours. *Proof:* the blueprint held.
+game hours. *Reached* in ship3-camp: 49 M to 172 M in 34.5 game hours, most
+of it the game's own transfer of KYV-745's surplus (about 22.4 M every four
+game hours, `md/notifications.xml`, PlayerOwnedMoneyUpdated). *Proof:* the
+blueprint held.
 
 **D. The wharf.** The bay at KYV-745 (its 5 km plot has room; GKL-870's 2 km
 plot is crowded). Its construction takes 12,112 hull parts, about ten game

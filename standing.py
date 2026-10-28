@@ -459,6 +459,12 @@ def accounts(state: dict, data: dict) -> list[str]:
     rest back to the player: the ceremony series ended with 70 to 78 million
     on station accounts, against a few million the game recommended, while
     the player, who pays for blueprints and ships, held 38 to 40.
+
+    From then on the game moves the money itself (md/notifications.xml,
+    PlayerOwnedMoneyUpdated): above the larger of the maximum and one and a
+    half times the production money, the account goes back down to the
+    production money and the rest to the player. In ship3-camp that was
+    about 22.4 million every four game hours, seven times.
     """
     import catalog
     now = state.get("meta", {}).get("playtime_s") or 0
