@@ -937,3 +937,65 @@ responses, to an attack (`interrupt.attacked`) and to a tide
 (`interrupt.tide`), both create a `Flee` order, which the samples would have
 shown over a three-minute flight, so neither is confirmed; what flies it is
 still open.
+
+## 2026-10-28: shipbuilding stage B, the first two campaign runs
+
+From here a run continues from the last run's result save, so the empire
+keeps what it built (`--baseline-file`, `tasks/plan-shipbuilding-2026-10.md`).
+Both runs were rules only, with a plan from a file. ship2-long started from
+the ceremony baseline with graphene 1, hull parts 1, two liquid miners and no
+traders for KYV-745 (ba6e6d1); ship3-camp continued from its result save
+with a Teladi defence disc added, traders back to four and six solid miners
+(db2d94d).
+
+| | ship2-long | ship3-camp |
+|---|---|---|
+| Game hours | 74.3 to 107.8 (33.6) | 107.8 to 142.4 (34.5) |
+| Net worth | +99.1 M (2.95 M/h) | +210.2 M (6.09 M/h) |
+| Net worth at cost | +69.4 M (2.07 M/h) | +172.2 M (4.99 M/h) |
+| Player's money | -2.1 M | +122.5 M |
+| Station accounts | +45.4 M | +8.1 M |
+| Modules | 25 to 107 | 107 to 204 |
+| Ships | 23 to 19 | 19 to 26 |
+
+The second run had four times as many modules standing from its first hour,
+so its rate is not a verdict on the plan; it is what a campaign is for.
+
+**Losses.** ship2-long lost six ships, four of them (EMJ-300, NDX-233,
+GRW-124, IJK-742) to one Scale Plate Pact ship, NRF-961, around KYV-745,
+FWR-392 to Duke's Buccaneers and KGZ-352 to the Antigone Republic. With
+traders at 0 in the plan, the lost freighters were not replaced. ship3-camp
+lost KTK-861 to NRF-961 in its first game hour and nothing after; it bought
+six container freighters and two solid miners at SCY-867 and ended at
+traders 4/4 and solid miners 6/6.
+
+**The defence disc stood empty.** It was built, and the save showed no
+turret or shield on it. A module from `create_construction_sequence` comes
+without equipment; the game's own `Apply_Loadout_To_Stations`
+(`md/finalisestations.xml`) arms a standing station with
+`generate_loadout` and `apply_loadout` on every entry of the plan before
+`add_build_to_expand_station`. The bridge now does the same for a defence
+module, from the turret and shield blueprints the player holds
+(`requireblueprints`), so an empty disc is armed with the next expansion
+(28d8989). We hold Teladi M gatlings and M shields, none for L mounts.
+
+**Graphene was overbuilt.** The plan asked for one graphene module; the
+margin ranking added four more, and KYV-745 ended ship3-camp with 30,000
+graphene in store. Selling, not making, limits it now.
+
+**The money came from the game.** In ship3-camp the player's money rose in
+steps of about 22.4 M every four game hours, seven times, while the account
+rule sent three commands. The game moves a station's surplus to the player
+itself (`md/notifications.xml`, PlayerOwnedMoneyUpdated): above the larger
+of its maximum budget and one and a half times its production money, the
+account goes back down to the production money. In ship2-long KYV-745's
+account filled to 38.8 M without crossing that line, as the amount the game
+keeps grows with what the station produces; in ship3-camp it crossed it.
+Stage C is reached: 172 M against the 122.5 M the wharf's blueprint needs.
+
+The player's ship showed `order=Wait/0/null/order.wait` at every sample of
+ship3-camp and was not destroyed in either run.
+
+Next, ship4-camp from ship3-camp's result save: a second hull parts module,
+a second defence disc (which arms the first), the S/M Ship Fabrication Bay,
+and eight solid miners, since the refineries stood with 7 ore in store.
