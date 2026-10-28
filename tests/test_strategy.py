@@ -11,7 +11,8 @@ import strategy
 
 PLAN = {"horizon_hours": 3, "rationale": "hull parts for the yards",
         "stations": {"KYV-745": {"build": {"hullparts": 2, "storage_container": 1},
-                                 "miners": {"solid": 2}, "traders": 1}}}
+                                 "miners": {"solid": 2}, "traders": 1}},
+        "blueprints": []}
 
 
 def _station(state):
@@ -84,6 +85,41 @@ def test_a_planned_modules_blueprint_is_bought(small_state, monkeypatch):
     assert strategy.blueprints(state, {"strategy": {"plan": PLAN}}) == ["dockat SHP-001 STN-001 argon"]
     assert seen == ["module_gen_prod_hullparts_01"]
     assert strategy.blueprints(state, {"strategy": {"plan": PLAN}, "purchases": {"x": {}}}) == []  # one errand at a time
+
+
+def test_the_ship_and_equipment_blueprints_a_plan_names_are_bought(small_state, monkeypatch):
+    state = copy.deepcopy(small_state)
+    state["player"]["blueprints"] = ["ship_tel_m_miner_solid_01_a"]
+    seen = []
+    monkeypatch.setattr(purchases, "start", lambda data, ware, state: (seen.append(ware) or "dockat SHP-001 STN-001 teladi", None))
+    plan = dict(PLAN, stations={}, blueprints=["ship_tel_m_miner_solid_01_a", "engine_tel_m_allround_01_mk1"])
+    assert strategy.blueprints(state, {"strategy": {"plan": plan}}) == ["dockat SHP-001 STN-001 teladi"]
+    assert seen == ["engine_tel_m_allround_01_mk1"]              # the one we hold is skipped
+
+
+def test_a_ship_whose_blueprint_we_hold_is_built_at_our_wharf(small_state, monkeypatch):
+    state = copy.deepcopy(small_state)
+    state["assets"] = [a for a in state["assets"] if a.get("cls") == "station"]
+    _station(state)["modules"] = list(_station(state)["modules"]) + [executor.EXPANSION_MODULES["wharf"][0]]
+    state["player"]["blueprints"] = ["ship_tel_m_miner_solid_01_a", "engine_tel_m_allround_01_mk1"]
+    monkeypatch.setattr(catalog, "_buy_options", lambda state, roles: [catalog.Option("buy", f"buyship {roles[0][0]}")])
+    plan = {"strategy": {"plan": PLAN}}
+    assert strategy.fleet(state, plan) == ["buildship KYV-745 ship_tel_m_miner_solid_01_a_macro x4-agent-m"]
+    # Without an engine blueprint, or within the hour of the last one, it is bought as before.
+    state["player"]["blueprints"] = ["ship_tel_m_miner_solid_01_a"]
+    assert strategy.fleet(state, plan) == ["buyship solid miner"]
+    # Unless the plan is buying the blueprints for it: then it waits for them.
+    waiting = {"strategy": {"plan": dict(PLAN, blueprints=["ship_tel_m_miner_solid_01_a",
+                                                           "engine_tel_m_allround_01_mk1"])}}
+    assert strategy.fleet(state, waiting) == ["buyship container freighter"]   # the trader is not
+    state["player"]["blueprints"].append("engine_tel_m_allround_01_mk1")
+    state["sent_at"] = {"buyship": state["meta"]["playtime_s"] - 60}
+    assert strategy.own_build(state, "ship_{race}_m_miner_solid_01_a_macro") is None
+    # One on order at our wharf holds the next.
+    state["sent_at"] = {}
+    state["ships_on_order"] = [{"wharf": "KYV-745", "macro": "ship_tel_m_miner_solid_01_a_macro",
+                                "since": state["meta"]["playtime_s"] - 60, "paid": 0, "missing": []}]
+    assert strategy.own_build(state, "ship_{race}_m_miner_solid_01_a_macro") is None
 
 
 def test_fleet_assigns_a_free_ship_before_it_buys_one(small_state, monkeypatch):

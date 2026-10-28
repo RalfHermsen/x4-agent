@@ -255,7 +255,7 @@ def to_strategy(answer: StrategistPlan, state: dict) -> dict:
                             "miners": {m.kind: work[m.kind] + max(0, min(m.add, SHIPS_PER_KIND)) for m in p.miners},
                             "traders": work["traders"] + max(0, min(p.traders_add, SHIPS_PER_KIND))}
     return Strategy.model_validate({"horizon_hours": answer.horizon_hours, "rationale": answer.rationale,
-                                    "stations": goals}).model_dump()
+                                    "stations": goals, "blueprints": []}).model_dump()
 
 
 def ask(state: dict, data: dict, model: str | None = None, guidelines: str = "") -> tuple[dict, str]:

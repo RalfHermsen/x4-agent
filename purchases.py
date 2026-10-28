@@ -120,9 +120,9 @@ def choose(ware: str, state: dict, data: dict, table: dict | None = None,
     table = table if table is not None else gamedata.modules()
     graph = graph if graph is not None else _graph()
     defs = defs if defs is not None else gamedata.licences()
-    entry = next((m for m in table.values() if m.get("ware") == ware), None)
+    entry = gamedata.blueprint(ware, table)
     if not entry:
-        return None, f"{ware} is not a module blueprint the game knows"
+        return None, f"{ware} is not a blueprint the game knows"
     owners = entry.get("owners") or []
     if not owners:
         return None, f"nobody sells the blueprint for {ware}"
@@ -181,8 +181,8 @@ def start(data: dict, ware: str, state: dict, table: dict | None = None,
         return None, f"a purchase of {ware} is already under way"
     if ware in (state.get("player", {}).get("blueprints") or []):
         return None, f"{ware} is already ours"
-    entry = next((m for m in table.values() if m.get("ware") == ware), {})
-    price = entry.get("maxprice") or 0
+    entry = gamedata.blueprint(ware, table) or {}
+    price = entry.get("price") or 0
     money = state.get("player", {}).get("money") or 0
     if price and price > money * (1 - BLUEPRINT_RESERVE):
         return None, (f"{ware} costs about {price:,} Cr and would leave less than "

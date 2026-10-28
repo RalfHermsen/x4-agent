@@ -12,7 +12,7 @@ contain spaces, so lines are parsed from the right.
 Usage:
     python gamedata.py --build          # builds data/names.json
     python gamedata.py --lookup cluster_19_sector001_macro
-    python gamedata.py --modules        # builds data/modules.json
+    python gamedata.py --modules        # builds data/modules.json and the other tables
 
 Set X4_DIR if your installation is not in the default Steam location.
 """
@@ -346,6 +346,71 @@ def wares(rebuild: bool = False) -> dict[str, dict]:
     return table
 
 
+BLUEPRINTS = Path(__file__).parent / "data" / "blueprints.json"
+_PATCH_ADD = re.compile(r"""<add sel="/wares/ware\[@id='([^']+)'\]"[^>]*>(.*?)</add>""", re.S)
+
+
+def build_blueprints(x4_dir: Path = X4_DIR) -> dict[str, dict]:
+    """Ships and equipment a faction may sell the blueprint of: tags, price,
+    licence, owners, macro.
+
+    The blueprint menu asks ten times the ware's average price for them
+    (menu_trader_blueprintsorlicences.lua; modules are in `modules`, at their
+    maxprice). The owners are the factions whose representatives may offer
+    one; the DLCs add owners in patches to the base file. Whether the menu
+    really lists a ware (a ship needs "hasblueprint", equipment no info
+    alias) only the game says, and the bridge's `offers` logs it: a generic
+    M thruster has no owner here at all.
+    """
+    table: dict[str, dict] = {}
+    for part in extract_all(x4_dir, "libraries/wares.xml"):
+        text = part.decode("utf-8", "replace")
+        for ware, head, body in _ANY_WARE.findall(text):
+            attrs = dict(_ATTR.findall(head))
+            if attrs.get("transport") not in ("ship", "equipment") or ware in table:
+                continue
+            price = _PRICE_ALL.search(body)
+            licence = _LICENCE.search(body)
+            ref = _COMPONENT_REF.search(body)
+            table[ware] = {"tags": attrs.get("tags", "").split(),
+                           "price": int(price.group(2)) * 10 if price else None,
+                           "licence": licence.group(1) if licence else None,
+                           "owners": sorted(set(_OWNER.findall(body))),
+                           "macro": ref.group(1) if ref else None}
+        for ware, body in _PATCH_ADD.findall(text):
+            if ware in table:
+                table[ware]["owners"] = sorted(set(table[ware]["owners"]) | set(_OWNER.findall(body)))
+    return table
+
+
+def blueprints(rebuild: bool = False) -> dict[str, dict]:
+    if BLUEPRINTS.exists() and not rebuild:
+        return json.loads(BLUEPRINTS.read_text(encoding="utf-8"))
+    try:
+        table = build_blueprints()
+    except OSError:
+        return {}
+    BLUEPRINTS.parent.mkdir(parents=True, exist_ok=True)
+    BLUEPRINTS.write_text(json.dumps(table, indent=1, sort_keys=True), encoding="utf-8")
+    return table
+
+
+def blueprint(ware: str, table: dict | None = None) -> dict | None:
+    """What the purchase job needs to know of a blueprint of any kind: its
+    price, licence and owners. A module from `table` (the module table, which
+    tests pass their own of), a ship or equipment from `blueprints`."""
+    table = table if table is not None else modules()
+    module = next((m for m in table.values() if m.get("ware") == ware), None)
+    if module:
+        return {"ware": ware, "kind": "module", "price": module.get("maxprice"),
+                "licence": module.get("licence"), "owners": module.get("owners") or []}
+    other = blueprints().get(ware)
+    if not other:
+        return None
+    return {"ware": ware, "kind": "ship" if "ship" in other["tags"] else "equipment",
+            "price": other["price"], "licence": other["licence"], "owners": other["owners"]}
+
+
 def consumed_by(products: list[str], table: dict | None = None) -> set[str]:
     """Every ware a station making `products` may eat: the inputs of every
     method of every product, plus what a workforce eats. Deliberately the
@@ -440,6 +505,7 @@ def main() -> int:
         ships(rebuild=True)
         wares(rebuild=True)
         licences(rebuild=True)
+        blueprints(rebuild=True)
         table = modules(rebuild=True)
         print(f"{len(table)} module macros in {MODULES}, "
               f"{sum(1 for m in table.values() if m['ware'])} with a blueprint ware")

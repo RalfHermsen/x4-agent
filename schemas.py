@@ -422,4 +422,7 @@ class Strategy(BaseModel):
     `required`, and a model under a grammar may then skip it."""
     horizon_hours: float = Field(description="How many game hours the plan is meant for")
     stations: dict[str, StationGoal] = Field(description="Station code -> its goal")
+    blueprints: list[str] = Field(
+        description="ship and equipment blueprints to buy, by ware; a planned module's "
+                    "blueprint is bought without being named here")
     rationale: str = Field(description="Why, in a few sentences. Logged.")

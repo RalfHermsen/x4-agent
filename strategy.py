@@ -4,7 +4,9 @@ The plan says where each station should be by the end of a few game hours:
 how many production modules of which ware, how many miners and traders work
 for it (`schemas.Strategy`). The rules do the rest: `standing.grow` builds
 toward the modules, `fleet` assigns and buys toward the ships, `blueprints`
-buys the blueprint a planned module needs. Every gate they go through still
+buys the blueprint a planned module needs and the ship and equipment
+blueprints the plan names. A ship whose blueprint we hold is built at a wharf
+of ours rather than bought (`own_build`). Every gate they go through still
 applies, and without a plan nothing here does anything.
 
 For now the plan comes from a file, X4_STRATEGY_FILE, read every cycle so it
@@ -100,7 +102,45 @@ def blueprints(state: dict, data: dict) -> list[str]:
                     first, _ = purchases.start(data, bp, state)
                     if first:
                         return purchases.first_commands(data, bp, first, state)
+    for ware in ((data.get("strategy") or {}).get("plan") or {}).get("blueprints") or []:
+        if ware not in held:
+            first, _ = purchases.start(data, ware, state)
+            if first:
+                return purchases.first_commands(data, ware, first, state)
     return []
+
+
+def own_build(state: dict, pattern: str, size: str = "m") -> str | None:
+    """`buildship` at a wharf of ours, for the first race whose blueprint of
+    this ship we hold, with an engine blueprint of its size.
+
+    Our wharf builds from the blueprints we hold, and the bridge leaves the
+    shields out (x4agent.lua, build_own_ship). No faction sells a thruster's
+    blueprint (no thruster has an owner in wares.xml), so none is asked for;
+    the first order's logbook line says what the loadout came with. The same
+    brake as a purchase: one an hour, none while a ship of the kind is on
+    order or idle, and not at a wharf where one of ours has waited too long.
+    """
+    import catalog
+    import executor
+    import sitrep
+    held = set((state.get("player") or {}).get("blueprints") or [])
+    if not any(w.startswith("engine_") and f"_{size}_" in w for w in held):
+        return None
+    if catalog._bought_recently(state):
+        return None
+    stuck, coming = catalog._orders(state)
+    kind = sitrep.ship_type(pattern.format(race="arg"))
+    if kind in coming or catalog._idle_ship(state, kind):
+        return None
+    macro = next((pattern.format(race=race) for race in sorted(set(catalog.RACE.values()))
+                  if pattern.format(race=race).removesuffix("_macro") in held), None)
+    wharf = next((st for st in catalog._stations(state)
+                  if executor.EXPANSION_MODULES["wharf"][0] in (st.get("modules") or [])
+                  and st.get("code") not in stuck), None)
+    if not (macro and wharf):
+        return None
+    return f"buildship {wharf['code']} {macro} x4-agent-{size}"
 
 
 def fleet(state: dict, data: dict) -> list[str]:
@@ -109,7 +149,10 @@ def fleet(state: dict, data: dict) -> list[str]:
     A free ship of the kind (no commander, no orders, not on an errand) is
     assigned first; with none, one is bought at the nearest wharf we know,
     under the catalog's brake of one purchase per game hour. One purchase a
-    cycle at most, so the next cycle sees what the first bought."""
+    cycle at most, so the next cycle sees what the first bought. A ship whose
+    blueprint we hold is built at a wharf of ours (`own_build`); one whose
+    blueprint the plan names waits until every blueprint the plan names is
+    ours, or the faction's ship would be bought while the errand is out."""
     import catalog
     import executor
     import purchases
@@ -121,6 +164,9 @@ def fleet(state: dict, data: dict) -> list[str]:
     free = [s for s in catalog._ships(state)
             if (s.get("assignment") or {}).get("group") is None and s.get("code") not in errand
             and sitrep.role_of(s) == "IDLE"]
+    held = set((state.get("player") or {}).get("blueprints") or [])
+    named = set(((data.get("strategy") or {}).get("plan") or {}).get("blueprints") or [])
+    races = sorted(set(catalog.RACE.values()))
     out, bought = [], False
     for code, goal in plan.items():
         wants = [("mine", kind, n, f"{kind} miner", f"ship_{{race}}_m_miner_{kind}_01_a_macro",
@@ -144,9 +190,12 @@ def fleet(state: dict, data: dict) -> list[str]:
                     free.remove(pick)
                     continue
             if not bought:
-                options = catalog._buy_options(state, ((label, pattern),))
-                if options:
-                    out.append(options[0].command)
+                own = own_build(state, pattern)
+                waiting = (not own and named - held
+                           and any(pattern.format(race=r).removesuffix("_macro") in named for r in races))
+                options = [] if (own or waiting) else catalog._buy_options(state, ((label, pattern),))
+                if own or options:
+                    out.append(own or options[0].command)
                     bought = True
     return out
 

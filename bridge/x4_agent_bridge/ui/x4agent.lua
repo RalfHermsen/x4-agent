@@ -552,24 +552,58 @@ local function owned_blueprints()
     return owned
 end
 
-local function faction_sells_module(faction, ware)
-    -- What the faction representative would list: the same tag, faction and
-    -- exclusions the blueprint menu asks for.
-    local count = C.GetNumWares("module", false, faction, "noplayerblueprint missiononly")
+-- The blueprint menu's own sections (menu_trader_blueprintsorlicences.lua):
+-- modules and ships by their tag, equipment by these tags. Consumables are
+-- left out; nothing here buys them.
+local BLUEPRINT_TAGS = { "module", "ship", "weapon", "turret", "shield", "engine", "thruster",
+                         "missile", "drone", "countermeasure" }
+
+local function listed_by(faction, tag)
+    local listed = {}
+    local count = C.GetNumWares(tag, false, faction, "noplayerblueprint missiononly")
     if count == 0 then
-        return false
+        return listed
     end
     local buffer = ffi.new("const char*[?]", count)
-    count = C.GetWares(buffer, count, "module", false, faction, "noplayerblueprint missiononly")
+    count = C.GetWares(buffer, count, tag, false, faction, "noplayerblueprint missiononly")
     for i = 0, count - 1 do
-        if ffi.string(buffer[i]) == ware then
-            return true
-        end
+        listed[#listed + 1] = ffi.string(buffer[i])
     end
-    return false
+    return listed
 end
 
---- "blueprint module_gen_prod_water_01 TJL-171" -> buy a module blueprint, paid.
+--- What the faction representative would ask for the blueprint of `ware`,
+--- or nil when the menu would not list it. The menu's rules: a module or a
+--- ship only with "hasblueprint", equipment not when its macro has an info
+--- alias; a module costs its maxprice, everything else ten times its
+--- average price.
+local function blueprint_price(ware, tag)
+    local avgprice, maxprice, hasblueprint, macro = GetWareData(ware, "avgprice", "maxprice",
+                                                                 "hasblueprint", "component")
+    if tag == "module" or tag == "ship" then
+        if not hasblueprint then
+            return nil
+        end
+        return (tag == "module") and maxprice or avgprice * 10
+    end
+    if macro ~= "" and GetMacroData(macro, "hasinfoalias") then
+        return nil
+    end
+    return avgprice * 10
+end
+
+local function blueprint_offer(faction, ware)
+    for _, tag in ipairs(BLUEPRINT_TAGS) do
+        for _, listed in ipairs(listed_by(faction, tag)) do
+            if listed == ware then
+                return blueprint_price(ware, tag), tag
+            end
+        end
+    end
+    return nil
+end
+
+--- "blueprint module_gen_prod_water_01 TJL-171" -> buy a blueprint, paid.
 --
 -- Bought from the faction whose station TJL-171 is docked at: the agent may buy
 -- remotely, but only where one of its ships actually is (owner's rule,
@@ -577,15 +611,15 @@ end
 -- blueprint menu. LearnBlueprint does not take money, and neither does MD's
 -- add_blueprints; the menu pays with a separate TransferPlayerMoneyTo, and so
 -- must this, or the agent gets blueprints for free and is no longer playing
--- the same game. Module blueprints cost the ware's maxprice (the menu's own
--- rule for the module tag; other tags use avgprice * 10).
+-- the same game. What is for sale and at what price is the menu's own list
+-- (`blueprint_offer`): a module at its maxprice, a ship or a piece of
+-- equipment at ten times its average price.
 --
--- Modules only. Every refusal says why in the logbook, so the next cycle can
--- read it.
+-- Every refusal says why in the logbook, so the next cycle can read it.
 local function buy_blueprint(args)
     local ware, shipcode = args[1], args[2]
     if not ware or not shipcode then
-        refuse("blueprint needs: blueprint <module ware> <SHIP IDCODE>")
+        refuse("blueprint needs: blueprint <ware> <SHIP IDCODE>")
         return false
     end
     local ship = player_ships()[shipcode]
@@ -609,7 +643,8 @@ local function buy_blueprint(args)
         refuse("blueprint: " .. ware .. " is already ours, not buying it again")
         return false
     end
-    if not faction_sells_module(owner, ware) then
+    local price, tag = blueprint_offer(owner, ware)
+    if not price then
         refuse("blueprint: " .. tostring(owner) .. " does not sell " .. ware)
         return false
     end
@@ -619,7 +654,6 @@ local function buy_blueprint(args)
             .. " from " .. tostring(owner) .. ", which we do not hold")
         return false
     end
-    local price = GetWareData(ware, "maxprice")
     local before = GetPlayerMoney()
     if before < price then
         refuse(string.format("blueprint: %s costs %d Cr, we have %d", ware, price, before))
@@ -628,9 +662,30 @@ local function buy_blueprint(args)
     -- Pay first, then learn, as the menu does.
     TransferPlayerMoneyTo(price, station)
     C.LearnBlueprint(ware)
-    log(string.format("ORDER: bought blueprint %s from %s at %s for %d Cr, money %d -> %d, owned now: %s",
-                      ware, owner, tostring(stationcode), price, before, GetPlayerMoney(),
+    log(string.format("ORDER: bought blueprint %s (%s) from %s at %s for %d Cr, money %d -> %d, owned now: %s",
+                      ware, tag, owner, tostring(stationcode), price, before, GetPlayerMoney(),
                       tostring(owned_blueprints()[ware] == true)))
+    return true
+end
+
+--- "offers teladi thruster" -> one logbook line per blueprint the faction's
+--- representative lists under that tag, with the menu's price and whether
+--- we hold it already. Nothing is bought; this is for reading what is sold
+--- (a generic thruster has no owner in wares.xml, so only the menu can say).
+local function list_offers(args)
+    local faction, tag = args[1], args[2]
+    if not (faction and tag) then
+        return refuse("offers needs: offers <faction> <tag>")
+    end
+    local owned = owned_blueprints()
+    local listed = listed_by(faction, tag)
+    for _, ware in ipairs(listed) do
+        local price = blueprint_price(ware, tag)
+        log(string.format("offers: %s %s %s at %s Cr%s", faction, tag, ware,
+                          price and tostring(price) or "(not listed by the menu)",
+                          owned[ware] and ", ours" or ""))
+    end
+    log(string.format("offers: %s lists %d %s blueprint(s)", faction, #listed, tag))
     return true
 end
 
@@ -1512,7 +1567,8 @@ end
 --- with a price of 0 (menu_ship_configuration.lua: `menu.isplayerowned and
 --- 0`): no money moves, and the station builds from the wares in its own
 --- store. Only a ship the wharf offers, from the menu's own list
---- (GetContainerBuilderMacros), with the generated loadout `buyship` uses.
+--- (GetContainerBuilderMacros), with the generated loadout `buyship` uses,
+--- less its shields.
 local function build_own_ship(station, args)
     local macro, name = args[1], args[2]
     if not (macro and name) then
@@ -1543,6 +1599,23 @@ local function build_own_ship(station, args)
     if not ok then
         return refuse("buildship: no loadout for " .. macro .. ": " .. tostring(loadout))
     end
+    -- No shields: ours are made of field coils and shield components, which
+    -- no station we know sells, and a build waits for every ware it lacks
+    -- (KYV-745's 270 station shields, 2026-10-28). The ship menu's player
+    -- clears the slots the same way. What is left is logged with the order,
+    -- so the first build shows whether an engine and thrusters came with it.
+    local okparts, parts = pcall(function()
+        local shields = loadout.numshields
+        loadout.numshields = 0
+        loadout.numshieldgroups = 0
+        local thruster = (loadout.thruster.macro ~= nil) and ffi.string(loadout.thruster.macro) or ""
+        return string.format("%d engine(s), thruster %s, %d weapon(s), %d turret(s), %d shield(s) left out",
+                             loadout.numengines, (thruster ~= "") and thruster or "none",
+                             loadout.numweapons, loadout.numturrets, shields)
+    end)
+    if not okparts then
+        return refuse("buildship: could not take the shields out of the loadout: " .. tostring(parts))
+    end
     local okstructs, crew, info = pcall(function()
         return ffi.new("CrewTransferInfo2"), ffi.new("AddBuildTask6Container")
     end)
@@ -1556,7 +1629,8 @@ local function build_own_ship(station, args)
     if task == 0 then
         return refuse(string.format("buildship: %s would not build %s", args.code, macro))
     end
-    log(string.format("ORDER: %s builds %s for us as %s, task %s", args.code, macro, name, tostring(task)))
+    log(string.format("ORDER: %s builds %s for us as %s, task %s; %s", args.code, macro, name,
+                      tostring(task), parts))
     return true
 end
 
@@ -1670,6 +1744,7 @@ local GLOBAL_HANDLERS = {
 -- Commands with no subject at all: the verb and its own arguments.
 local BARE_HANDLERS = {
     blueprint = buy_blueprint,
+    offers = list_offers,
     docked = list_docked,
     dockat = dock_at,
     release = release,

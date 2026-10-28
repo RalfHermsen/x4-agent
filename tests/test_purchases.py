@@ -202,3 +202,13 @@ def test_no_job_when_the_licence_comes_with_a_ceremony(small_state):
     state = _with_teladi_station(_player(small_state, [("station_gen_basic", "teladi")]))
     first, reason = purchases.start({}, WARE, state, table, GRAPH, DEFS)
     assert first is None and "ceremony" in reason
+
+
+def test_a_ship_blueprint_is_chosen_like_a_module_one_at_ten_times_its_average(small_state):
+    import gamedata
+    ware = "ship_tel_m_miner_solid_01_a"
+    entry = gamedata.blueprint(ware, TABLE)
+    assert entry["kind"] == "ship" and "teladi" in entry["owners"]
+    assert entry["price"] == 10 * gamedata.wares()[ware]["avgprice"]     # the menu's rule
+    pick, reason = purchases.choose(ware, _with_teladi_station(small_state), {}, TABLE, GRAPH)
+    assert reason is None and pick["faction"] == "teladi" and pick["station"] == "ZIR-755"
