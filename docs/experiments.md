@@ -999,3 +999,61 @@ ship3-camp and was not destroyed in either run.
 Next, ship4-camp from ship3-camp's result save: a second hull parts module,
 a second defence disc (which arms the first), the S/M Ship Fabrication Bay,
 and eight solid miners, since the refineries stood with 7 ore in store.
+
+## 2026-10-28: ship4-camp and ship5-camp, the wharf and 636 turrets
+
+Two more campaign runs, rules only, each from the last one's result save.
+ship4-camp asked for a second hull parts module, a second defence disc, the
+S/M Ship Fabrication Bay and eight solid miners; ship5-camp for a third
+disc, with the bridge arming plans from our turret blueprints only (4464df2).
+
+| | ship4-camp | ship5-camp |
+|---|---|---|
+| Game hours | 142.4 to 176.2 (33.8) | 176.2 to 210.2 (34.0) |
+| Net worth | +136.4 M (4.03 M/h) | +175.3 M (5.15 M/h) |
+| Net worth at cost | +42.8 M | +167.9 M (4.93 M/h) |
+| Player's money | 171.8 M to 165.5 M | 165.5 M to 318.1 M |
+| Modules | 204 to 265 | 265 to 287 |
+| Ships | 26 to 35 | 35 to 36 |
+| Lost | IZD-990 (Godrealm of the Paranid), UIE-514 (Xenon) | none |
+
+**The wharf.** ship4-camp bought the blueprint for the S/M Ship Fabrication
+Bay from the Teladi at YMH-359, which took the player's money from 170.7 M
+to 54.4 M, and built it. The blueprint counts in neither net worth figure;
+the game's surplus transfers had the money back within the run.
+
+**636 turrets, and the discs still empty.** With `requireblueprints`, the
+disc expansion of game hour 143.8 planned all 129 entries: every group of
+every production and storage module got a Teladi M shield and two M
+gatlings, and the two discs got nothing, though four of a disc's five
+groups take M equipment and only the fifth wants L. Why the generator
+passed over the discs is not known yet. KYV-745 went from no turret and no
+shield at all (ship4-camp's start) to 636 gatlings and 48 shields.
+Every one of those turrets still carries the time it was built as its last
+shot, so none has fired yet; ship5-camp's lack of losses cannot be put
+down to them.
+
+**270 shields stopped KYV-745.** The refined metals expansion of game hour
+156 started from the station's own sequence, which now carried the planned
+equipment, and 270 shields stayed in construction: they are made of field
+coils and shield components, which no station we know sells, and a build
+waits for every ware it lacks. Every module of that build stood; the
+executor refuses an expansion while a build runs, so KYV-745 was not
+expanded again in ship4-camp or at all in ship5-camp, while GKL-870 took
+all 22 of ship5-camp's new modules. The bridge comment of 4464df2, that
+`requireblueprints` had planned nothing, was wrong.
+
+The fix (e4c0ea6): a running build whose modules all stand is cancelled
+after six game hours, through the interact menu's own CanCancelConstruction
+and CancelConstruction, and a plan carries turrets and no shields; a disc
+expansion arms every entry, any other expansion re-arms only the entries
+that already carry equipment. Whether the game lets go of a running build
+is what ship6-camp tests first.
+
+Shields come back with a supply. Field coils and shield components are both
+made from energy cells, plasma conductors and quantum tubes, and those two
+from graphene and superfluid coolant, which is made from helium. A ship
+built at our own wharf needs the same shields, so that chain comes before
+self-built ships carry any.
+
+Next, ship6-camp from ship5-camp's result save, with the same plan.
