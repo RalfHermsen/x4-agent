@@ -483,6 +483,7 @@ def covered_ground(state: dict) -> list[Situation]:
 
 RECIPE_RACE = {"tel": "teladi", "arg": "argon", "par": "paranid", "spl": "split", "ter": "terran"}
 HELD_HOURS = 10    # stock of a ware, in hours of one module's output, above which it is not expanded
+SUPPLY_HOURS = 4   # hours of a bought input that the sellers we know must hold for one more module
 
 
 def _best_buy(state: dict, ware: str) -> float | None:
@@ -509,6 +510,31 @@ def _input_cost(state: dict, ware: str, held: dict[str, int], table: dict) -> fl
     if held.get(ware, 0) > _demand(state, ware):
         return 0.0
     return _best_buy(state, ware) or (table.get(ware) or {}).get("minprice", 0)
+
+
+def _short_supply(state: dict, ware: str, recipe: dict) -> str | None:
+    """An input of `ware` that we neither mine nor make and that the stations
+    we know sell less of than SUPPLY_HOURS of what every module of ours
+    making `ware`, and one more, would eat. Energy cells every market sells.
+
+    In ship6-camp KYV-745 built three field coils modules and GKL-870 a
+    fourth, ranked by margin: field coils sold high because nobody we know
+    sells them. Four modules eat about 960 plasma conductors an hour, and the
+    one seller we knew held 2,096.
+    """
+    import economics
+    ours = [m for st in _stations(state) for m in (st.get("modules") or [])]
+    made = {economics.product_of(m) for m in ours}
+    mined = set().union(*executor.MINABLE.values())
+    modules = sum(1 for m in ours if economics.product_of(m) == ware) + 1
+    for w, n in (recipe.get("inputs") or {}).items():
+        if w == "energycells" or w in mined or w in made:
+            continue
+        stock = sum(o.get("amount") or 0 for st in state.get("known_stations", [])
+                    for o in st.get("offers") or [] if o.get("ware") == w and o.get("side") == "sell")
+        if stock < SUPPLY_HOURS * modules * n * 3600 / recipe["time"]:
+            return w
+    return None
 
 
 def expansion_margins(state: dict) -> list[tuple[str, float]]:
@@ -544,6 +570,8 @@ def expansion_margins(state: dict) -> list[tuple[str, float]]:
         # selling what it makes, and one more module adds to the pile. KYV-745
         # held 208,000 energy cells, twenty hours of a module, and offered 79.
         if held.get(ware, 0) >= HELD_HOURS * recipe["amount"] * 3600 / recipe["time"]:
+            continue
+        if _short_supply(state, ware, recipe):
             continue
         cost = sum(n * _input_cost(state, w, held, table) for w, n in (recipe.get("inputs") or {}).items())
         out.append((ware, (recipe["amount"] * sell - cost) * 3600 / recipe["time"]))

@@ -326,7 +326,9 @@ def test_expansions_are_ranked_by_margin_at_known_prices(small_state):
     state["known_stations"] = [{"code": "BUY-001", "owner": "argon", "place": {},
                                     "offers": [{"ware": "microchips", "side": "buy", "price": 1000, "amount": 500},
                                                {"ware": "energycells", "side": "buy", "price": 16, "amount": 500},
-                                               {"ware": "siliconwafers", "side": "buy", "price": 300, "amount": 500}]}]
+                                               {"ware": "siliconwafers", "side": "buy", "price": 300, "amount": 500},
+                                               # someone to buy the wafers from (`_short_supply`)
+                                               {"ware": "siliconwafers", "side": "sell", "price": 300, "amount": 100000}]}]
     margins = dict(catalog.expansion_margins(state))
     # 72 chips at 1000 against 50 cells at 16 and 200 wafers at 300, every 600 s
     assert round(margins["microchips"]) == round((72 * 1000 - 50 * 16 - 200 * 300) * 6)
@@ -363,6 +365,20 @@ def test_a_ware_piling_up_for_ten_module_hours_is_not_expanded(small_state):
     assert "energycells" in dict(catalog.expansion_margins(state))
     station["cargo"] = {"energycells": 120_000}         # over ten hours
     assert "energycells" not in dict(catalog.expansion_margins(state))
+
+
+def test_a_ware_whose_bought_input_the_market_cannot_feed_is_not_expanded(small_state):
+    state = copy.deepcopy(small_state)
+    state["known_stations"] = [{"code": "SEL-001", "owner": "argon", "place": {},
+                                "offers": [{"ware": "fieldcoils", "side": "buy", "price": 576, "amount": 5000},
+                                           {"ware": "plasmaconductors", "side": "sell", "price": 1076, "amount": 2096},
+                                           {"ware": "quantumtubes", "side": "sell", "price": 313, "amount": 9000}]}]
+    # One module eats 240 plasma conductors an hour: four hours is 960, under 2,096.
+    assert "fieldcoils" in dict(catalog.expansion_margins(state))
+    station = next(a for a in state["assets"] if a["code"] == "KYV-745")
+    station["modules"] = list(station["modules"]) + ["prod_gen_fieldcoils_macro"] * 3
+    # With three standing, a fourth makes 3,840 in four hours.
+    assert "fieldcoils" not in dict(catalog.expansion_margins(state))
 
 
 def test_a_full_store_is_offered_a_larger_store_first(small_state, monkeypatch):
