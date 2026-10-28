@@ -343,8 +343,9 @@ def test_a_queued_build_of_standing_modules_is_cancelled_and_not_asked_again(sma
     assert standing.empty_builds(state, data) == []
 
 
-def test_a_running_build_with_every_module_standing_is_cancelled_after_hours(small_state):
-    import copy
+def test_a_running_build_with_every_module_standing_is_reported_as_stuck_after_hours(small_state):
+    # The game will not cancel it (ship6-camp), so the report says what holds
+    # the station: KYV-745 waited 54 game hours for 270 shields.
     import executor
     state = copy.deepcopy(small_state)
     bs = next(a for a in state["assets"] if a["code"] == "XQL-000")
@@ -352,14 +353,14 @@ def test_a_running_build_with_every_module_standing_is_cancelled_after_hours(sma
     now = state["meta"]["playtime_s"]
     bs["build"] = {"queued": 0, "in_progress": 1, "builders": [], "processor": {}, "queue": [],
                    "running": [{"since": now - executor.STUCK_BUILD_AFTER - 60, "sequence": modules}]}
-    assert standing.stuck_builds(state, {}) == ["abortbuild KYV-745"]
-    assert standing.stuck_builds(state, {"sent_at": {"abortbuild KYV-745": now - 60}}) == []
+    assert executor._waits_for_equipment(bs, state)
+    assert any("waited for equipment since game hour" in line for line in sitrep.build_lines(state))
     bs["build"]["running"][0]["sequence"] = modules + ["prod_gen_water_macro"]   # a module to come
-    assert standing.stuck_builds(state, {}) == []
+    assert not executor._waits_for_equipment(bs, state)
     bs["build"]["running"][0] = {"since": now - 3600, "sequence": modules}       # not for long yet
-    assert standing.stuck_builds(state, {}) == []
+    assert not executor._waits_for_equipment(bs, state)
     bs["build"]["running"] = []
-    assert standing.stuck_builds(state, {}) == []
+    assert not executor._waits_for_equipment(bs, state)
 
 
 def test_a_build_that_adds_nothing_gets_no_builder_and_no_money(small_state):

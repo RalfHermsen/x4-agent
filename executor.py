@@ -1099,8 +1099,9 @@ def _budget_already_set(action, state: dict) -> bool:
 
 EXPLORE_GAP = 3600   # game seconds a scout gets to sweep the sector it was sent to
 EXPANSION_SENT_WAIT = 1800   # game seconds an expansion we sent counts as planned
-# Game seconds a build may run with every module standing. In ship4-camp the
-# expansions of KYV-745 came one to two game hours apart, equipment included.
+# Game seconds a build may run with every module standing before the report
+# calls it stuck. In ship4-camp the expansions of KYV-745 came one to two game
+# hours apart, equipment included.
 STUCK_BUILD_AFTER = 6 * 3600
 
 
@@ -1169,6 +1170,9 @@ def _waits_for_equipment(bs: dict, state: dict) -> bool:
     shields stayed in construction, made of field coils and shield components
     that no station we know sells, and every expansion of KYV-745 was refused
     behind it for the 54 game hours to the end of ship5-camp (2026-10-28).
+    The game does not let go of it: CanCancelConstruction, which the interact
+    menu asks before "Cancel construction", refused it in ship6-camp. So the
+    report says so (sitrep.build_lines), and the wares have to come.
     """
     from collections import Counter
     build = bs.get("build") or {}

@@ -191,6 +191,12 @@ def build_lines(state: dict) -> list[str]:
         money = f"{int(money):,} Cr".replace(",", ".") if money else "NO MONEY"
         lines.append(f"  {asset['code']}: {build.get('in_progress', 0)} build(s) running, "
                      f"{build.get('queued', 0)} queued, account {money}")
+        if executor._waits_for_equipment(asset, state):
+            since = min(run["since"] for run in build["running"])
+            lines.append(f"    every module of the running build stands; it has waited for "
+                         f"equipment since game hour {since / 3600:.0f}, and no other expansion "
+                         f"of {asset['station']} starts before it is done. The game does not "
+                         f"cancel a running build: what it is buying has to come.")
         wanted = [(o["ware"], o["amount"]) for o in asset.get("offers", [])
                   if o.get("side") == "buy" and o.get("amount")]
         if wanted:

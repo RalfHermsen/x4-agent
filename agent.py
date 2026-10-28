@@ -318,7 +318,7 @@ def cycle(model: str | None = None, save: Path | None = None, force: bool = Fals
     memory.record(remembered, commands)
     sent_at = remembered.setdefault("sent_at", {})
     for c in commands:
-        if c.startswith(("explore ", "expand ", "manager ", "account ", "assign ", "abortbuild ")):
+        if c.startswith(("explore ", "expand ", "manager ", "account ", "assign ")):
             sent_at[c] = state.get("meta", {}).get("playtime_s", 0.0)
         elif c.startswith("cancelbuild "):
             # Keyed on the station alone: the ware it names changes.

@@ -19,7 +19,6 @@ takes one command every two seconds (tasks/lessons.md L9, L11).
     6.10  a station without a dock gets one, an empty plot first
     6.11  a station with a manager and an empty account gets the game's estimate
           a queued build that adds nothing is cancelled
-          a running build that waits for equipment only is cancelled
           the blueprint of the connector production modules need is bought
 """
 
@@ -532,21 +531,6 @@ def empty_builds(state: dict, data: dict) -> list[str]:
     return out
 
 
-def stuck_builds(state: dict, data: dict) -> list[str]:
-    """A running build that waits for equipment only is cancelled
-    (executor._waits_for_equipment), as the interact menu's "Cancel
-    construction" does: the modules stand, and the station can be expanded
-    again. Once an hour at most.
-    """
-    import executor
-    now = state.get("meta", {}).get("playtime_s") or 0
-    sent_at = data.get("sent_at") or {}
-    return [f"abortbuild {bs['station']}" for bs in state.get("assets", [])
-            if bs.get("cls") == "buildstorage" and bs.get("station")
-            and executor._waits_for_equipment(bs, state)
-            and now - sent_at.get(f"abortbuild {bs['station']}", -1e9) >= CANCEL_WAIT]
-
-
 def docks(state: dict, data: dict) -> list[str]:
     """6.10: a station without a dock gets an M dock, an empty plot first.
 
@@ -584,8 +568,7 @@ def fleet(state: dict, data: dict) -> list[str]:
 
 
 RULES = (sell_limits, revisit, satellites, ledger, once, patrols, find_builds, hire_builders,
-         repairs, seminars, scouts, empty_builds, stuck_builds, docks, managers, accounts,
-         fleet, grow)
+         repairs, seminars, scouts, empty_builds, docks, managers, accounts, fleet, grow)
 
 
 def commands(state: dict, data: dict, off: set | frozenset = frozenset()) -> list[str]:
