@@ -110,6 +110,28 @@ def blueprints(state: dict, data: dict) -> list[str]:
     return []
 
 
+def offers(state: dict, data: dict) -> list[str]:
+    """Once per faction and tag: what the factions that sell a blueprint the
+    plan names list under its tag, and under thrusters, which no faction owns
+    in wares.xml (gamedata.build_blueprints). The bridge logs it (`offers`);
+    nothing is bought."""
+    import gamedata
+    named = ((data.get("strategy") or {}).get("plan") or {}).get("blueprints") or []
+    known = {st.get("owner") for st in state.get("known_stations", [])}
+    done = data.setdefault("standing", {}).setdefault("offers", [])
+    out = []
+    for ware in named:
+        entry = gamedata.blueprints().get(ware) or {}
+        tags = [t for t in entry.get("tags") or [] if t != "equipment"] + ["thruster"]
+        for faction in entry.get("owners") or []:
+            for tag in tags:
+                key = f"{faction} {tag}"
+                if faction in known and key not in done:
+                    done.append(key)
+                    out.append(f"offers {key}")
+    return out
+
+
 def own_build(state: dict, pattern: str, size: str = "m") -> str | None:
     """`buildship` at a wharf of ours, for the first race whose blueprint of
     this ship we hold, with an engine blueprint of its size.

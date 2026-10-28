@@ -97,6 +97,14 @@ def test_the_ship_and_equipment_blueprints_a_plan_names_are_bought(small_state, 
     assert seen == ["engine_tel_m_allround_01_mk1"]              # the one we hold is skipped
 
 
+def test_what_the_sellers_of_a_named_blueprint_list_is_asked_once(small_state):
+    state = copy.deepcopy(small_state)
+    state["known_stations"] = [{"code": "ZIR-755", "owner": "teladi"}]
+    data = {"strategy": {"plan": dict(PLAN, blueprints=["ship_tel_m_miner_solid_01_a"])}}
+    assert strategy.offers(state, data) == ["offers teladi ship", "offers teladi thruster"]
+    assert strategy.offers(state, data) == []                   # once
+
+
 def test_a_ship_whose_blueprint_we_hold_is_built_at_our_wharf(small_state, monkeypatch):
     state = copy.deepcopy(small_state)
     state["assets"] = [a for a in state["assets"] if a.get("cls") == "station"]
