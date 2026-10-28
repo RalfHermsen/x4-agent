@@ -609,22 +609,46 @@
                    (2026-10-28) while a pirate shot our freighters beside it.
                    The station menu fills a placed module from the blueprints
                    the player holds at a preset level (low 0.1, medium 0.5,
-                   high 1.0); generate_loadout with requireblueprints does
-                   the same, and apply_loadout puts it in the plan, as the
-                   game's own Apply_Loadout_To_Stations does
-                   (md/finalisestations.xml). Every entry of the plan, so a
-                   disc that stands empty is armed with the next one. The
-                   build buys what the equipment needs like any other ware. -->
+                   high 1.0); generate_loadout does the same, and
+                   apply_loadout puts it in the plan, as the game's own
+                   Apply_Loadout_To_Stations does (md/finalisestations.xml).
+                   Every entry of the plan, so a disc that stands empty is
+                   armed with the next one. The build buys what the
+                   equipment needs like any other ware.
+                   The turrets and shields come as a list of wares: without
+                   one, generate_loadout takes the faction's default items,
+                   and the player has none, so with requireblueprints both
+                   discs of ship4-camp (2026-10-28) were planned with no
+                   <upgrades> at all. The list is the game's own way of
+                   asking (md/diplomacy.xml): get_ware_definition by tag,
+                   then player.blueprints.{$ware}.any.exists.
+                   Turrets only for now: a shield is built from shield
+                   components and field coils, which no station we know
+                   sells, and a build waits for every ware it lacks; at the
+                   end of ship4-camp a build of ours still wanted 3,504
+                   field coils and 2,773 shield components. Turret
+                   components came in the thousands. -->
               <do_if value="$agent_module.isclass.defencemodule">
+                <get_ware_definition result="$agent_candidates" tags="tag.turret"/>
+                <set_value name="$agent_equipment" exact="[]"/>
+                <do_for_each name="$agent_w" in="$agent_candidates">
+                  <do_if value="player.blueprints.{$agent_w}.any.exists">
+                    <append_to_list name="$agent_equipment" exact="$agent_w"/>
+                  </do_if>
+                </do_for_each>
                 <generate_loadout sequence="$agent_plan" faction="faction.player"
-                                  requireblueprints="true" level="1.0" variation="0"
+                                  wares="$agent_equipment" level="1.0" variation="0"
                                   result="$agent_loadouts"/>
+                <set_value name="$agent_armed" exact="0"/>
                 <do_all exact="$agent_loadouts.count" counter="$agent_l">
                   <apply_loadout sequence="$agent_plan" index="$agent_l"
                                  loadout="$agent_loadouts.{$agent_l}"/>
+                  <do_if value="@$agent_loadouts.{$agent_l}.wares.count">
+                    <set_value name="$agent_armed" operation="add" exact="1"/>
+                  </do_if>
                 </do_all>
                 <write_to_logbook category="general"
-                  text="'[x4-agent] %s: equipment from our blueprints for %s entries of the plan'.[$agent_station.idcode, $agent_loadouts.count]"/>
+                  text="'[x4-agent] %s: equipment from our blueprints %s for %s of %s entries of the plan'.[$agent_station.idcode, $agent_equipment, $agent_armed, $agent_loadouts.count]"/>
               </do_if>
               <!-- The plan goes to the build storage as a build, as the
                    faction logic does it (md/factionlogic_economy.xml), and is

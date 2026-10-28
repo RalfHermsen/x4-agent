@@ -72,6 +72,11 @@ def test_a_plan_counts_defence_modules(small_state):
 def test_a_defence_module_is_armed_from_blueprints_we_hold():
     text = BRIDGE.read_text(encoding="utf-8")
     block = text[text.index('<do_if value="$agent_module.isclass.defencemodule">'):]
-    block = block[:block.index("</do_if>")]
-    assert 'faction="faction.player"' in block and 'requireblueprints="true"' in block
+    block = block[:block.index("<write_to_logbook")]
+    # A list of wares, not requireblueprints: without one the player
+    # faction's default items are used, and it has none. Turrets only, as
+    # shield components are not to be had yet.
+    assert 'tags="tag.turret"' in block and 'tags="tag.shield"' not in block
+    assert "player.blueprints.{$agent_w}.any.exists" in block
+    assert 'wares="$agent_equipment"' in block and "requireblueprints" not in block
     assert "<apply_loadout" in block
