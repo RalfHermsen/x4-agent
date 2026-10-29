@@ -230,7 +230,12 @@ graphene and refined metals, microchips), then shield components and field
 coils (plasma conductors and quantum tubes, from graphene and superfluid
 coolant, from helium), then turret components and advanced electronics
 (microchips, quantum tubes, scanning arrays). Until a ware is made, it is
-bought. *Proof:* a ship built from equipment we made.
+bought. *Proof:* a ship built from equipment we made. *Found*
+(ship7c-camp): both blueprints bought from the Teladi, the antimatter cells
+one on the second errand; the first modules stood at 269.2 and 270.8, and
+by margin KYV-745 ended with six engine parts and five antimatter cells
+modules, selling about half of what they make. No ship was ordered, so the
+proof is still open.
 
 **G. Claytronics.** 20.8 M for the blueprint; antimatter cells, microchips
 and quantum tubes in. Every station module and every L or XL hull needs it,

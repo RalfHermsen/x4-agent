@@ -1282,3 +1282,70 @@ timed out the same way, and then waited out the 110 minutes left; the final
 save did not come and the shutdown timed out too. X4 was ended by hand and
 the player saves restored. The result is the last save the game wrote,
 at 12:26.
+
+## 2026-10-29: ship7c-camp, engine parts of our own
+
+One campaign run, rules only, from ship7b-camp's end save, six hours. The
+plan adds stage F's first link at KYV-745: an antimatter cells module
+(hydrogen and energy cells) and an engine parts module (antimatter cells,
+energy cells, refined metals), their blueprints bought first. ENF-175 took
+8.6 game hours in ship7b-camp, nearly all of it waiting for engine parts,
+and no station we knew sold antimatter cells. GKL-870 gets a third solid
+miner. Along: 62cf7b6 (twelve hours for an order at our own wharf) and
+f9f028d (a hung game ends the run). The game did not hang.
+
+| | ship7c-camp |
+|---|---|
+| Game hours | 266.8 to 300.6 (33.8) |
+| Net worth | +207.2 M (6.12 M/h) |
+| Net worth at cost | +193.3 M (5.71 M/h) |
+| Player's money | 534.8 M to 714.9 M |
+| Modules | 393 to 440 (KYV-745 217 to 260, GKL-870 176 to 180) |
+| Ships | 52 to 49, none bought or built |
+| Lost | JCR-188 (container freighter, 277.2, "by null (Teladi Company)"), DKA-072 (281.8, by the Xenon RNG-210), CVT-715 and RBV-357 (fighters, 288.6, by the Xenon IDB-199) |
+
+**The blueprints.** The antimatter cells blueprint took two errands. KUZ-687
+was sent to RUZ-037 (Teladi), waited a game hour to dock and was released at
+267.9; ZVZ-581, already in TEN-917's sector, bought it there at 268.1. The
+engine parts blueprint came from YMH-359 (Teladi) at 268.7, by FEW-731.
+
+**The modules.** The first antimatter cells module stood at 269.2, the first
+engine parts module at 270.8. Then the margin ranking took over, as the plan
+says for everything past its targets: KYV-745 ended with six engine parts
+modules and five antimatter cells modules for a plan of one each. Over the
+trade log's last 24.8 game hours KYV-745 sold 2,496 engine parts an hour at
+144 Cr on average, about half of what six modules make at full run, and held
+9,155 at the end. Of antimatter cells it sold 916 an hour; the engine parts
+modules take up to 1,920; it held 13,145, and 38,017 hydrogen, so the
+modules were not short of gas. The ranking prices a ware at the best bid it
+knows (181 to 237 Cr for engine parts), not at what the station gets. The
+cost is small: an engine parts module is about 2.5 M, an antimatter cells
+module 0.44 M. No ship was ordered at our wharf, since the fleet plan stood
+(KYV-745 had 12 solid miners for 9, 23 traders for 4), so whether a ship
+now comes sooner is not measured.
+
+**GKL-870.** Eight expansions were sent; two were built (antimatter cells,
+hull parts) and six got "could not build a construction sequence"
+(graphene, engine parts, smart chips, antimatter cells, silicon wafers,
+refined metals): its plot is full. Its stores were too: solid 99 %,
+container 94 %. ENF-175, assigned to it at the start, ended holding silicon
+with "No buyers found in allowed sectors", like two methane miners at
+KYV-745, whose liquid and solid stores stood at 93 and 94 %. Both stations
+mine more than they process.
+
+**The threat that was two wrecks.** The report rated Hewa's Twin I, KYV-745's
+sector, a major threat with two Xenon XL through the whole run. Both were
+wrecks: BZE-134 since 236.8, and PNJ-650 since 272.5, rammed by our L
+freighter JEP-977. A wreck keeps its class, owner and code in the save, and
+the parser counted it (0d5e457 skips it). In the 105-hour reference save
+all four threats in our sectors were wrecks. Live Xenon did pass through:
+the report counted four XL at one point, and IDB-199, gone from the end
+save, destroyed both fighters.
+
+**Station turrets.** KYV-745 carries 690 M gatlings, all built, all set to
+attack enemies, none fired since 211.7. No hostile came within their reach;
+the Xenon K wrecks lie about 155 and 165 km from the station. In the same save NPC
+stations destroyed Xenon K destroyers out of the player's sight
+("lowattentionattack"), so station turrets do fight there.
+
+**Upkeep.** KYV-745 asked for a builder from 297.0 on.
