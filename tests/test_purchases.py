@@ -135,6 +135,23 @@ def test_guards(small_state, change, expected):
     assert first is None and expected in reason
 
 
+def test_a_thruster_blueprint_is_bought_from_whoever_lists_it(small_state):
+    """No thruster has an owner in wares.xml; the representatives of Teladi and
+    the Ministry list them (ship7-camp's `offers`), and that is the seller."""
+    ware = "thruster_gen_m_allround_01_mk1"
+    state = _with_teladi_station(small_state)
+    pick, reason = purchases.choose(ware, state, {}, TABLE, GRAPH)
+    assert pick is None and "nobody sells" in reason
+    t = state["meta"]["playtime_s"]
+    state["logbook"] = [[t - 2, f"[x4-agent lua] offers: teladi thruster {ware} at 130190 Cr"],
+                        [t - 1, "[x4-agent lua] offers: teladi lists 18 thruster blueprint(s)"]]
+    data = {}
+    memory.game_refusals(data, state)
+    assert data["offered"] == {ware: {"teladi": 130190}}
+    pick, reason = purchases.choose(ware, state, data, TABLE, GRAPH)
+    assert reason is None and (pick["faction"], pick["station"]) == ("teladi", "ZIR-755")
+
+
 def test_game_refusal_reaches_the_report_once(small_state):
     state = copy.deepcopy(small_state)
     t = state["meta"]["playtime_s"]

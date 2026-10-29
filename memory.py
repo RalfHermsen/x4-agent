@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import time
 from pathlib import Path
 
@@ -52,7 +53,10 @@ CONFIGURATION = ("traderule", "price", "tradeware", "limit")
 _EMPTY = {"goals": [], "pending": [], "applied": {}, "fleet": {},
           "explore_retried": {}, "refused": [], "funded": {}, "expansions": {},
           "purchases": {}, "blueprint_factions": [], "logbook_seen": -1.0,
-          "feeders": {}, "standing": {}, "ledger": {}, "reserved": []}
+          "feeders": {}, "standing": {}, "ledger": {}, "reserved": [], "offered": {}}
+
+# The bridge's `offers` line for one blueprint a faction's representative lists.
+_OFFERED = re.compile(r"offers: (\S+) \S+ (\S+) at (\d+) Cr")
 
 # What the agent did, as opposed to what it saw or decided. In advise mode
 # nothing is sent, so a cycle there must leave these as they were: recording
@@ -334,6 +338,12 @@ def game_refusals(data: dict, state: dict) -> list[str]:
                 data["reserved"] = sorted(reserved)
                 lines.append(f"the player {'took' if parts[1] == 'on' else 'handed back'} "
                              f"{parts[0]}" + (" and keeps it" if parts[1] == "on" else ""))
+        elif "offers: " in text:
+            # Who lists a blueprint and at what price: for a generic thruster,
+            # which has no owner in wares.xml, the only word (purchases.choose).
+            m = _OFFERED.search(text)
+            if m:
+                data.setdefault("offered", {}).setdefault(m.group(2), {})[m.group(1)] = int(m.group(3))
         elif "LEDGER " in text:
             # The ledger verb (4.7): what each station paid NPC sellers.
             parts = text.split("LEDGER ", 1)[1].split()

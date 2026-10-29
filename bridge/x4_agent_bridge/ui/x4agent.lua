@@ -1627,19 +1627,26 @@ local function build_own_ship(station, args)
     -- No shields: ours are made of field coils and shield components, which
     -- no station we know sells, and a build waits for every ware it lacks
     -- (KYV-745's 270 station shields, 2026-10-28). The ship menu's player
-    -- clears the slots the same way. What is left is logged with the order,
-    -- so the first build shows whether an engine and thrusters came with it.
-    local okparts, parts = pcall(function()
+    -- clears the slots the same way. What is left is logged with the order.
+    local okparts, parts, complete = pcall(function()
         local shields = loadout.numshields
         loadout.numshields = 0
         loadout.numshieldgroups = 0
         local thruster = (loadout.thruster.macro ~= nil) and ffi.string(loadout.thruster.macro) or ""
         return string.format("%d engine(s), thruster %s, %d weapon(s), %d turret(s), %d shield(s) left out",
                              loadout.numengines, (thruster ~= "") and thruster or "none",
-                             loadout.numweapons, loadout.numturrets, shields)
+                             loadout.numweapons, loadout.numturrets, shields),
+               loadout.numengines > 0 and thruster ~= ""
     end)
     if not okparts then
         return refuse("buildship: could not take the shields out of the loadout: " .. tostring(parts))
+    end
+    -- The ship menu takes no order with the engine or thruster slot empty
+    -- (helper.lua, allowempty); ship7-camp's first order went in without a
+    -- thruster, as no thruster blueprint was ours.
+    if not complete then
+        return refuse(string.format("buildship: %s at %s would have %s; the ship menu needs an engine and a thruster",
+                                    macro, args.code, parts))
     end
     local okstructs, crew, info = pcall(function()
         return ffi.new("CrewTransferInfo2"), ffi.new("AddBuildTask6Container")

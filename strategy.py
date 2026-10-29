@@ -134,12 +134,14 @@ def offers(state: dict, data: dict) -> list[str]:
 
 def own_build(state: dict, pattern: str, size: str = "m") -> str | None:
     """`buildship` at a wharf of ours, for the first race whose blueprint of
-    this ship we hold, with an engine blueprint of its size.
+    this ship we hold, with an engine and a thruster blueprint of its size.
 
     Our wharf builds from the blueprints we hold, and the bridge leaves the
-    shields out (x4agent.lua, build_own_ship). No faction sells a thruster's
-    blueprint (no thruster has an owner in wares.xml), so none is asked for;
-    the first order's logbook line says what the loadout came with. The same
+    shields out (x4agent.lua, build_own_ship). The ship menu takes no order
+    with the engine or thruster slot empty (helper.lua, allowempty), and
+    ship7-camp's first order went in with no thruster: none was ours. A
+    generic thruster has no owner in wares.xml; the factions' representatives
+    list it (`offers`), and the purchase job finds its sellers there. The same
     brake as a purchase: one an hour, none while a ship of the kind is on
     order or idle, and not at a wharf where one of ours has waited too long.
     Nothing is built until the wharf has a ship trader (`standing.shiptraders`).
@@ -148,8 +150,9 @@ def own_build(state: dict, pattern: str, size: str = "m") -> str | None:
     import executor
     import sitrep
     held = set((state.get("player") or {}).get("blueprints") or [])
-    if not any(w.startswith("engine_") and f"_{size}_" in w for w in held):
-        return None
+    for part in ("engine_", "thruster_"):
+        if not any(w.startswith(part) and f"_{size}_" in w for w in held):
+            return None
     if catalog._bought_recently(state):
         return None
     stuck, coming = catalog._orders(state)

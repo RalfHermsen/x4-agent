@@ -123,9 +123,11 @@ def choose(ware: str, state: dict, data: dict, table: dict | None = None,
     entry = gamedata.blueprint(ware, table)
     if not entry:
         return None, f"{ware} is not a blueprint the game knows"
-    owners = entry.get("owners") or []
+    # A generic thruster has no owner in wares.xml, yet the representatives
+    # of Teladi and the Ministry list it (ship7-camp's `offers`).
+    owners = entry.get("owners") or sorted((data.get("offered") or {}).get(ware) or {})
     if not owners:
-        return None, f"nobody sells the blueprint for {ware}"
+        return None, f"nobody sells the blueprint for {ware}, as far as wares.xml and `offers` say"
     player = state.get("player", {})
     licences = {(l.get("type"), l.get("faction")) for l in player.get("licences") or []}
     relations = player.get("relations") or {}

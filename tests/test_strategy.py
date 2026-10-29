@@ -109,10 +109,14 @@ def test_a_ship_whose_blueprint_we_hold_is_built_at_our_wharf(small_state, monke
     state = copy.deepcopy(small_state)
     state["assets"] = [a for a in state["assets"] if a.get("cls") == "station"]
     _station(state)["modules"] = list(_station(state)["modules"]) + [executor.EXPANSION_MODULES["wharf"][0]]
-    state["player"]["blueprints"] = ["ship_tel_m_miner_solid_01_a", "engine_tel_m_allround_01_mk1"]
+    state["player"]["blueprints"] = ["ship_tel_m_miner_solid_01_a", "engine_tel_m_allround_01_mk1",
+                                     "thruster_gen_m_allround_01_mk1"]
     monkeypatch.setattr(catalog, "_buy_options", lambda state, roles: [catalog.Option("buy", f"buyship {roles[0][0]}")])
     plan = {"strategy": {"plan": PLAN}}
     assert strategy.fleet(state, plan) == ["buildship KYV-745 ship_tel_m_miner_solid_01_a_macro x4-agent-m"]
+    # Not without a thruster: the ship menu takes no order with that slot empty.
+    state["player"]["blueprints"].remove("thruster_gen_m_allround_01_mk1")
+    assert strategy.own_build(state, "ship_{race}_m_miner_solid_01_a_macro") is None
     # Without an engine blueprint, or within the hour of the last one, it is bought as before.
     state["player"]["blueprints"] = ["ship_tel_m_miner_solid_01_a"]
     assert strategy.fleet(state, plan) == ["buyship solid miner"]
@@ -120,7 +124,7 @@ def test_a_ship_whose_blueprint_we_hold_is_built_at_our_wharf(small_state, monke
     waiting = {"strategy": {"plan": dict(PLAN, blueprints=["ship_tel_m_miner_solid_01_a",
                                                            "engine_tel_m_allround_01_mk1"])}}
     assert strategy.fleet(state, waiting) == ["buyship container freighter"]   # the trader is not
-    state["player"]["blueprints"].append("engine_tel_m_allround_01_mk1")
+    state["player"]["blueprints"] += ["engine_tel_m_allround_01_mk1", "thruster_gen_m_allround_01_mk1"]
     state["sent_at"] = {"buyship": state["meta"]["playtime_s"] - 60}
     assert strategy.own_build(state, "ship_{race}_m_miner_solid_01_a_macro") is None
     # One on order at our wharf holds the next.
