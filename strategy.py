@@ -166,6 +166,22 @@ def own_build(state: dict, pattern: str, size: str = "m") -> str | None:
     return f"buildship {wharf['code']} {macro} x4-agent-{size}"
 
 
+def _working(code: str, role: str) -> set[tuple[str, str]]:
+    """What `executor.serves` says of a ship that counts toward `role` at `code`.
+
+    A trader lent to the station's build storage goes back to trading when the
+    build is done (`executor.feed_build_storages`), so it is still one of the
+    station's traders. Counted as gone, it was bought again: ship7-camp ended
+    with six freighters at GKL-870's build storage and two trading, for a plan
+    of two.
+    """
+    import executor
+    groups = {executor.STATION_GROUPS[role]}
+    if role == "trade":
+        groups.add(executor.STATION_GROUPS["buildstorage"])
+    return {(code, group) for group in groups}
+
+
 def fleet(state: dict, data: dict) -> list[str]:
     """Miners and traders toward the plan's numbers for each station.
 
@@ -199,8 +215,7 @@ def fleet(state: dict, data: dict) -> list[str]:
                       "ship_{race}_m_trans_container_01_a_macro",
                       lambda s: sitrep.ship_type(s.get("macro")) in executor.FREIGHTERS))
         for role, kind, target, label, pattern, fits in wants:
-            group = executor.STATION_GROUPS[role]
-            have = sum(1 for s in catalog._ships(state) if executor.serves(s, state) == (code, group)
+            have = sum(1 for s in catalog._ships(state) if executor.serves(s, state) in _working(code, role)
                        and fits(s))
             if have >= target:
                 continue
@@ -245,7 +260,7 @@ def lines(state: dict, data: dict) -> list[str]:
             have = sum(1 for s in catalog._ships(state) if executor.serves(s, state) == (code, "mining")
                        and executor._miner_kind(s.get("macro")) == kind)
             parts.append(f"{kind} miners {have}/{n}")
-        have = sum(1 for s in catalog._ships(state) if executor.serves(s, state) == (code, "trade"))
+        have = sum(1 for s in catalog._ships(state) if executor.serves(s, state) in _working(code, "trade"))
         parts.append(f"traders {have}/{goal.get('traders') or 0}")
         out.append(f"{code}: " + ", ".join(parts)
                    + (f"; the bridge cannot build {', '.join(unknown)}" if unknown else ""))

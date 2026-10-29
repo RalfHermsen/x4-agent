@@ -130,6 +130,19 @@ def test_a_ship_whose_blueprint_we_hold_is_built_at_our_wharf(small_state, monke
     assert strategy.own_build(state, "ship_{race}_m_miner_solid_01_a_macro") is None
 
 
+def test_a_trader_lent_to_the_build_storage_is_not_bought_again(small_state, monkeypatch):
+    """ship7-camp: each trader lent to GKL-870's build storage was replaced by
+    a bought freighter; it ended with six there and two trading, for two."""
+    state = copy.deepcopy(small_state)
+    state["assets"] = [a for a in state["assets"] if a.get("cls") == "station" or a["code"] == "ASO-629"]
+    _station(state)["assignment"] = {"groups": {1: "tradeforbuildstorage"}}
+    next(a for a in state["assets"] if a["code"] == "ASO-629")["assignment"] = {"group": 1}
+    monkeypatch.setattr(catalog, "_buy_options", lambda state, roles: [catalog.Option("buy", f"buyship {roles[0][0]}")])
+    plan = {"strategy": {"plan": dict(PLAN, stations={"KYV-745": {"build": {}, "miners": {}, "traders": 1}})}}
+    assert strategy.fleet(state, plan) == []
+    assert "traders 1/1" in strategy.lines(state, plan)[1]
+
+
 def test_fleet_assigns_a_free_ship_before_it_buys_one(small_state, monkeypatch):
     state = copy.deepcopy(small_state)
     state["assets"] = [a for a in state["assets"] if a.get("cls") == "station" or a["code"] == "ASO-629"]

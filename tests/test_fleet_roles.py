@@ -102,5 +102,19 @@ def test_station_trader_preferred_and_returned_to_trade(small_state):
     assert feeders["KYV-745"]["before"] == "trade"
 
 
+def test_a_ship_left_at_the_build_storage_is_taken_up_or_sent_back(small_state):
+    """A run starts with no feeders: a trader a run before lent to the build
+    storage counts as this run's feeder while a build runs, and goes back to
+    trading when none does (six of GKL-870's sat there after ship7-camp)."""
+    state = _building(small_state)
+    next(a for a in state["assets"] if a["code"] == "KYV-745")["assignment"] = {"groups": {1: "tradeforbuildstorage"}}
+    next(a for a in state["assets"] if a["code"] == "ASO-629")["assignment"] = {"group": 1}
+    feeders = {}
+    assert executor.feed_build_storages(state, feeders) == []
+    assert feeders == {"KYV-745": {"ship": "ASO-629", "before": "trade"}}
+    next(a for a in state["assets"] if a["code"] == "XQL-000")["build"]["in_progress"] = 0
+    assert executor.feed_build_storages(state, {}) == ["assign ASO-629 KYV-745 trade"]
+
+
 def test_nothing_to_buy_means_no_feeder(small_state):
     assert executor.feed_build_storages(_building(small_state, offers=False), {}) == []

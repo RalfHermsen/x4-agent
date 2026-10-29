@@ -865,7 +865,12 @@
              product stays small.
 
              The commander check makes a repeat harmless: re-sending the same
-             assignment changes nothing and writes no logbook line.
+             assignment changes nothing and writes no logbook line. It checks
+             the assignment too: a trader lent to the build storage has the
+             station as commander already, so the order to trade again was
+             skipped. At the end of ship7-camp six of GKL-870's freighters sat
+             at its build storage and two traded, and the fleet had bought
+             freighters in their place.
 
              Through the AssignCommander order, as the game's own faction logic
              does it (factionlogic_economy.xml: immediate, cancelorders false).
@@ -879,7 +884,7 @@
         <do_for_each name="$agent_station" in="$agent_stations">
           <do_if value="event.param == 'assign %s %s trade'.[$agent_ship.idcode, $agent_station.idcode]">
             <set_value name="$agent_handled" exact="1"/>
-            <do_if value="@$agent_ship.commander != $agent_station">
+            <do_if value="@$agent_ship.commander != $agent_station or @$agent_ship.assignment != assignment.trade">
               <create_order object="$agent_ship" id="'AssignCommander'" immediate="true">
                 <param name="commander" value="$agent_station"/>
                 <param name="assignment" value="assignment.trade"/>
@@ -900,7 +905,7 @@
                sent somewhere. -->
           <do_if value="event.param == 'assign %s %s defend'.[$agent_ship.idcode, $agent_station.idcode]">
             <set_value name="$agent_handled" exact="1"/>
-            <do_if value="@$agent_ship.commander != $agent_station">
+            <do_if value="@$agent_ship.commander != $agent_station or @$agent_ship.assignment != assignment.defence">
               <create_order object="$agent_ship" id="'AssignCommander'" immediate="true">
                 <param name="commander" value="$agent_station"/>
                 <param name="assignment" value="assignment.defence"/>

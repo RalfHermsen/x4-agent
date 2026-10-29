@@ -916,15 +916,26 @@ def feed_build_storages(state: dict, feeders: dict) -> list[str]:
         code = bs["station"]
         build = bs.get("build") or {}
         building = bool(build.get("queued") or build.get("in_progress"))
+        # Ships of ours at this build storage already, whether lent by this
+        # memory or by a run before it: each run starts with no feeders, and
+        # ship7-camp ended with six of GKL-870's freighters there.
+        lent = [a["code"] for a in state.get("assets", [])
+                if serves(a, state) == (code, STATION_GROUPS["buildstorage"])]
         if code in feeders:
             if not building:
                 feeder = feeders.pop(code)
                 commands.append(f"assign {feeder['ship']} {code} trade"
                                 if feeder["before"] == "trade" else f"autotrade {feeder['ship']}")
             continue
+        if lent and not building:
+            commands += [f"assign {ship} {code} trade" for ship in lent]
+            continue
         buying = any(o.get("side") == "buy" and (o.get("amount") or 0) > 0
                      for o in bs.get("offers", []))
         if not (building and buying):
+            continue
+        if lent:
+            feeders[code] = {"ship": lent[0], "before": "trade"}
             continue
         station = assets.get(code) or {}
         sector = (station.get("place") or {}).get("sector")
