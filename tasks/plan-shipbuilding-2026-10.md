@@ -214,8 +214,14 @@ game hours, so a Paranid miner was bought as the ninth instead. *Written*
 (d18b540, 5b9a817): a ship trader is sent to each wharf of ours; the
 plan names the generic M all-round thruster, bought from whoever the
 `offers` lines say lists it; `own_build` waits for it; the bridge refuses a
-loadout without an engine or a thruster. Running in ship7b-camp, again from
-ship6-camp's result save.
+loadout without an engine or a thruster. *Found* (ship7b-camp): the first
+ship came. ENF-175, a Teladi solid miner, left KYV-745 8.6 game hours after
+the order; the wharf put out a buy offer for the engine parts itself, and
+the ship came with a pilot, a defence officer and an engineer. So the two
+open questions are answered; what left the store for it is not measured.
+At two hours the order counted as stuck, the two miners it was meant for
+were bought from the Paranid, and ENF-175 stood idle. *Written* (62cf7b6):
+an order at a wharf of ours has twelve hours.
 
 **F. The equipment chain**, in the order the first ships need it, each a
 blueprint and a module: engine parts (2.86 M; antimatter cells from

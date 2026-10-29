@@ -1197,3 +1197,88 @@ Next, ship7b-camp, again from ship6-camp's result save rather than from
 this one, whose queue holds the order without a thruster. A restart from
 this save was stopped before its first cycle, to take ea564ab along, and
 a second one after its first, when the missing thruster came to light.
+
+## 2026-10-29: ship7b-camp, the first ship from our own wharf
+
+One campaign run, rules only, again from ship6-camp's result save. The plan
+of ship7-camp, plus the blueprint of the generic M all-round thruster, and
+two solid miners for GKL-870, which the game had asked for since game hour
+77 (an upkeep mission). It ran four of its six hours: at game hour 266.77
+the game hung.
+
+| | ship7b-camp |
+|---|---|
+| Game hours | 244.5 to 266.8 (22.3), ended by a hang of the game |
+| Net worth | +148.8 M (6.69 M/h) |
+| Net worth at cost | +141.7 M (6.37 M/h) |
+| Player's money | 398.1 M to 534.8 M |
+| Modules | 351 to 393 (KYV-745 185 to 217, GKL-870 166 to 176) |
+| Ships | 50 to 52 (one built at our own wharf, two solid miners bought, one lost) |
+| Lost | JFZ-239 (fighter), and CTT-204, which is in no save of the run, to the Xenon PNJ-650 at game hour 248.9 |
+
+**Five starts before this one**, each stopped within minutes: to take along
+ea564ab (lent traders), the thruster blueprint, 77ab597 (a purchase only
+with a ship held at the seller), 41185e2 (upkeep missions in the report)
+with GKL-870's miners in the plan, 197802d (cargo drones), and 503c1db.
+That last one: the bridge writes one `offers` line per faction and tag, all
+at the same moment, and the memory read one line per moment, so it knew the
+sellers of three wares, and not the thruster's.
+
+**The blueprints.** All three from Teladi at WLI-542, without a refusal:
+the miner at 244.84 (1,188,650 Cr), the engine at 245.01 (130,640 Cr) and
+the thruster at 245.12 (130,190 Cr), its seller taken from the `offers`
+lines of 244.74.
+
+**The first own ship.** A ship trader went to KYV-745 at 244.72, from the
+crew of GWH-145, with a skill of 0 of 100. The order went in at 246.45,
+with the engine and the generic thruster and the shields left out, and the
+queue then named what the wharf lacked: engine parts. KYV-745 put out a buy
+offer for them itself. ENF-175, a Teladi solid miner, came out at 255.07,
+8.6 game hours after the order, with a pilot, a defence officer and an
+engineer aboard, standing at Wait.
+
+**And nothing for it to do.** At 248.5 the order had waited longer than two
+game hours, after which a wharf counts as one that does not deliver. Two
+Paranid solid miners were bought at SCY-867 for GKL-870, OBC-723 at 248.58
+(996,968 Cr) and ESP-000 at 249.86 (991,480 Cr). GKL-870 had its two and
+KYV-745 its nine (twelve, with the four of ship6-camp), so ENF-175 stood
+idle to the end. An idle miner holds the purchase of the next, so it is the
+first one put to work when a miner is lost. 62cf7b6 gives an order at a
+wharf of ours twelve hours: it buys the parts only once the order is in.
+
+**Upkeep missions.** The report names them per station. At the start
+GKL-870 had three: Restock Cargo Drones (since game hour 76.9) and Assign
+subordinate twice (77.2 and 105.1). At the end the first of the two Assign
+subordinate missions was gone; the other two stood.
+
+**Cargo drones.** At 244.72 GKL-870 was set to keep 10 cargo drones in
+stock (197802d). At the end it had a buy offer for 10 drone components,
+as supplies, and the game's mission to restock cargo drones was still open:
+in 22 game hours the parts did not come.
+
+**Traders.** No freighter was bought (ship7-camp bought three). Ships lent
+to a build storage went back to trading when the build was done: KYV-745
+ends with 24 traders for a plan of four, GKL-870 with six for two.
+
+**Building.** KYV-745 grew by 32 modules (refined metals, silicon wafers,
+spices, shield components, graphene, smart chips) and GKL-870 by 10 (smart
+chips). GKL-870's plot is full: refined metals, silicon wafers, spices,
+shield components, smart chips and graphene got "could not build a
+construction sequence". A builder was hired 15 times, 12 for KYV-745, at
+50,000 Cr each.
+
+**Losses.** The report rated Hewa's Twin I, KYV-745's sector, a major
+threat with a Xenon XL through the run. PNJ-650 destroyed JFZ-239, a
+fighter, at 248.90 and CTT-204 at 248.92, and attacked CVT-715 and RBV-357.
+There is no rule for a major threat yet.
+
+**The hang.** At 12:27 real time, game hour 266.77, the game stopped. The
+bridge's state messages stopped, every call to X4Mcp timed out ("timeout
+waiting for game thread"), the window drew no new frame, and one core was
+busy. The last cycle before it ended normally, with a save and nothing to
+send; the one before that sent a builder hire, which the game refused
+("AOR-401 is busy or hostile"). The run script tried three reloads, which
+timed out the same way, and then waited out the 110 minutes left; the final
+save did not come and the shutdown timed out too. X4 was ended by hand and
+the player saves restored. The result is the last save the game wrote,
+at 12:26.
