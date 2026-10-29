@@ -1127,3 +1127,73 @@ run, were destroyed at game hour 232.5. KYV-745 is in that sector.
 
 Next, ship7-camp from this result save: stage E, the first ship from our
 own wharf.
+
+## 2026-10-29: ship7-camp, the first own ship that did not start
+
+One campaign run, rules only, from ship6-camp's result save. The plan of
+ship6-camp, plus the blueprints of the Teladi M solid miner and the Teladi
+M all-round engine, and a ninth solid miner for KYV-745 built at our own
+wharf. Stopped by hand after 14.5 game hours, when it was clear the ship
+would not be built.
+
+| | ship7-camp |
+|---|---|
+| Game hours | 244.5 to 259.1 (14.5), stopped by hand |
+| Net worth | +58.6 M (4.02 M/h) |
+| Net worth at cost | +52.6 M (3.62 M/h) |
+| Player's money | 398.1 M to 455.2 M |
+| Modules | 351 to 383 |
+| Ships | 50 to 53 (one solid miner and three freighters bought, one lost) |
+| Lost | XPR-722 (container freighter), to the Xenon in Bright Promise at game hour 257.85 |
+
+**The blueprints.** The miner's came from Teladi at WLI-542 at game hour
+244.89 for 1,188,650 Cr. The engine's purchase was given up after 1.1
+hours: the errand ship lay at WLI-542 already, its `dockat` there ended at
+once and it went back to trading. A second errand bought it at ZIR-755 at
+246.47 for 130,640 Cr. 2642e19 buys at once where the errand ship lies.
+
+**The order went in, and nothing worked it.** The fleet rule sent
+`buildship` at 247.51, and the bridge's line said the wharf had taken it,
+with 1 engine, no thruster, 2 turrets and the 2 shields left out. Ten game
+hours later it was still in KYV-745's queue, without even a list of
+missing wares, which each queued build at SCY-867 has. A wharf's
+queue is worked by its ship trader (`aiscripts/build.shiptrader.xml`).
+The game gives every NPC wharf one when the universe is made
+(`md/inituniverse.xml`); KYV-745 had a manager, a defence officer and an
+engineer, and no ship trader. d18b540 sends one from our crews, the way
+the map menu's crew transfer does.
+
+**And it had no thruster.** The ship menu takes no order with the engine
+or the thruster slot empty (`helper.lua`, `allowempty`); for shields it
+does. No thruster blueprint was ours, and nothing bought one, because no
+thruster has an owner in `wares.xml`. The `offers` lines of game hour
+244.65 show that the representatives of Teladi and the Ministry list 18
+thrusters each, the generic M all-round mk1 at 130,190 Cr. 5b9a817 takes a
+blueprint's sellers from those lines when `wares.xml` names none, holds
+the own build until a thruster blueprint of the size is ours, and has the
+bridge refuse a loadout without an engine or a thruster.
+
+**A ninth miner bought instead.** At 249.83 the order had waited longer
+than two game hours, after which a wharf counts as one that does not
+deliver. A Paranid solid miner was bought at SCY-867 (249.89, 1.04 M) and
+put to mining for KYV-745: the plan's ninth.
+
+**Traders lent and never given back.** GKL-870's build storage borrowed
+one of its two traders at 250.47 and another at 252.65. Each time the
+fleet rule saw one trader of two and bought a freighter. The order to
+trade again was skipped by the bridge, because the ship had GKL-870 as
+its commander already; it did not look at the assignment. The run ended
+with six of GKL-870's freighters at its build storage and two trading
+(ship6-camp ended with four there). ea564ab checks the assignment, takes
+up a ship found at a build storage as its feeder while a build runs and
+sends it back when none does, and counts it as a trader meanwhile.
+
+**The loss.** XPR-722, one of those freighters, was bought at 253.03, put
+to trade for GKL-870 at 253.27 and shot down in Bright Promise at 257.85.
+The sector read as a major threat from 248.6 (two Xenon XL, 35 S). A
+third freighter was bought at 257.91, in its place.
+
+Next, ship7b-camp, again from ship6-camp's result save rather than from
+this one, whose queue holds the order without a thruster. A restart from
+this save was stopped before its first cycle, to take ea564ab along, and
+a second one after its first, when the missing thruster came to light.

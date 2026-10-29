@@ -205,9 +205,17 @@ the ship delivered, and what left the store for it. *Written* (b4037dd,
 menu's price); `own_build` sends `buildship` once an engine blueprint and the
 hull's are held; the fleet rule waits for every named blueprint before buying
 the hull from a faction; `offers` asks once per faction and tag what a
-blueprint's sellers list, thrusters included. Running in ship7-camp: the
-miner's blueprint was bought from the Teladi at WLI-542 in its first game
-hour.
+blueprint's sellers list, thrusters included. *Found* (ship7-camp): both
+blueprints were bought and the order went in at 247.5, and nothing built
+it. A wharf's queue is worked by its ship trader, which the game gives NPC
+wharfs and ours lacked; and the order had no thruster, which the ship menu
+does not allow, since no thruster blueprint was ours. The order waited two
+game hours, so a Paranid miner was bought as the ninth instead. *Written*
+(d18b540, 5b9a817): a ship trader is sent to each wharf of ours; the
+plan names the generic M all-round thruster, bought from whoever the
+`offers` lines say lists it; `own_build` waits for it; the bridge refuses a
+loadout without an engine or a thruster. Running in ship7b-camp, again from
+ship6-camp's result save.
 
 **F. The equipment chain**, in the order the first ships need it, each a
 blueprint and a module: engine parts (2.86 M; antimatter cells from
