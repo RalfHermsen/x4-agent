@@ -436,6 +436,25 @@ def managers(state: dict, data: dict) -> list[str]:
             and now - sent_at.get(f"manager {st['code']}", -1e9) > MANAGER_TRAVEL]
 
 
+def shiptraders(state: dict, data: dict) -> list[str]:
+    """A wharf of ours with no ship trader gets one from our crews.
+
+    The ship trader works the wharf's build queue (aiscripts/build.shiptrader.xml):
+    an NPC wharf is given one when the universe is made (md/inituniverse.xml),
+    ours is not. In ship7-camp our first own ship sat in KYV-745's queue for
+    ten game hours, never even checked for wares. Sent as `managers` sends a
+    manager, and left for MANAGER_TRAVEL while they travel.
+    """
+    import catalog
+    import executor
+    now = state.get("meta", {}).get("playtime_s") or 0
+    sent_at = data.get("sent_at") or {}
+    wharf = executor.EXPANSION_MODULES["wharf"][0]
+    return [f"shiptrader {st['code']}" for st in catalog._stations(state)
+            if st.get("code") and wharf in (st.get("modules") or []) and not st.get("shiptrader")
+            and now - sent_at.get(f"shiptrader {st['code']}", -1e9) > MANAGER_TRAVEL]
+
+
 def accounts(state: dict, data: dict) -> list[str]:
     """6.11: a station with a manager and an empty or overfull account is set
     to the game's own estimate, as its "Accept Estimate" button moves it.
@@ -568,7 +587,8 @@ def fleet(state: dict, data: dict) -> list[str]:
 
 
 RULES = (sell_limits, revisit, satellites, ledger, once, patrols, find_builds, hire_builders,
-         repairs, seminars, scouts, empty_builds, docks, managers, accounts, fleet, grow)
+         repairs, seminars, scouts, empty_builds, docks, managers, shiptraders, accounts, fleet,
+         grow)
 
 
 def commands(state: dict, data: dict, off: set | frozenset = frozenset()) -> list[str]:

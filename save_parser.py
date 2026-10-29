@@ -81,6 +81,7 @@ class Asset:
     production_queue: list[str] = field(default_factory=list)
     production: list[dict] = field(default_factory=list)
     manager: dict | None = None     # stations: the manager and their skill
+    shiptrader: bool = False        # stations: someone holds the ship trader post
     modules: list[str] = field(default_factory=list)   # stations: built module macros
     capacity: dict[str, int] = field(default_factory=dict)  # stations: cargo type -> max
     plot: dict[str, int] = field(default_factory=dict)  # stations: buildplot half-extents, m
@@ -315,6 +316,13 @@ def _manager(elem) -> dict | None:
             "management_stars": None}
 
 
+def _shiptrader(elem) -> bool:
+    """Someone holds the station's ship trader post: <control><post id="shiptrader"
+    component=".."/>. A wharf's build queue is worked by them (standing.shiptraders)."""
+    post = elem.find("control/post[@id='shiptrader']")
+    return post is not None and bool(post.get("component"))
+
+
 def _production(elem) -> list[dict]:
     """Production lines of a station, with what each one is short of.
 
@@ -520,6 +528,7 @@ def _asset(elem, ancestors: list[dict]) -> Asset:
         asset.assignment = {"groups": _groups(elem)}
         asset.builds = _shipyard(elem)
         asset.manager = _manager(elem)
+        asset.shiptrader = _shiptrader(elem)
         asset.offers = _offers(elem)
         asset.price_overrides = _price_overrides(elem)
         asset.production = _production(elem)

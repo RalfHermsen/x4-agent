@@ -142,6 +142,7 @@ def own_build(state: dict, pattern: str, size: str = "m") -> str | None:
     the first order's logbook line says what the loadout came with. The same
     brake as a purchase: one an hour, none while a ship of the kind is on
     order or idle, and not at a wharf where one of ours has waited too long.
+    Nothing is built until the wharf has a ship trader (`standing.shiptraders`).
     """
     import catalog
     import executor

@@ -128,6 +128,17 @@ def test_the_trade_book_keeps_our_trades_with_others_only():
     assert "GKL-870" not in book["stations"] and (book["since"], book["until"]) == (10.0, 30.0)
 
 
+def test_a_ship_trader_is_read_from_the_station_posts():
+    from lxml import etree
+
+    from save_parser import _shiptrader
+    ours = etree.fromstring('<component><control><post id="manager" component="[0x2969d]"/>'
+                            '<post id="defence" component="[0x29059]"/></control></component>')
+    npc = etree.fromstring('<component><control><post id="shiptrader" component="[0xa7e4]"/>'
+                           '<post id="manager" component="[0xa7e5]"/></control></component>')
+    assert (_shiptrader(ours), _shiptrader(npc)) == (False, True)
+
+
 def test_ships_paid_for_and_not_delivered_are_read_from_the_wharf_queue():
     from lxml import etree
 

@@ -1203,16 +1203,28 @@ end
 --- that post is highest. No fee, as in the game: the crew came with the ships
 --- we paid for. The person travels there; the save names them on arrival.
 --- The types and functions are the map menu's, used once it has declared them.
-local function assign_manager(station, args)
-    if GetComponentData(ConvertStringTo64Bit(tostring(station)), "tradenpc") then
-        return refuse("manager: " .. args.code .. " has a manager")
+---
+--- "shiptrader KYV-745" -> the same transfer to the ship trader post, which the
+--- menu offers at a wharf, shipyard or equipment dock (buttonCrewTransferConfirm).
+--- A wharf's build queue is worked by its ship trader (aiscripts/build.shiptrader.xml);
+--- the game gives an NPC wharf one (md/inituniverse.xml) and ours none, and our
+--- first own ship sat untouched in KYV-745's queue for ten game hours (ship7-camp).
+local POSTS = {
+    manager = { holder = "tradenpc", title = "manager" },
+    shiptrader = { holder = "shiptrader", title = "ship trader" },
+}
+
+local function assign_crew(station, args, post)
+    local title = POSTS[post].title
+    if GetComponentData(ConvertStringTo64Bit(tostring(station)), POSTS[post].holder) then
+        return refuse(post .. ": " .. args.code .. " has a " .. title)
     end
-    local okfn, can = pcall(function() return C.CanControllableHaveControlEntity(station, "manager") end)
+    local okfn, can = pcall(function() return C.CanControllableHaveControlEntity(station, post) end)
     if not okfn then
-        return refuse("manager: the map menu's functions are not available: " .. tostring(can))
+        return refuse(post .. ": the map menu's functions are not available: " .. tostring(can))
     end
     if not can then
-        return refuse("manager: " .. args.code .. " cannot have a manager")
+        return refuse(post .. ": " .. args.code .. " cannot have a " .. title)
     end
     local candidates = {}
     for shipcode, ship in pairs(player_ships()) do
@@ -1233,7 +1245,7 @@ local function assign_manager(station, args)
                         for k = 0, count - 1 do
                             candidates[#candidates + 1] = {
                                 ship = ship, shipcode = shipcode, seed = seeds[k],
-                                skill = C.GetPersonCombinedSkill(ship, seeds[k], nil, "manager") }
+                                skill = C.GetPersonCombinedSkill(ship, seeds[k], nil, post) }
                         end
                     end
                 end
@@ -1244,11 +1256,16 @@ local function assign_manager(station, args)
     local tally = {}
     for _, c in ipairs(candidates) do
         local actor = { entity = nil, personcontrollable = c.ship, personseed = c.seed }
-        local reason = ffi.string(C.AssignHiredActor(actor, station, "manager", nil, true))
+        local reason = ffi.string(C.AssignHiredActor(actor, station, post, nil, true))
         if reason == "" then
-            C.AssignHiredActor(actor, station, "manager", nil, false)
-            log(string.format("ORDER: crew from %s sent to manage %s, manager skill %d of 100",
-                              c.shipcode, args.code, c.skill))
+            C.AssignHiredActor(actor, station, post, nil, false)
+            if post == "manager" then
+                log(string.format("ORDER: crew from %s sent to manage %s, manager skill %d of 100",
+                                  c.shipcode, args.code, c.skill))
+            else
+                log(string.format("ORDER: crew from %s sent to %s as %s, skill %d of 100",
+                                  c.shipcode, args.code, title, c.skill))
+            end
             return true
         end
         tally[reason] = (tally[reason] or 0) + 1
@@ -1259,8 +1276,16 @@ local function assign_manager(station, args)
     end
     -- "invalid" for every candidate while the station is still being built:
     -- nobody can be sent to a construction site.
-    return refuse(string.format("manager: nobody of ours can take %s: %d candidates (%s)",
-                                args.code, #candidates, table.concat(parts, ", ")))
+    return refuse(string.format("%s: nobody of ours can take %s: %d candidates (%s)",
+                                post, args.code, #candidates, table.concat(parts, ", ")))
+end
+
+local function assign_manager(station, args)
+    return assign_crew(station, args, "manager")
+end
+
+local function assign_shiptrader(station, args)
+    return assign_crew(station, args, "shiptrader")
 end
 
 --- "account GKL-870" -> the station account set to what the game recommends:
@@ -1727,6 +1752,7 @@ local HANDLERS = {
     tradeware = set_tradeware,
     traderule = set_trade_rule,
     manager = assign_manager,
+    shiptrader = assign_shiptrader,
     account = set_account,
     buildfund = fund_build,
     plot = extend_plot,

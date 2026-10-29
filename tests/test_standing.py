@@ -249,6 +249,22 @@ def test_an_explore_order_is_not_resent_to_a_scout_still_at_the_wharf(small_stat
     assert "explore SCT-003" in standing.scouts(state, {"sent_at": {"explore SCT-003": now - 4000}})
 
 
+def test_a_wharf_of_ours_with_no_ship_trader_is_sent_one_once(small_state):
+    """ship7-camp: our first own ship sat in KYV-745's queue for ten game hours;
+    nobody held the ship trader post, whose holder works the queue."""
+    import copy
+    import executor
+    state = copy.deepcopy(small_state)
+    assert standing.shiptraders(state, {}) == []                    # no wharf yet
+    _station(state)["modules"] = _station(state)["modules"] + [executor.EXPANSION_MODULES["wharf"][0]]
+    assert standing.shiptraders(state, {}) == ["shiptrader KYV-745"]
+    now = state["meta"]["playtime_s"]
+    assert standing.shiptraders(state, {"sent_at": {"shiptrader KYV-745": now - 600}}) == []
+    assert standing.shiptraders(state, {"sent_at": {"shiptrader KYV-745": now - 4000}}) == ["shiptrader KYV-745"]
+    _station(state)["shiptrader"] = True
+    assert standing.shiptraders(state, {}) == []
+
+
 def test_a_station_with_modules_and_no_manager_is_sent_one_once(small_state):
     import copy
     state = copy.deepcopy(small_state)
