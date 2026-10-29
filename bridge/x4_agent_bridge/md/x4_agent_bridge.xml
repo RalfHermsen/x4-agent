@@ -1054,6 +1054,31 @@
     </actions>
   </cue>
 
+  <!-- Who every ship of ours works for, written on each load. The save gives
+       a subordinate its group number only, and the ORDER lines name the
+       commander only for assignments the bridge made: four miners assigned
+       before it logged them were read as nobody's once GKL-870 had a group 2
+       of its own, and four more were bought in their place (ship6-camp). -->
+  <cue name="Log_Commanders" instantiate="true">
+    <conditions>
+      <event_game_loaded/>
+    </conditions>
+    <actions>
+      <find_object name="$agent_ships"
+                   class="[class.ship_xs, class.ship_s, class.ship_m, class.ship_l, class.ship_xl]"
+                   owner="faction.player"
+                   space="player.galaxy"
+                   multiple="true"
+                   recursive="true"/>
+      <do_for_each name="$agent_ship" in="$agent_ships">
+        <do_if value="@$agent_ship.commander">
+          <write_to_logbook category="general"
+            text="'[x4-agent] COMMANDER: %s works for %s'.[$agent_ship.idcode, $agent_ship.commander.idcode]"/>
+        </do_if>
+      </do_for_each>
+    </actions>
+  </cue>
+
   <!-- 3.8 the player outranks the agent, as a button. The Interact Menu API
        (sn_mod_support_apis, md/interact_menu_api.xml) signals Get_Actions when
        a context menu opens; we add one action to ships of ours. The choice is

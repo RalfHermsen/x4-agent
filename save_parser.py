@@ -827,9 +827,11 @@ def _trade_book(trades: list[tuple], assets: list) -> dict:
             "stations": book}
 
 
-# The bridge's logbook line for each assignment it makes (md/x4_agent_bridge.xml).
-ASSIGNED = re.compile(r"^\[x4-agent\] ORDER: (\S+) (?:now (?:trades for|mines for|defends|"
-                      r"supplies the build storage of) (\S+)|under \S+ as \S+, commander now (\S+))$")
+# The bridge's logbook line for each assignment it makes, and for each ship's
+# commander when a save is loaded (md/x4_agent_bridge.xml).
+ASSIGNED = re.compile(r"^\[x4-agent\] (?:ORDER: (\S+) (?:now (?:trades for|mines for|defends|"
+                      r"supplies the build storage of) (\S+)|under \S+ as \S+, commander now (\S+))"
+                      r"|COMMANDER: (\S+) works for (\S+))$")
 
 
 FIT_REFUSAL = "could not build a construction sequence"
@@ -842,13 +844,15 @@ def _assigned_to(logbook: list[list]) -> dict[str, str]:
     commander numbers its groups itself: group 1 was trade on KYV-745 and
     mining on GKL-870, so four miners of GKL-870 read as traders of KYV-745
     and were sent to sell wafers they cannot carry. The bridge logs every
-    assignment it makes, and that line names the commander.
+    assignment it makes, and that line names the commander; on each load it
+    also names every ship's commander, which covers the ships assigned before
+    it logged anything.
     """
     out: dict[str, str] = {}
     for _, text in sorted(logbook, key=lambda e: e[0]):
         m = ASSIGNED.match(text or "")
         if m:
-            out[m.group(1)] = m.group(2) or m.group(3)
+            out[m.group(1) or m.group(4)] = m.group(2) or m.group(3) or m.group(5)
     return out
 
 

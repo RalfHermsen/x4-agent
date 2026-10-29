@@ -31,9 +31,36 @@ def test_the_last_assignment_line_names_the_commander():
            [20.0, "[x4-agent] ORDER: EBR-694 now mines for KYV-745"],
            [15.0, "[x4-agent] ORDER: FTR-001 under LDR-001 as defence, commander now LDR-001"],
            [16.0, "[x4-agent] ORDER: JUN-174 now supplies the build storage of GKL-870"],
-           [17.0, "[x4-agent] ORDER: JUN-174 now supplies Silicon Wafers only"]]
+           [17.0, "[x4-agent] ORDER: JUN-174 now supplies Silicon Wafers only"],
+           [18.0, "[x4-agent] COMMANDER: QNL-869 works for KYV-745"]]
     assert save_parser._assigned_to(log) == {"EBR-694": "KYV-745", "FTR-001": "LDR-001",
-                                             "JUN-174": "GKL-870"}
+                                             "JUN-174": "GKL-870", "QNL-869": "KYV-745"}
+
+
+def test_the_bridge_names_every_commander_on_load_in_a_line_the_parser_reads():
+    import re
+    from pathlib import Path
+    bridge = Path(__file__).resolve().parents[1] / "bridge" / "x4_agent_bridge" / "md" / "x4_agent_bridge.xml"
+    text = bridge.read_text(encoding="utf-8")
+    cue = text[text.index('<cue name="Log_Commanders"'):]
+    cue = cue[:cue.index("</cue>")]
+    assert "<event_game_loaded/>" in cue
+    line = re.search(r"text=\"'(\[x4-agent\] COMMANDER: [^']+)'", cue).group(1)
+    assert save_parser._assigned_to([[1.0, line % ("QNL-869", "KYV-745")]]) == {"QNL-869": "KYV-745"}
+
+
+def test_a_miner_assigned_before_the_bridge_logged_is_still_its_stations(small_state):
+    # ship6-camp: four of KYV-745's miners in its group 2 had no ORDER line;
+    # GKL-870 got a group 2 for trade, a miner can trade, so nobody could say,
+    # and four more miners were bought in their place.
+    state, kyv = _two_stations(small_state)
+    gkl = next(a for a in state["assets"] if a["code"] == "GKL-870")
+    gkl["assignment"] = {"groups": {1: "tradeforbuildstorage", 2: "trade"}}
+    miner = _ship(state, "QNL-869", "ship_par_m_miner_solid_01_a_macro", 2)
+    state["assigned_to"] = {}
+    assert executor.serves(miner, state) == (None, None)
+    state["assigned_to"] = save_parser._assigned_to([[1.0, "[x4-agent] COMMANDER: QNL-869 works for KYV-745"]])
+    assert executor.serves(miner, state) == ("KYV-745", "mining")
 
 
 def test_a_group_number_is_read_on_the_ships_own_commander(small_state):
