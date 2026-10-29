@@ -144,7 +144,14 @@ first holds. Whether the build fits turrets in its mounts is the first thing
 to look at: we hold blueprints for Teladi M gatlings and M shields, none for
 L turrets. *Written:* the `defence` expansion (done). *Proof:* turrets on the
 disc in the save, and Xenon raiders at KYV-745 driven off without the
-player's ship taking to its own defence.
+player's ship taking to its own defence. *Found* in ship4-camp: the disc
+expansion armed every production and storage module (636 M gatlings, 48 M
+shields) and neither disc; no turret has fired yet. The 270 shields still to
+come held every later expansion of KYV-745 (docs/experiments.md, 2026-10-28),
+so a plan now carries turrets and no shields. The game does not cancel a
+running build (ship6-camp refused it twice); the situation reports one that
+waits for equipment only (3765486). The discs stayed empty in ship6-camp too,
+with an explicit list of turret wares: 0 of 3 armed.
 
 **C. Money for the wharf.** The S/M Ship Fabrication Bay's blueprint is
 116.4 M. The purchase job kept 20 % of the player's money back, which meant
@@ -163,7 +170,26 @@ hours of one module, 3,312 claytronics, bought at about 2,000 each (6.8 M),
 and 6,620 energy cells. A second hull parts module halves the wait and
 serves the ships after it. *Written:* a plan entry `wharf: 1` (the expansion
 exists). *Proof:* the bay in the save, and what it offers to build
-(`GetContainerBuilderMacros`).
+(`GetContainerBuilderMacros`). *Reached* in ship4-camp: blueprint bought from
+the Teladi at YMH-359, bay built.
+
+**D2. A shield supply.** No station we know sells field coils or shield
+components, and a ship from our wharf gets the same shields from our
+blueprints as a station module does. A
+field coils module (12.8 M) and a shield components module (3.2 M) at
+KYV-745 take energy cells, plasma conductors and quantum tubes, and those two
+are for sale (one Argon seller of plasma conductors, three of quantum tubes,
+in the ship5-camp save). Until then `buildship` is to take the shields out
+of the loadout it generates (`numshields`, `numshieldgroups`), as a player clearing
+the slots would. *Proof:* field coils and shield components in KYV-745's
+store, then shields in a plan again and built. *Reached* in ship6-camp, the
+first half: both blueprints bought from the Paranid at SCY-867; KYV-745 ended
+with four field coils modules (all by margin) and two shield components
+modules, GKL-870 with one of each, and in the last 24 game hours KYV-745 sold
+42,723 field coils and 11,577 shield components. Someone sells a few: the
+build storage received 1,320 field coils and 528 shield components before our
+modules ran. Shields in a plan again is the open half; `buildship` leaves
+them out (b4037dd).
 
 **E. The first ship of our own.** A Teladi M gas or solid miner: blueprint
 1.19 M, a Teladi M all-round engine 0.13 M. Its hull is 109 hull parts; its
@@ -174,7 +200,14 @@ against 1.07 M for a freighter bought at SCY-867. *Written:* `strategy.fleet`
 asks our wharf (`buildship`) before a faction's; the save's view of what our
 wharf offers. *Open:* whether the station buys the equipment wares itself and
 whether a ship we build needs crew from the station's workforce. *Proof:*
-the ship delivered, and what left the store for it.
+the ship delivered, and what left the store for it. *Written* (b4037dd,
+05966f3): blueprints the plan names are bought (ships and equipment, at the
+menu's price); `own_build` sends `buildship` once an engine blueprint and the
+hull's are held; the fleet rule waits for every named blueprint before buying
+the hull from a faction; `offers` asks once per faction and tag what a
+blueprint's sellers list, thrusters included. Running in ship7-camp: the
+miner's blueprint was bought from the Teladi at WLI-542 in its first game
+hour.
 
 **F. The equipment chain**, in the order the first ships need it, each a
 blueprint and a module: engine parts (2.86 M; antimatter cells from

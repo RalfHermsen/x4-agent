@@ -1057,3 +1057,73 @@ built at our own wharf needs the same shields, so that chain comes before
 self-built ships carry any.
 
 Next, ship6-camp from ship5-camp's result save, with the same plan.
+
+## 2026-10-29: ship6-camp, field coils and shield components
+
+One campaign run, rules only, from ship5-camp's result save. The plan of
+ship5-camp, plus a field coils module and a shield components module, and
+two traders for GKL-870. The shield components module moved to KYV-745
+during the run, when GKL-870's plot had no room for it.
+
+| | ship6-camp |
+|---|---|
+| Game hours | 210.2 to 244.5 (34.3) |
+| Net worth | +176.4 M (5.14 M/h) |
+| Net worth at cost | +132.3 M (3.85 M/h) |
+| Player's money | 318.1 M to 398.1 M |
+| Modules | 287 to 351 (KYV-745 142 to 185, GKL-870 145 to 166) |
+| Ships | 36 to 50 |
+| Lost | MCX-254 (fighter) and MXB-144, to the Xenon at game hour 232.5 |
+
+**The game does not cancel a running build.** The abort of e4c0ea6 was
+refused twice: the interact menu's CanCancelConstruction is false for a
+station's running expansion. The game's own scripts cancel queued builds
+only. 3765486 takes the command out and reports such a build in the
+situation instead.
+
+**The build ended anyway, and how is not known.** XQL-000's deliveries
+rose from 6 to 1,326 field coils and from 197 to 725 shield components by
+game hour 211.85, and at 211.35 it still wanted 2,808 and 2,773. At 211.65
+it had no running build. No command of ours went to KYV-745 in between; a
+builder had been hired at 210.42.
+
+**Turrets, and no shields at all.** The third disc's expansion (211.65)
+applied a turret-only loadout to every entry, which took off the 48 shields
+that stood: KYV-745 ends with 692 turrets and no shield. The discs stayed
+empty again, though the bridge passed the generator an explicit list of
+turret wares: 0 of 3 defence modules armed. All 692 turrets give game hour
+211.7, when the loadout was applied, as their last shot: none fired after,
+also not when the Xenon came at 232.5.
+
+**The supply.** The blueprints for field coils (12.77 M) and shield
+components (3.18 M) came from the Paranid at SCY-867 at game hours 211.3
+and 211.8. KYV-745 ends with four field coils modules, all by margin, and
+two shield components modules; GKL-870 with one of each. In
+the last 24 game hours KYV-745 sold 42,723 field coils for 12.5 M and
+11,577 shield components for 2.9 M, and held 28,235 and 2,730 at the end.
+The inputs are the narrow part: plasma conductors had one known seller and
+quantum tubes three. a31e89b now refuses an expansion whose bought input
+the known sellers cannot feed for four hours.
+
+**GKL-870's plot is full.** From game hour 221 the bridge could not build a
+construction sequence at GKL-870 for shield components, then medical
+supplies, sunrise flowers, refined metals and spices. The refusals came
+back every 2.1 game hours, because the parser kept only two hours of the
+logbook; 8a140b5 keeps them over the whole logbook. Its build waited for 12
+claytronics until game hour 218, which is before its own two traders came
+(219.2 and 220.4): they were not what ended the wait.
+
+**Four miners bought for four that were there.** KYV-745's group 2 held
+four miners assigned before the bridge logged its assignments. While
+GKL-870 had no groups, group 2 could only be KYV-745's; once GKL-870 had a
+group 2 for trade, which a miner can also hold, nobody could say, KYV-745
+read as four solid miners short, and four were bought at SCY-867 between
+game hours 221 and 225. The four went on mining for KYV-745. The fix:
+the bridge names every ship's commander when a save loads.
+
+**Losses.** A Xenon force with an XL came into Hewa's Twin I; MCX-254, a
+fighter of ours, and MXB-144, which appears in no save of the
+run, were destroyed at game hour 232.5. KYV-745 is in that sector.
+
+Next, ship7-camp from this result save: stage E, the first ship from our
+own wharf.
