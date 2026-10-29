@@ -159,6 +159,11 @@ def test_a_thruster_blueprint_is_bought_from_whoever_lists_it(small_state):
     data = {}
     memory.game_refusals(data, state)
     assert data["offered"] == {ware: {"teladi": 130190}}
+    # Lines of one moment share a time, and every one counts (ship7b-camp).
+    state["logbook"] = [[t, f"[x4-agent lua] offers: {f} thruster {ware} at 130190 Cr"]
+                        for f in ("ministry", "alliance")]
+    memory.game_refusals(data, state)
+    assert data["offered"][ware] == {"teladi": 130190, "ministry": 130190, "alliance": 130190}
     pick, reason = purchases.choose(ware, state, data, TABLE, GRAPH)
     assert reason is None and (pick["faction"], pick["station"]) == ("teladi", "ZIR-755")
 

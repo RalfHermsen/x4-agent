@@ -319,11 +319,16 @@ def game_refusals(data: dict, state: dict) -> list[str]:
     REFUSED:, so it can be told from confirmations.
     """
     seen = data.get("logbook_seen", -1.0)
+    newest = seen
     lines = []
     for when, text in state.get("logbook", []):
+        # Against the mark of the last cycle, not of the line before: lines
+        # written at the same moment share a time, and all but the first of
+        # each moment were dropped, refusals as well as the ~100 `offers`
+        # lines of one faction (ship7b-camp learned 3).
         if when <= seen:
             continue
-        seen = max(seen, when)
+        newest = max(newest, when)
         if "REFUSED:" in text:
             lines.append("the game refused: " + text.split("REFUSED:", 1)[1].strip())
         elif "ATTACKED:" in text or "DESTROYED:" in text:
@@ -352,7 +357,7 @@ def game_refusals(data: dict, state: dict) -> list[str]:
                     "hours": parts[1], "paid": int(parts[2].split("=", 1)[1] or 0),
                     "wares": dict(p.split("=", 1) for p in parts[3:] if "=" in p),
                     "time": when}
-    data["logbook_seen"] = seen
+    data["logbook_seen"] = newest
     return lines
 
 
