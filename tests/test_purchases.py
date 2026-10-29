@@ -109,6 +109,17 @@ def test_a_second_purchase_where_the_ship_lies_buys_at_once_and_keeps_it(small_s
     assert purchases.kept(commands, data) == [f"blueprint {engine} ASO-629"]
 
 
+def test_a_trader_that_only_lies_at_the_station_is_sent_to_dock_first(small_state):
+    # ship7b-camp: a trader docked at the seller in the save had moved on to
+    # our own station when the `blueprint` order came, and it was refused.
+    state = _with_teladi_station(small_state)
+    ship = _ship(state, "ASO-629")
+    ship["docked_at"] = "ZIR-755"
+    ship["orders"] = [{"order": "TradeRoutine", "default": True}]
+    first, reason = purchases.start({}, WARE, state, TABLE, GRAPH)
+    assert reason is None and first.startswith("dockat ASO-629 ZIR-755")
+
+
 def test_stall_then_give_up(small_state):
     state = _with_teladi_station(small_state)
     data = {}

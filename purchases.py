@@ -194,11 +194,14 @@ def start(data: dict, ware: str, state: dict, table: dict | None = None,
         return None, reason
     now = state.get("meta", {}).get("playtime_s") or 0
     ship = next((a for a in state.get("assets", []) if a.get("code") == pick["ship"]), {})
-    if ship.get("docked_at") == pick["station"]:
-        # Docked there already, as after a purchase at the same station: a
-        # `dockat` to where it lay ended at once, the ship went back to its
-        # trading, and the engine after the miner at WLI-542 was given up an
-        # hour later (ship7-camp).
+    head = (ship.get("orders") or [{}])[0]
+    if (ship.get("docked_at") == pick["station"] and head.get("order") == "DockAndWait"
+            and not head.get("default")):
+        # Held there already by an errand, as after a purchase at the same
+        # station: a `dockat` to where it lay ended at once, the ship went back
+        # to its trading, and the engine after the miner at WLI-542 was given
+        # up an hour later (ship7-camp). Only held: a trader that merely lay
+        # there in the save had left when the order came (ship7b-camp).
         if pick["licence"]:
             jobs[ware] = {**pick, "stage": "licensing", "since": now}
             return f"licence {pick['licence']} {pick['ship']}", None
