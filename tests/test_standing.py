@@ -403,7 +403,7 @@ def test_a_ship_on_an_order_of_its_own_is_cleared_before_it_docks_to_buy(small_s
     ware = gamedata.modules()[executor.CONNECTOR]["ware"]
 
     def start(data, w, state):
-        data.setdefault("purchases", {})[w] = {"ship": "ASO-629"}
+        data.setdefault("purchases", {})[w] = {"ship": "ASO-629", "stage": "docking"}
         return "dockat ASO-629 STN-001 argon", None
     monkeypatch.setattr(purchases, "start", start)
     aso = next(a for a in state["assets"] if a["code"] == "ASO-629")
