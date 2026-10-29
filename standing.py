@@ -455,6 +455,25 @@ def shiptraders(state: dict, data: dict) -> list[str]:
             and now - sent_at.get(f"shiptrader {st['code']}", -1e9) > MANAGER_TRAVEL]
 
 
+def cargo_drones(state: dict, data: dict) -> list[str]:
+    """A station of ours that keeps no cargo drones is told to keep CARGO_DRONES.
+
+    Drones are not bought: the station's manager buys their parts from its
+    account and the station makes them (aiscripts/lib.ammo.drones.xml), for
+    the number set in the Station Overview's supply node. GKL-870 had no such
+    order, and the game asked for cargo drones there from game hour 77 on (an
+    upkeep mission); KYV-745 kept 10. Only a station that can trade at all:
+    modules, a dock and a manager, who does the buying.
+    """
+    import catalog
+    now = state.get("meta", {}).get("playtime_s") or 0
+    sent_at = data.get("sent_at") or {}
+    return [f"cargodrones {st['code']} {CARGO_DRONES}" for st in catalog._stations(state)
+            if st.get("code") and st.get("modules") and catalog._has_dock(st) and st.get("manager")
+            and not (st.get("supplies") or {}).get(CARGO_DRONE)
+            and now - sent_at.get(f"cargodrones {st['code']}", -1e9) > SUPPLY_WAIT]
+
+
 def accounts(state: dict, data: dict) -> list[str]:
     """6.11: a station with a manager and an empty or overfull account is set
     to the game's own estimate, as its "Accept Estimate" button moves it.
@@ -577,6 +596,10 @@ SCOUT_DELIVERY = 1800
 MANAGER_TRAVEL = 3600
 # Game seconds before an account top-up is sent again.
 ACCOUNT_WAIT = 3600
+# Cargo drones a station keeps, as KYV-745 did, and the wait before asking again.
+CARGO_DRONE = "ship_gen_xs_cargodrone_empty_01_a"
+CARGO_DRONES = 10
+SUPPLY_WAIT = 3600
 # Game seconds before an empty build is asked to be cancelled again.
 CANCEL_WAIT = 3600
 
@@ -587,8 +610,8 @@ def fleet(state: dict, data: dict) -> list[str]:
 
 
 RULES = (sell_limits, revisit, satellites, ledger, once, patrols, find_builds, hire_builders,
-         repairs, seminars, scouts, empty_builds, docks, managers, shiptraders, accounts, fleet,
-         grow)
+         repairs, seminars, scouts, empty_builds, docks, managers, shiptraders, cargo_drones,
+         accounts, fleet, grow)
 
 
 def commands(state: dict, data: dict, off: set | frozenset = frozenset()) -> list[str]:

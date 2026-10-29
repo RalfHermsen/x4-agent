@@ -265,6 +265,21 @@ def test_a_wharf_of_ours_with_no_ship_trader_is_sent_one_once(small_state):
     assert standing.shiptraders(state, {}) == []
 
 
+def test_a_station_that_keeps_no_cargo_drones_is_told_to_keep_ten(small_state):
+    """GKL-870 had no supply order for drones, and the game asked for cargo
+    drones there from game hour 77 on; KYV-745 kept 10."""
+    import copy
+    state = copy.deepcopy(small_state)
+    _station(state)["supplies"] = {}
+    assert standing.cargo_drones(state, {}) == ["cargodrones KYV-745 10"]
+    now = state["meta"]["playtime_s"]
+    assert standing.cargo_drones(state, {"sent_at": {"cargodrones KYV-745": now - 600}}) == []
+    _station(state)["supplies"] = {"ship_gen_xs_cargodrone_empty_01_a": 10}
+    assert standing.cargo_drones(state, {}) == []
+    _station(state)["supplies"], _station(state)["manager"] = {}, None
+    assert standing.cargo_drones(state, {}) == []                   # nobody to buy the parts
+
+
 def test_a_station_with_modules_and_no_manager_is_sent_one_once(small_state):
     import copy
     state = copy.deepcopy(small_state)

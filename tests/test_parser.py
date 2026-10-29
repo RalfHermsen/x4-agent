@@ -139,6 +139,18 @@ def test_a_ship_trader_is_read_from_the_station_posts():
     assert (_shiptrader(ours), _shiptrader(npc)) == (False, True)
 
 
+def test_the_drones_a_station_keeps_are_read_from_its_supply_orders():
+    from lxml import etree
+
+    from save_parser import _supplies
+    elem = etree.fromstring('<component><supplies><orders>'
+                            '<ware ware="ship_gen_xs_repairdrone_01_a" amount="3"/>'
+                            '<ware ware="ship_gen_xs_cargodrone_empty_01_a" amount="10"/>'
+                            '</orders></supplies></component>')
+    assert _supplies(elem) == {"ship_gen_xs_repairdrone_01_a": 3, "ship_gen_xs_cargodrone_empty_01_a": 10}
+    assert _supplies(etree.fromstring("<component/>")) == {}
+
+
 def test_upkeep_missions_are_read_for_the_station_or_its_manager(tmp_path):
     """GKL-870 was asked for a miner and for cargo drones from game hour 77
     on; the miner's mission hangs on the station's manager, not the station."""

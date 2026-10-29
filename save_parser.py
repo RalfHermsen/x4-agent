@@ -82,6 +82,7 @@ class Asset:
     production: list[dict] = field(default_factory=list)
     manager: dict | None = None     # stations: the manager and their skill
     shiptrader: bool = False        # stations: someone holds the ship trader post
+    supplies: dict[str, int] = field(default_factory=dict)  # stations: drones/missiles kept, ware -> n
     modules: list[str] = field(default_factory=list)   # stations: built module macros
     capacity: dict[str, int] = field(default_factory=dict)  # stations: cargo type -> max
     plot: dict[str, int] = field(default_factory=dict)  # stations: buildplot half-extents, m
@@ -323,6 +324,14 @@ def _shiptrader(elem) -> bool:
     return post is not None and bool(post.get("component"))
 
 
+def _supplies(elem) -> dict[str, int]:
+    """The drones and missiles a station keeps in stock: <supplies><orders><ware
+    ware=".." amount=".."/>, the Station Overview's supply node. KYV-745 kept
+    10 cargo drones; GKL-870 had no orders at all (standing.cargo_drones)."""
+    return {w.get("ware"): _int(w.get("amount")) or 0
+            for w in elem.iterfind("supplies/orders/ware") if w.get("ware")}
+
+
 def _production(elem) -> list[dict]:
     """Production lines of a station, with what each one is short of.
 
@@ -529,6 +538,7 @@ def _asset(elem, ancestors: list[dict]) -> Asset:
         asset.builds = _shipyard(elem)
         asset.manager = _manager(elem)
         asset.shiptrader = _shiptrader(elem)
+        asset.supplies = _supplies(elem)
         asset.offers = _offers(elem)
         asset.price_overrides = _price_overrides(elem)
         asset.production = _production(elem)

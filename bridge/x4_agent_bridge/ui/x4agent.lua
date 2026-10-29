@@ -27,6 +27,13 @@ declare [[ uint32_t GetNumAllFactionStations(const char* factionid); ]]
 declare [[ uint32_t GetAllFactionStations(UniverseID* result, uint32_t resultlen, const char* factionid); ]]
 declare [[ const char* GetObjectIDCode(UniverseID objectid); ]]
 declare [[ void UpdateProductionTradeOffers(UniverseID containerid); ]]
+-- A station's stock of drones and missiles: the Station Overview's supply node.
+declare [[ typedef struct { const char* macro; int amount; } SupplyOverride; ]]
+declare [[ uint32_t GetNumSupplyOrders(UniverseID containerid, bool defaultorders); ]]
+declare [[ uint32_t GetSupplyOrders(SupplyOverride* result, uint32_t resultlen, UniverseID containerid, bool defaultorders); ]]
+declare [[ void SetSupplyManual(UniverseID containerid, const char* type, bool onoff); ]]
+declare [[ void UpdateSupplyOverrides(UniverseID containerid, SupplyOverride* overrides, uint32_t numoverrides); ]]
+declare [[ int64_t GetSupplyBudget(UniverseID containerid); ]]
 declare [[ void SetContainerWareIsBuyable(UniverseID containerid, const char* wareid, bool allowed); ]]
 declare [[ void SetContainerWareIsSellable(UniverseID containerid, const char* wareid, bool allowed); ]]
 
@@ -1288,6 +1295,55 @@ local function assign_shiptrader(station, args)
     return assign_crew(station, args, "shiptrader")
 end
 
+--- "cargodrones GKL-870 10" -> the station keeps that many cargo drones: the
+--- Station Overview's supply slider for transport drones in automatic mode
+--- (menu_station_overview.lua: checkboxSupplyAuto, slidercellSupplyAmount,
+--- updateOverride). The manager buys the parts from the station's account and
+--- the station makes the drones (aiscripts/lib.ammo.drones.xml). GKL-870 had
+--- no supply order at all, and the game asked for cargo drones there from game
+--- hour 77 on (an upkeep mission). The station's other orders are kept.
+local CARGO_DRONE = "ship_gen_xs_cargodrone_empty_01_a_macro"
+
+local function set_cargo_drones(station, args)
+    local amount = tonumber(args[1])
+    if not amount or amount < 0 then
+        return refuse("cargodrones needs: cargodrones <STATION> <amount>")
+    end
+    local ok, before, budget = pcall(function()
+        local orders = {}
+        local n = C.GetNumSupplyOrders(station, false)
+        local buf = ffi.new("SupplyOverride[?]", math.max(n, 1))
+        n = C.GetSupplyOrders(buf, n, station, false)
+        for i = 0, n - 1 do
+            orders[ffi.string(buf[i].macro)] = buf[i].amount
+        end
+        local was = orders[CARGO_DRONE] or 0
+        orders[CARGO_DRONE] = amount
+        C.SetSupplyManual(station, "units_trade", false)
+        local count = 0
+        for _ in pairs(orders) do
+            count = count + 1
+        end
+        local list = ffi.new("SupplyOverride[?]", count)
+        local i = 0
+        for macro, value in pairs(orders) do
+            list[i].macro = Helper.ffiNewString(macro)
+            list[i].amount = value
+            i = i + 1
+        end
+        C.UpdateSupplyOverrides(station, list, count)
+        Helper.ffiClearNewHelper()
+        C.UpdateProductionTradeOffers(station)
+        return was, tonumber(C.GetSupplyBudget(station))
+    end)
+    if not ok then
+        return refuse("cargodrones: the supply functions are not available: " .. tostring(before))
+    end
+    log(string.format("ORDER: %s keeps %d cargo drones in stock (order was %d), supply budget %d Cr",
+                      args.code, amount, before, budget))
+    return true
+end
+
 --- "account GKL-870" -> the station account set to what the game recommends:
 --- the map menu's "Accept Estimate" (infoSubmenuSetManagerAccountToEstimate).
 --- The estimate is the game's own: productionmoney plus the supply and trade
@@ -1760,6 +1816,7 @@ local HANDLERS = {
     traderule = set_trade_rule,
     manager = assign_manager,
     shiptrader = assign_shiptrader,
+    cargodrones = set_cargo_drones,
     account = set_account,
     buildfund = fund_build,
     plot = extend_plot,
