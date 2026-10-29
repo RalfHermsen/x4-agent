@@ -429,6 +429,10 @@ def build(state: dict, goals: list[str] | None = None,
                     add("  operating budget: none set. "
                         "TOO LOW: a manager needs money to open purchase orders")
 
+            for mission in state.get("upkeep") or []:
+                if mission.get("station") == st["code"]:
+                    add(f"  the game asks (upkeep, open since {mission['since'] / 3600:.1f} h): "
+                        f"{mission['name']}. {mission.get('description') or ''}".rstrip())
             mgr = st.get("manager")
             if not mgr and st.get("modules"):
                 add("  manager: none. Without one the station neither buys nor sells; "

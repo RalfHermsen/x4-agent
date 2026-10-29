@@ -139,6 +139,29 @@ def test_a_ship_trader_is_read_from_the_station_posts():
     assert (_shiptrader(ours), _shiptrader(npc)) == (False, True)
 
 
+def test_upkeep_missions_are_read_for_the_station_or_its_manager(tmp_path):
+    """GKL-870 was asked for a miner and for cargo drones from game hour 77
+    on; the miner's mission hangs on the station's manager, not the station."""
+    from save_parser import parse_save
+    station = ('<component class="station" macro="station_tel_m_01_macro" code="GKL-870" id="[0x80a8d]" '
+               'owner="player"><control><post id="manager" component="[0x80a97]"/></control></component>')
+    nest = station
+    for cls in ("zone", "sector", "cluster", "galaxy"):
+        nest = f'<component class="{cls}" macro="{cls}_macro"><connections><connection>{nest}</connection></connections></component>'
+    save = tmp_path / "save.xml"
+    save.write_text(
+        '<savegame><info><game time="900000"/><player money="1"/></info>'
+        f'<universe>{nest}</universe><missions>'
+        '<mission id="1" time="277236" name="Assign subordinate" description="Assign a mining ship" '
+        'faction="player" type="upkeep_subordinates" associated="[0x80a97]"/>'
+        '<mission id="2" time="276924" name="Restock Cargo Drones" description="Restock cargo drones" '
+        'faction="player" type="upkeep_subordinates" associated="[0x80a8d]"/>'
+        '<mission id="3" time="1" name="Hyperion Sightings" faction="civilian" type="story"/>'
+        '</missions></savegame>', encoding="utf-8")
+    assert [(m["station"], m["name"]) for m in parse_save(save)["upkeep"]] == [
+        ("GKL-870", "Assign subordinate"), ("GKL-870", "Restock Cargo Drones")]
+
+
 def test_ships_paid_for_and_not_delivered_are_read_from_the_wharf_queue():
     from lxml import etree
 

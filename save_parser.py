@@ -632,6 +632,8 @@ def parse_save(path: str | os.PathLike) -> dict:
     logbook: list[list] = []
     trades: list[tuple] = []   # (time, ware, buyer id, seller id, price in cents, amount)
     on_order: list[dict] = []   # ships we paid for that their wharf has not delivered
+    upkeep: list[dict] = []     # the game's open upkeep missions for our stations
+    posts: dict[str, str] = {}  # component id of a station's post holder -> station code
     # Hostile ships and stations the player has seen, per sector: what a
     # threat assessment can honestly know (knownto="player", as for markets).
     hostiles: dict[str, dict[str, dict[str, int]]] = {}
@@ -678,6 +680,20 @@ def parse_save(path: str | os.PathLike) -> dict:
                 # What the bridge wrote into the player's logbook: its orders, and
                 # the Lua side's refusals, which nothing else reports.
                 logbook.append([float(elem.get("time") or 0), elem.get("text")])
+            elif elem.tag == "mission" and (elem.get("type") or "").startswith("upkeep"):
+                # The game's own list of what a station of ours lacks
+                # (md/upkeep_management.xml): a mining ship, cargo drones, a
+                # manager, money. GKL-870 was asked for a miner and for cargo
+                # drones from game hour 77 on, and nothing read it.
+                upkeep.append({"type": elem.get("type"), "name": elem.get("name"),
+                               "description": elem.get("description"),
+                               "since": float(elem.get("time") or 0),
+                               "station": elem.get("associated")})
+            elif (elem.tag == "post" and len(stack) > 1 and stack[-2] == "control"
+                  and comps and comps[-1]["cls"] == "station" and elem.get("component")):
+                # A mission can be tied to the station's manager rather than
+                # to the station.
+                posts[elem.get("component")] = comps[-1]["code"]
             elif elem.tag == "component":
                 comps.append({"cls": elem.get("class"), "macro": elem.get("macro"),
                               "code": elem.get("code"), "owner": elem.get("owner"),
@@ -763,6 +779,8 @@ def parse_save(path: str | os.PathLike) -> dict:
 
     by_id = {a.id: a.code for a in assets if a.id}
     player["occupied_ship"] = by_id.get(player.pop("_lastcontrolled", None))
+    for mission in upkeep:
+        mission["station"] = by_id.get(mission["station"]) or posts.get(mission["station"])
 
     by_link = {link: a for a in assets if a.cls == "station" for link in a.links}
     for storage in (a for a in assets if a.cls == "buildstorage"):
@@ -798,6 +816,7 @@ def parse_save(path: str | os.PathLike) -> dict:
         # What our stations really sold and bought, from the game's trade log.
         "trades": _trade_book(trades, assets),
         "ships_on_order": on_order,
+        "upkeep": upkeep,
     }
 
 
