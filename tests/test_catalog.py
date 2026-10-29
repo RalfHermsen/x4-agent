@@ -473,6 +473,10 @@ def test_an_expansion_the_bridge_could_not_fit_is_not_asked_again(small_state):
                     "for 1M6S Basic Dock Area (module_arg_dock_m_01_lowtech)")]
     commands, skipped = executor.to_commands(plan, state)
     assert commands == [] and "could not fit" in skipped[0][1]
+    # Out of the two-hour logbook window, the parser's whole-logbook list still holds it.
+    state["fit_refusals"], state["logbook"] = state["logbook"][-1:], []
+    commands, skipped = executor.to_commands(plan, state)
+    assert commands == [] and "could not fit" in skipped[0][1]
 
 
 def test_an_assignment_we_sent_counts_as_done_for_half_a_game_hour(small_state):

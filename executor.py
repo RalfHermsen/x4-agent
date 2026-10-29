@@ -746,8 +746,10 @@ def _expansion_refused(action, state: dict) -> str | None:
     create_construction_sequence runs with failsafe off, so a module it cannot
     attach is refused rather than left floating. On GKL-870's 2 km plot
     neither M dock fitted, and the rule asked again every half hour. The
-    refusal names the station and the ware id and stays in the logbook, so
-    the same expansion is not asked for again while it is there.
+    refusal names the station and the ware id, and the parser keeps every one
+    in the save's logbook (`fit_refusals`), so the same expansion is not asked
+    for again: the two-hour logbook window alone let it be, after 2.1 game
+    hours (ship6-camp).
     """
     import gamedata
     sent = (state.get("sent_at") or {}).get(f"expand {action.station_id} {action.ware}")
@@ -759,8 +761,9 @@ def _expansion_refused(action, state: dict) -> str | None:
     # as "[x4-agent lua]".
     prefix = tuple(f"[x4-agent{side}] REFUSED: {action.station_id}: could not build a construction sequence"
                    for side in ("", " lua"))
+    seen = list(state.get("logbook", [])) + list(state.get("fit_refusals", []))
     if any(t >= sent and text and text.startswith(prefix) and text.rstrip().endswith(tuple(ids))
-           for t, text in state.get("logbook", [])):
+           for t, text in seen):
         return "the bridge could not fit this module to the station"
     return None
 

@@ -781,6 +781,11 @@ def parse_save(path: str | os.PathLike) -> dict:
                     if e[0] >= (meta.get("playtime_s") or 0) - LOGBOOK_WINDOW],
         # Who the bridge last put each ship under, over the whole logbook.
         "assigned_to": _assigned_to(logbook),
+        # The bridge's refusals to fit a module, over the whole logbook too:
+        # in the two-hour window GKL-870's refusal of a shield components
+        # module dropped out, and the same expansion was sent again
+        # (executor._expansion_refused, ship6-camp).
+        "fit_refusals": [e for e in logbook if FIT_REFUSAL in (e[1] or "")],
         # What our stations really sold and bought, from the game's trade log.
         "trades": _trade_book(trades, assets),
         "ships_on_order": on_order,
@@ -825,6 +830,9 @@ def _trade_book(trades: list[tuple], assets: list) -> dict:
 # The bridge's logbook line for each assignment it makes (md/x4_agent_bridge.xml).
 ASSIGNED = re.compile(r"^\[x4-agent\] ORDER: (\S+) (?:now (?:trades for|mines for|defends|"
                       r"supplies the build storage of) (\S+)|under \S+ as \S+, commander now (\S+))$")
+
+
+FIT_REFUSAL = "could not build a construction sequence"
 
 
 def _assigned_to(logbook: list[list]) -> dict[str, str]:
