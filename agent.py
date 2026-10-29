@@ -173,6 +173,7 @@ def cycle(model: str | None = None, save: Path | None = None, force: bool = Fals
     failures += strategist.update(state, remembered, planner.GUIDELINES.read_text(encoding="utf-8"))
     job_commands += strategy.blueprints(state, remembered)
     job_commands += strategy.offers(state, remembered)
+    job_commands = purchases.kept(job_commands, remembered)
     # When each explore order went out, in game time: the bridge's logbook line
     # appears only once the game has carried it out, and a save taken before
     # that showed the scout on seen ground again (executor._exploring_nothing).

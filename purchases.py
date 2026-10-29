@@ -191,6 +191,17 @@ def start(data: dict, ware: str, state: dict, table: dict | None = None,
     if reason:
         return None, reason
     now = state.get("meta", {}).get("playtime_s") or 0
+    ship = next((a for a in state.get("assets", []) if a.get("code") == pick["ship"]), {})
+    if ship.get("docked_at") == pick["station"]:
+        # Docked there already, as after a purchase at the same station: a
+        # `dockat` to where it lay ended at once, the ship went back to its
+        # trading, and the engine after the miner at WLI-542 was given up an
+        # hour later (ship7-camp).
+        if pick["licence"]:
+            jobs[ware] = {**pick, "stage": "licensing", "since": now}
+            return f"licence {pick['licence']} {pick['ship']}", None
+        jobs[ware] = {**pick, "stage": "buying", "since": now}
+        return f"blueprint {ware} {pick['ship']}", None
     jobs[ware] = {**pick, "stage": "docking", "since": now}
     return f"dockat {pick['ship']} {pick['station']} {pick['faction']}", None
 
@@ -200,15 +211,26 @@ def ships_in_use(data: dict) -> set[str]:
 
 
 def first_commands(data: dict, ware: str, first: str, state: dict) -> list[str]:
-    """A new job's first command, with `clear` before it when its ship is on
-    an order of its own that is not its default: the MoveWait VSR-185 carried
-    kept it from the dock through three hours of `dockat` and `release`."""
-    code = ((data.get("purchases") or {}).get(ware) or {}).get("ship")
+    """A new job's first command, with `clear` before it when its ship has to
+    dock and is on an order of its own that is not its default: the MoveWait
+    VSR-185 carried kept it from the dock through three hours of `dockat` and
+    `release`. A ship that buys where it lies keeps its order, which holds it
+    there; cleared, it would go back to its default and leave."""
+    job = (data.get("purchases") or {}).get(ware) or {}
+    code = job.get("ship")
     ship = next((a for a in state.get("assets", []) if code and a.get("code") == code), {})
     head = (ship.get("orders") or [{}])[0]
-    if head.get("order") and not head.get("default"):
+    if job.get("stage") == "docking" and head.get("order") and not head.get("default"):
         return [f"clear {code}", first]
     return [first]
+
+
+def kept(commands: list[str], data: dict) -> list[str]:
+    """A cycle's job commands without the `release` of a ship that a job
+    opened in the same cycle took again: released, it goes back to its
+    trading, off the dock the next purchase needs."""
+    busy = ships_in_use(data)
+    return [c for c in commands if not (c.startswith("release ") and c.split()[1] in busy)]
 
 
 def advance(data: dict, state: dict) -> tuple[list[str], list[str]]:

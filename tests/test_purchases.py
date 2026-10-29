@@ -85,6 +85,30 @@ def test_job_walks_to_done(small_state):
     assert data["purchases"] == {} and data["blueprint_factions"] == ["teladi"]
 
 
+def test_a_second_purchase_where_the_ship_lies_buys_at_once_and_keeps_it(small_state):
+    # ship7-camp: the engine after the miner at WLI-542. The finished job's
+    # `release` and the next one's `clear` and `dockat` went out in one cycle;
+    # the dockat to where the ship lay ended at once, it went back to trading,
+    # and the engine was given up an hour later.
+    state = _with_teladi_station(small_state)
+    state["player"]["money"] = 50_000_000
+    miner, engine = "ship_tel_m_miner_solid_01_a", "engine_tel_m_allround_01_mk1"
+    data = {}
+    purchases.start(data, miner, state, TABLE, GRAPH)
+    ship = _ship(state, "ASO-629")
+    ship["docked_at"] = "ZIR-755"
+    ship["orders"] = [{"order": "DockAndWait", "default": False}]
+    purchases.advance(data, state)
+    state["player"]["blueprints"] = state["player"]["blueprints"] + [miner]
+    commands, _ = purchases.advance(data, state)
+    assert commands == ["release ASO-629"]
+    first, reason = purchases.start(data, engine, state, TABLE, GRAPH)
+    assert reason is None and first == f"blueprint {engine} ASO-629"
+    assert data["purchases"][engine]["stage"] == "buying"
+    commands += purchases.first_commands(data, engine, first, state)
+    assert purchases.kept(commands, data) == [f"blueprint {engine} ASO-629"]
+
+
 def test_stall_then_give_up(small_state):
     state = _with_teladi_station(small_state)
     data = {}
