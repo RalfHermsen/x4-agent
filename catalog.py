@@ -52,6 +52,7 @@ SHIP_CAP = 3_000_000           # the most one bought M ship may cost
 CAPITAL_FLOOR = 5_000_000      # below this after the reserve, money is not idle
 PURCHASE_GAP = 3600            # game seconds between two ship purchases
 ORDER_STUCK = 7200             # game seconds after which an undelivered ship is not coming
+OWN_ORDER_STUCK = 43200        # the same at a wharf of ours, which buys the parts after the order
 BOUGHT = "[x4-agent lua] ORDER: bought"   # the purchase verb's logbook line
 MAX_OPTIONS = 4
 
@@ -184,10 +185,18 @@ def _orders(state: dict) -> tuple[set[str], set[str]]:
     wares to build it. The strategist run of 2026-10-26 saw neither: it bought
     a miner at SCY-867 every game hour, the wharf built none of them for want
     of advanced electronics, and 24 ships, 22.7 M Cr, sat in its queue.
+
+    A wharf of ours gets OWN_ORDER_STUCK: it puts out a buy offer for the
+    parts only once the order is in. In ship7b-camp KYV-745 delivered its
+    first miner 8.6 game hours after the order, all of it spent waiting for
+    engine parts; at two hours it counted as stuck, GKL-870's two miners
+    were bought from Paranid wharfs, and our own arrived to sit idle.
     """
     now = state.get("meta", {}).get("playtime_s", 0.0)
     orders = state.get("ships_on_order") or []
-    stuck = {o["wharf"] for o in orders if now - o["since"] > ORDER_STUCK}
+    ours = {st.get("code") for st in _stations(state)}
+    stuck = {o["wharf"] for o in orders
+             if now - o["since"] > (OWN_ORDER_STUCK if o["wharf"] in ours else ORDER_STUCK)}
     coming = {sitrep.ship_type(o["macro"]) for o in orders if o["wharf"] not in stuck}
     return stuck, coming
 

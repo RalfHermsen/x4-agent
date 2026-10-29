@@ -5,6 +5,7 @@ import copy
 import action_lines
 import agent
 import catalog
+import sitrep
 from catalog import Option, Situation
 
 
@@ -552,3 +553,17 @@ def test_a_ship_on_order_holds_a_purchase_of_its_kind_until_its_wharf_is_stuck(s
     order["since"] = now - catalog.ORDER_STUCK - 1
     assert catalog._buy_options(state, freighter) == []                  # the only wharf is stuck
     assert catalog._buy_options(state, miner) == []
+
+
+def test_an_order_at_our_own_wharf_has_longer_before_it_is_stuck(small_state):
+    """ship7b-camp: KYV-745 built its first miner in 8.6 game hours, waiting
+    for engine parts; at two hours the miners it was to build were bought."""
+    state = copy.deepcopy(small_state)
+    now = state["meta"]["playtime_s"]
+    order = {"wharf": "KYV-745", "macro": "ship_tel_m_miner_solid_01_a_macro",
+             "since": now - catalog.ORDER_STUCK - 1, "paid": 0, "missing": ["engineparts"]}
+    state["ships_on_order"] = [order, dict(order, wharf="YRD-001")]
+    stuck, coming = catalog._orders(state)
+    assert stuck == {"YRD-001"} and coming == {sitrep.ship_type(order["macro"])}
+    order["since"] = now - catalog.OWN_ORDER_STUCK - 1
+    assert catalog._orders(state) == ({"KYV-745", "YRD-001"}, set())
