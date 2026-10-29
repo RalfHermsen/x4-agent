@@ -9,9 +9,10 @@ from schemas import PlannerResponse
 
 def test_counts_match_a_direct_count(large_state):
     # Counted directly in the frozen 105-hour save on 2026-10-18 with a regex
-    # over its components: 121 Xenon M ships carry knownto="player".
+    # over its components: 121 Xenon M ships carry knownto="player", and 9 of
+    # them are wrecks (state="wreck", counted on 2026-10-29).
     total = sum(f.get("xenon", {}).get("ship_m", 0) for f in large_state["hostiles"].values())
-    assert total == 121
+    assert total == 112
 
 
 def test_only_sectors_we_are_in(large_state):
@@ -46,12 +47,17 @@ def test_strength_rule(small_state):
 
 
 def test_report_section_and_a_defender_goes_out(large_state):
-    report = sitrep.build(large_state)
+    # The four threats this save showed in our sectors were all wrecks
+    # (2026-10-29), so a live one is put in.
+    state = copy.deepcopy(large_state)
+    station = next(a for a in state["assets"] if a["code"] == "KYV-745")
+    state["hostiles"] = {station["place"]["sector"]: {"xenon": {"ship_m": 1}}}
+    report = sitrep.build(state)
     assert "# THREATS" in report and report.index("# THREATS") < report.index("# ATTENTION")
-    fighter = next(a for a in large_state["assets"]
+    fighter = next(a for a in state["assets"]
                    if sitrep.ship_type(a.get("macro")) == "fighter")
     plan = PlannerResponse.model_validate({"assessment": "", "updated_goals": [], "actions": [
         {"type": "assign_ship", "ship_ref": fighter["code"], "station_id": "KYV-745",
          "role": "defend", "rationale": "threat"}]})
-    commands, skipped = executor.to_commands(plan.actions, large_state)
+    commands, skipped = executor.to_commands(plan.actions, state)
     assert commands == [f"assign {fighter['code']} KYV-745 defend"] or skipped

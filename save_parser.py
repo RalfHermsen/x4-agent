@@ -707,7 +707,8 @@ def parse_save(path: str | os.PathLike) -> dict:
             elif elem.tag == "component":
                 comps.append({"cls": elem.get("class"), "macro": elem.get("macro"),
                               "code": elem.get("code"), "owner": elem.get("owner"),
-                              "knownto": elem.get("knownto")})
+                              "knownto": elem.get("knownto"),
+                              "wreck": elem.get("state") == "wreck"})
         else:
             depth = len(stack)
             stack.pop()
@@ -731,14 +732,19 @@ def parse_save(path: str | os.PathLike) -> dict:
                 if cls == "sector" and elem.get("id"):
                     sectors[elem.get("id")] = current["macro"]
                 owner = current["owner"]
+                # A wreck keeps its class, owner and code. PNJ-650, a Xenon K
+                # destroyed at game hour 272.5, was read as a major threat at
+                # KYV-745 through all of ship7c-camp, and its wreck and BZE-134's
+                # as the sector's two Xenon XL.
+                wreck = current["wreck"]
                 if (cls in ("ship_l", "ship_xl") and owner and owner != "player"
-                        and current["knownto"] == "player"
+                        and current["knownto"] == "player" and not wreck
                         and "builder" in (current["macro"] or "")):
                     builders.append({"code": current["code"], "owner": owner,
                                      "sector": next((a.get("macro") for a in reversed(comps)
                                                      if a["cls"] == "sector"), None)})
                 if ((cls in SHIP_CLASSES or cls == "station") and owner and owner != "player"
-                        and current["knownto"] == "player"
+                        and current["knownto"] == "player" and not wreck
                         and (owner in ALWAYS_HOSTILE
                              or (player.get("relations") or {}).get(owner, 0) <= HOSTILE_AT)):
                     sector = next((a.get("macro") for a in reversed(comps)
@@ -748,12 +754,12 @@ def parse_save(path: str | os.PathLike) -> dict:
                         counts[cls] = counts.get(cls, 0) + 1
                 if cls == "station":
                     on_order += _ships_on_order(elem, current["code"])
-                if cls in ASSET_CLASSES:
+                if cls in ASSET_CLASSES and not wreck:
                     if current["owner"] == "player":
                         assets.append(_asset(elem, comps))
                     elif cls == "station" and current["knownto"] == "player":
                         market.append(_asset(elem, comps))
-                elif cls in EYES and current["owner"] == "player":
+                elif cls in EYES and current["owner"] == "player" and not wreck:
                     for anc in comps:
                         if anc["cls"] == "sector":
                             eyes.add(anc.get("macro"))

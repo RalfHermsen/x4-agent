@@ -174,6 +174,28 @@ def test_upkeep_missions_are_read_for_the_station_or_its_manager(tmp_path):
         ("GKL-870", "Assign subordinate"), ("GKL-870", "Restock Cargo Drones")]
 
 
+def test_a_wreck_is_no_threat_and_no_ship(tmp_path):
+    """PNJ-650, a Xenon K destroyed at game hour 272.5, stayed in the save as a
+    wreck with its class, owner and code, and was read as a major threat at
+    KYV-745 through all of ship7c-camp."""
+    from save_parser import parse_save
+    ships = ('<component class="ship_xl" macro="ship_xen_xl_destroyer_01_a_macro" code="PNJ-650" '
+             'owner="xenon" knownto="player" state="wreck"/>'
+             '<component class="ship_m" macro="ship_xen_m_fighter_01_a_macro" code="ABC-123" '
+             'owner="xenon" knownto="player"/>'
+             '<component class="ship_s" macro="ship_tel_s_fighter_01_a_macro" code="XYZ-999" '
+             'owner="player" state="wreck"/>')
+    nest = ships
+    for cls in ("zone", "sector", "cluster", "galaxy"):
+        nest = f'<component class="{cls}" macro="{cls}_macro"><connections><connection>{nest}</connection></connections></component>'
+    save = tmp_path / "save.xml"
+    save.write_text('<savegame><info><game time="900000"/><player money="1"/></info>'
+                    f'<universe>{nest}</universe></savegame>', encoding="utf-8")
+    state = parse_save(save)
+    assert state["hostiles"] == {"sector_macro": {"xenon": {"ship_m": 1}}}
+    assert not [a for a in state["assets"] if a.get("code") == "XYZ-999"]
+
+
 def test_ships_paid_for_and_not_delivered_are_read_from_the_wharf_queue():
     from lxml import etree
 
