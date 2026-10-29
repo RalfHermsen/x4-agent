@@ -18,7 +18,8 @@ after its timeout, so a harness never hangs silently.
 The game is started through Steam's URL handler, which is what was proven to
 work on 2026-10-18; Steam must be running. Stopping never kills the process:
 a kill while the game writes a save corrupts that save, and the harness
-depends on saves.
+depends on saves. Only a game whose game thread answers nothing is killed,
+and only with no save written in the last five minutes (`kill`).
 """
 
 from __future__ import annotations
@@ -36,6 +37,8 @@ APP_ID = "392160"
 MCP = os.environ.get("X4_MCP_URL", "http://127.0.0.1:7779")
 PROGRESS_EVERY = 15
 START_WAIT = 60        # seconds for an X4 process to appear after asking Steam
+SAVE_SETTLE = 300      # seconds no save may have changed before a kill
+HUNG = "timeout waiting for game thread"
 
 
 def _health() -> bool:
@@ -156,6 +159,35 @@ def stop(timeout: float) -> int:
         print("[launch] X4Mcp does not answer; not killing the game, quit it by hand")
         return 1
     return 0 if wait("X4 to exit", lambda: not running(), timeout) else 1
+
+
+def answers() -> bool:
+    """Whether the game thread answers X4Mcp."""
+    try:
+        return HUNG not in call("is_game_loaded")
+    except (urllib.error.URLError, OSError, RuntimeError):
+        return False
+
+
+def kill(save_folder: Path) -> str:
+    """End X4 when its game thread answers nothing; what happened, as a line.
+
+    `stop` quits through the game, which takes the game thread. In
+    ship7b-camp (2026-10-29) that thread hung at game hour 266.77: the
+    bridge's state messages stopped, every X4Mcp call ended in "timeout
+    waiting for game thread", the window drew no new frame and one core was
+    busy. The run waited out its last 110 minutes, the shutdown timed out,
+    and the game was ended by hand. A save being written when the process
+    ends is corrupt, so there is no kill while a save is younger than
+    SAVE_SETTLE.
+    """
+    if answers():
+        return "not killed: the game thread answers"
+    newest = max((p.stat().st_mtime for p in save_folder.glob("*.xml.gz")), default=0.0)
+    if time.time() - newest < SAVE_SETTLE:
+        return f"not killed: a save changed in the last {SAVE_SETTLE // 60} minutes"
+    subprocess.run(["taskkill", "/F", "/IM", "X4.exe"], capture_output=True, text=True)
+    return "ended" if wait("X4 to exit", lambda: not running(), 60) else "still running after taskkill"
 
 
 def main() -> int:

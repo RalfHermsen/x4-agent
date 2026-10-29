@@ -27,3 +27,22 @@ def test_the_players_ship_is_the_one_the_player_last_controlled(tmp_path):
                      'controlgroup="pilotcontrol" id="[0x2a136]">\n')
     assert experiment.player_ship(save) == "NBO-436"
     assert experiment.player_ship(tmp_path / "missing.xml.gz") is None
+
+
+def test_a_hung_game_is_ended_only_with_no_save_being_written(tmp_path, monkeypatch):
+    """ship7b-camp: the game thread hung and the run waited out 110 minutes."""
+    import launch_game
+    killed = []
+    monkeypatch.setattr(launch_game, "answers", lambda: False)
+    monkeypatch.setattr(launch_game.subprocess, "run", lambda args, **kw: killed.append(args))
+    monkeypatch.setattr(launch_game, "running", lambda: not killed)
+    save = tmp_path / "save_008.xml.gz"
+    save.write_bytes(b"x")
+    assert launch_game.kill(tmp_path).startswith("not killed: a save changed")
+    old = time.time() - launch_game.SAVE_SETTLE - 1
+    os.utime(save, (old, old))
+    monkeypatch.setattr(launch_game, "answers", lambda: True)
+    assert launch_game.kill(tmp_path) == "not killed: the game thread answers"
+    monkeypatch.setattr(launch_game, "answers", lambda: False)
+    assert killed == [] and launch_game.kill(tmp_path) == "ended"
+    assert killed == [["taskkill", "/F", "/IM", "X4.exe"]]

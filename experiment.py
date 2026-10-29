@@ -289,10 +289,12 @@ def main() -> int:
     log(run_dir, f"protected saves copied: {', '.join(sums)}")
     proc = None
     code = 1
+    ours = hung = False
     try:
         if args.baseline_file:
             shutil.copy2(args.baseline_file, slot)
             log(run_dir, f"{args.baseline_file.name} copied into {AGENT_SLOT} before launch")
+        ours = not launch_game.running()   # only a game this run started is ever killed
         if launch_game.launch(180) != 0 or launch_game.load(args.load, 180) != 0:
             log(run_dir, "could not launch or load")
             return 1
@@ -335,6 +337,11 @@ def main() -> int:
                                  f"({reloads} of {MAX_RELOADS})")
                     if launch_game.load(save.name.removesuffix(".xml.gz"), 180) != 0:
                         log(run_dir, f"reloading {save.name} failed")
+                        # ship7b-camp waited 110 minutes for a game that had hung.
+                        if reloads == MAX_RELOADS and not launch_game.answers():
+                            log(run_dir, "the game thread answers nothing; ending the run")
+                            hung = True
+                            break
                     next_seta = time.monotonic()
             if args.seta and time.monotonic() >= next_seta:
                 OUTBOX.parent.mkdir(parents=True, exist_ok=True)
@@ -356,7 +363,7 @@ def main() -> int:
                 if held and not jobs:
                     log(run_dir, f"{args.until_blueprint} is held and the job is closed; stopping early")
                     break
-        if request_save(slot):
+        if not hung and request_save(slot):
             log(run_dir, f"final state saved into {AGENT_SLOT}")
             shutil.copy2(slot, run_dir / f"result-{AGENT_SLOT}.xml.gz")
             # The game that ran, from the save it wrote last.
@@ -373,6 +380,8 @@ def main() -> int:
     finally:
         if proc is not None:
             stop_host(proc)
+        if hung and ours and launch_game.running():
+            log(run_dir, f"X4: {launch_game.kill(folder)}")
         if launch_game.running():
             launch_game.stop(120)
         if not launch_game.running():
