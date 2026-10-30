@@ -125,6 +125,25 @@ def test_hire_after_the_build_waited(small_state):
     assert standing.hire_builders(later, data) == []                 # one hire per build
 
 
+def test_no_hire_while_a_vessel_is_deployed(small_state):
+    """ship7d-camp hired a vessel for KYV-745 every two hours while NAW-754
+    lay there waiting for resources; the game sent each one away."""
+    state = copy.deepcopy(small_state)
+    bs = next(a for a in state["assets"] if a["code"] == "XQL-000")
+    bs["build"] = {"queued": 0, "in_progress": 1, "builders": [], "deployed": True,
+                   "processor": {"state": "waitingforresources", "vessel_required": True}}
+    sector = _station(state)["place"]["sector"]
+    state["builders"] = [{"code": "CZK-784", "owner": "antigone", "sector": sector}]
+    data = {}
+    standing.hire_builders(state, data)
+    state["meta"]["playtime_s"] += 3 * 3600
+    assert standing.hire_builders(state, data) == []
+    bs["build"]["deployed"] = False                                   # it left
+    assert standing.hire_builders(state, data) == []                  # the wait starts again
+    state["meta"]["playtime_s"] += 700
+    assert standing.hire_builders(state, data) == ["hire CZK-784 antigone KYV-745"]
+
+
 def test_damaged_ship_goes_to_the_nearest_yard(small_state):
     import gamedata
     state = copy.deepcopy(small_state)

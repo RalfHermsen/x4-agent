@@ -22,6 +22,7 @@ def _states(base):
         bs["build"] = {"queued": build.get("queued", 0),
                        "in_progress": build.get("in_progress", 0),
                        "builders": build.get("builders", []),
+                       "deployed": build.get("deployed", False),
                        "processor": processor or {}}
         bs["offers"] = list(offers)
         st["modules"] = station["modules"] + list(modules)
@@ -84,6 +85,23 @@ def test_vessel_stage_from_processor_state(small_state):
     memory.track_expansions(data, at(10, build={"in_progress": 1, "builders": ["[0x9]"]},
                                      processor={"state": "waitingforresources"}))
     assert _stage(data) == "vessel"
+
+
+def test_a_deployed_vessel_waiting_for_resources_is_reported_with_the_wares(small_state):
+    """NAW-754 lay at KYV-745 from 318.3 to the end of ship7d-camp; a player
+    build names no vessel, and the report said none was assigned."""
+    at = _states(small_state)
+    data = {"expansions": {}}
+    _start(data, at(0))
+    waiting = dict(build={"in_progress": 1, "deployed": True},
+                   processor={"state": "waitingforresources"},
+                   offers=[{"side": "buy", "ware": "claytronics", "amount": 1864},
+                           {"side": "buy", "ware": "turretcomponents", "amount": 836}])
+    memory.track_expansions(data, at(10, **waiting))
+    assert _stage(data) == "vessel"
+    (line,) = memory.track_expansions(data, at(200, **waiting))
+    assert line == ("expansion of water at KYV-745: vessel for 3.2h, vessel assigned, build still "
+                    "waiting for resources (claytronics 1864, turretcomponents 836)")
 
 
 def test_sent_expansion_is_tracked_by_the_cycle(run_cycle, fake_planner, small_state,

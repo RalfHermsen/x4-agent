@@ -257,7 +257,7 @@ def _observed_stage(entry: dict, station: dict, storage: dict, ware: str) -> int
     build = storage.get("build") or {}
     if not (build.get("queued") or build.get("in_progress")):
         return _STAGE["planned"]
-    if not build.get("builders"):
+    if not (build.get("builders") or build.get("deployed")):
         return _STAGE["building"]
     still_buying = any(o.get("side") == "buy" and o.get("amount")
                        for o in storage.get("offers", []))
@@ -305,8 +305,12 @@ def track_expansions(data: dict, state: dict) -> list[str]:
         _, limit, observation = EXPANSION_STAGES[_STAGE[entry["stage"]]]
         held = now - entry["since"]
         if held > limit:
+            # What the build storage still buys is what the build waits for.
+            wanted = ", ".join(f"{o['ware']} {o['amount']}" for o in storage.get("offers", [])
+                               if o.get("side") == "buy" and o.get("amount"))
             lines.append(f"expansion of {ware} at {station_code}: {entry['stage']} "
-                         f"for {held / 3600:.1f}h, {observation}")
+                         f"for {held / 3600:.1f}h, {observation}"
+                         + (f" ({wanted})" if entry["stage"] == "vessel" and wanted else ""))
     return lines
 
 

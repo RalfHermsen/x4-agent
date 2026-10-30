@@ -520,6 +520,7 @@ def _asset(elem, ancestors: list[dict]) -> Asset:
         asset.build = _build_tasks(elem)
         asset.build["builders"] = _builders(elem)
         asset.build["processor"] = _processor(elem)
+        asset.build["deployed"] = _deployed(elem)
     if asset.cls in SHIP_CLASSES:
         orders = elem.find("orders")
         if orders is not None and orders.get("loop") is not None:
@@ -573,6 +574,20 @@ def _processor(elem) -> dict:
     return {"state": node.get("state"),
             "vessel_required": node.get("constructionvesselrequired") == "1",
             "step": _int(node.get("step")), "steps": _int(node.get("steps"))}
+
+
+def _deployed(elem) -> bool:
+    """A construction vessel is on the build.
+
+    The build module holds `<build deployed="1"/>` while one is, and nothing
+    without one (XQL-000 at the end of ship7c-camp). A player build names no
+    vessel (`_builders`), so this is how a vessel waiting for resources shows:
+    NAW-754, hired for KYV-745 at 318.3, lay there to the end of ship7d-camp,
+    and every two hours another vessel was hired, paid and sent away by the
+    game, because the build had one (order.build.deploy.xml).
+    """
+    node = elem.find(".//component[@class='buildmodule']/build")
+    return node is not None and node.get("deployed") == "1"
 
 
 def _built_modules(elem) -> list[str]:

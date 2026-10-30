@@ -200,14 +200,18 @@ def find_builds(state: dict, data: dict) -> list[str]:
 
 
 def _served(build: dict) -> bool:
-    """A vessel is on the build: named as its builder, or the build is running.
+    """A vessel is on the build: named as its builder, deployed, or the build
+    is running.
 
     A player build names its build storage, not its vessel, even while the
     vessel builds (save_parser._builders), so `builders` stays empty then; the
     processor's state is what shows it. Seen in the builder proof of
-    2026-10-20: "building", step 4 and 8 of 10, builders [].
+    2026-10-20: "building", step 4 and 8 of 10, builders []. A vessel waiting
+    for resources shows only as deployed; the game sends away any other
+    vessel while it is there.
     """
-    return bool(build.get("builders")) or (build.get("processor") or {}).get("state") == "building"
+    return (bool(build.get("builders")) or bool(build.get("deployed"))
+            or (build.get("processor") or {}).get("state") == "building")
 
 
 # A build may wait this long, in game seconds, for a vessel before we hire one.

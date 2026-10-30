@@ -76,6 +76,17 @@ def test_a_running_build_is_read_with_its_start_and_its_sequence():
                                  "sequence": ["pier_tel_harbor_02_macro", "defence_tel_disc_01_macro"]}]
 
 
+def test_a_deployed_vessel_is_read_from_the_build_module():
+    from lxml import etree
+
+    from save_parser import _deployed
+    on = etree.fromstring('<component><connections><connection><component class="buildmodule">'
+                          '<build deployed="1"/></component></connection></connections></component>')
+    off = etree.fromstring('<component><connections><connection><component class="buildmodule"/>'
+                           '</connection></connections></component>')
+    assert (_deployed(on), _deployed(off)) == (True, False)
+
+
 def test_a_player_build_naming_its_own_storage_has_no_builder():
     from lxml import etree
 
