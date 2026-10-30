@@ -15,6 +15,7 @@ takes one command every two seconds (tasks/lessons.md L9, L11).
     4.12  station turrets engage enemies
     4.13  claim abandoned ships, collect lockboxes
     4.15  our own construction vessel looks for our builds
+          a build waiting on a ware its own station holds gets it from there
     6.9   a station with modules and no manager gets one from our crews
     6.10  a station without a dock gets one, an empty plot first
     6.11  a station with a manager and an empty account gets the game's estimate
@@ -276,6 +277,50 @@ def hire_builders(state: dict, data: dict) -> list[str]:
             hired_at[code] = now
             tried.append(builder)
             out.append(f"hire {builder} {owner} {code}")
+    return out
+
+
+def own_stock(state: dict, data: dict) -> list[str]:
+    """A build waiting on a ware its own station holds gets it from that station.
+
+    A station offers a resource it still wants more of only above a sell limit
+    of its own. Made sellable alone, KYV-745 offered none of its 4,087 turret
+    components, because it wanted 12,101 more, and its build waited on 836 of
+    them while every other expansion queued behind it (proof-feed, ship7e).
+    So: our ships only, then a limit that leaves exactly what the build wants
+    on offer, then sellable; the freighter lent to the build storage buys it
+    there like from any seller. Lowered when the stock drops, cleared when the
+    build no longer wants the ware. A ware the station sells already is left
+    alone, and so is one it holds too little of.
+    """
+    opened = data.setdefault("standing", {}).setdefault("own_stock", {})
+    assets = {a.get("code"): a for a in state.get("assets", [])}
+    wanted = {}
+    for bs in state.get("assets", []):
+        if bs.get("cls") != "buildstorage" or not bs.get("station"):
+            continue
+        for offer in bs.get("offers", []):
+            if offer.get("side") == "buy" and (offer.get("amount") or 0) > 0:
+                wanted[f"{bs['station']} {offer['ware']}"] = offer["amount"]
+    out = []
+    for key, amount in wanted.items():
+        code, ware = key.split()
+        station = assets.get(code) or {}
+        if key not in opened and any(o.get("ware") == ware and o.get("side") == "sell"
+                                     for o in station.get("offers", [])):
+            continue
+        limit = ((station.get("cargo") or {}).get(ware) or 0) - amount
+        if limit < 0 or (key in opened and opened[key] <= limit):
+            continue
+        if key not in opened:
+            out.append(f"traderule {code} {ware} sell own")
+        opened[key] = limit
+        out += [f"limit {code} {ware} sell {limit}", f"tradeware {code} {ware} sell on"]
+    for key in [k for k in opened if k not in wanted]:
+        code, ware = key.split()
+        del opened[key]
+        out += [f"tradeware {code} {ware} sell off", f"limit {code} {ware} sell clear",
+                f"traderule {code} {ware} sell default"]
     return out
 
 
@@ -614,8 +659,8 @@ def fleet(state: dict, data: dict) -> list[str]:
 
 
 RULES = (sell_limits, revisit, satellites, ledger, once, patrols, find_builds, hire_builders,
-         repairs, seminars, scouts, empty_builds, docks, managers, shiptraders, cargo_drones,
-         accounts, fleet, grow)
+         own_stock, repairs, seminars, scouts, empty_builds, docks, managers, shiptraders,
+         cargo_drones, accounts, fleet, grow)
 
 
 def commands(state: dict, data: dict, off: set | frozenset = frozenset()) -> list[str]:

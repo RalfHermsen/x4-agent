@@ -461,3 +461,44 @@ def test_a_ship_on_an_order_of_its_own_is_cleared_before_it_docks_to_buy(small_s
     assert standing.connectors(state, {}) == ["clear ASO-629", "dockat ASO-629 STN-001 argon"]
     aso["orders"] = [{"order": "Explore", "state": "started", "default": True}]
     assert standing.connectors(state, {}) == ["dockat ASO-629 STN-001 argon"]
+
+
+def _waiting_on_turrets(small_state, held=4087, wanted=836):
+    """KYV-745 holds turret components for its wharf; its build waits on some."""
+    state = copy.deepcopy(small_state)
+    st = _station(state)
+    st["cargo"] = dict(st.get("cargo") or {}, turretcomponents=held)
+    st["offers"] = [{"ware": "turretcomponents", "side": "buy", "price": 361, "amount": 12101,
+                     "desired": 12101}]
+    bs = next(a for a in state["assets"] if a["code"] == "XQL-000")
+    bs["offers"] = [{"ware": "turretcomponents", "side": "buy", "price": 383, "amount": wanted,
+                     "desired": wanted}] if wanted else []
+    return state
+
+
+def test_own_stock_goes_to_the_build_for_our_ships_only(small_state):
+    """ship7e: the build waited on 836 turret components, KYV-745 held 4,087
+    and offered none, and no other expansion of KYV-745 could start."""
+    data = {}
+    assert standing.own_stock(_waiting_on_turrets(small_state), data) == [
+        "traderule KYV-745 turretcomponents sell own",
+        "limit KYV-745 turretcomponents sell 3251",
+        "tradeware KYV-745 turretcomponents sell on"]
+    assert standing.own_stock(_waiting_on_turrets(small_state), data) == []
+    # The wharf used some: the limit follows, so 836 stay on offer.
+    assert standing.own_stock(_waiting_on_turrets(small_state, held=3500), data) == [
+        "limit KYV-745 turretcomponents sell 2664",
+        "tradeware KYV-745 turretcomponents sell on"]
+    assert standing.own_stock(_waiting_on_turrets(small_state, wanted=0), data) == [
+        "tradeware KYV-745 turretcomponents sell off",
+        "limit KYV-745 turretcomponents sell clear",
+        "traderule KYV-745 turretcomponents sell default"]
+    assert data["standing"]["own_stock"] == {}
+
+
+def test_own_stock_leaves_a_ware_sold_already_or_held_short(small_state):
+    assert standing.own_stock(_waiting_on_turrets(small_state, held=500), {}) == []
+    state = _waiting_on_turrets(small_state)
+    _station(state)["offers"].append({"ware": "turretcomponents", "side": "sell", "price": 300,
+                                      "amount": 100, "desired": 0})
+    assert standing.own_stock(state, {}) == []
