@@ -908,48 +908,72 @@ def _hull_size(ship: dict) -> int:
     return _HULL_SIZES.get(parts[2], 9) if len(parts) > 2 else 9
 
 
+# Open volume one lent freighter answers for, the most a build gets, and the
+# traders a station keeps trading before it lends a second one. ship7e2's
+# claytronics module asked 233,000 m3 of one M freighter of KYV-745, which had
+# 19 traders for a plan of 4.
+FEED_VOLUME = 60000
+MAX_FEEDERS = 4
+KEEP_TRADING = 4
+
+
+def _feeders_wanted(bs: dict) -> int:
+    """How many freighters a build storage's open buy offers call for."""
+    import gamedata
+    table = gamedata.wares()
+    buying = [o for o in bs.get("offers", []) if o.get("side") == "buy" and (o.get("amount") or 0) > 0]
+    if not buying:
+        return 0
+    volume = sum(o["amount"] * ((table.get(o.get("ware")) or {}).get("volume") or 0) for o in buying)
+    return min(MAX_FEEDERS, 1 + int(volume // FEED_VOLUME))
+
+
+def _give_back(code: str, feeder: dict) -> str:
+    """The command that returns a lent ship to what it did before."""
+    return (f"assign {feeder['ship']} {code} trade" if feeder["before"] == "trade"
+            else f"autotrade {feeder['ship']}")
+
+
 def feed_build_storages(state: dict, feeders: dict) -> list[str]:
-    """Give a building station one of our freighters to supply its build.
+    """Give a building station our freighters to supply its build.
 
     A build storage buys what the build needs and waits for whoever brings it,
     which is NPC traders unless one of ours is assigned. Python, every cycle:
-    a build running with open buy offers gets one freighter, preferably a
-    trader of that station, else an idle freighter, the smallest of them; when
-    the build is over the ship goes back to what it did before.
+    a build running with open buy offers gets freighters by its open volume,
+    preferably traders of that station, else an idle freighter, the smallest
+    of them; when the demand falls the extra ones go back, and when the build
+    is over all of them go back to what they did before.
 
-    `feeders` maps station code to {ship, before}. Which station a trader works
-    for is not in the save, only its group number (save_parser._assignment),
-    so "a trader of this station" means: in the station's trade group, and in
-    the station's sector.
+    `feeders` maps station code to a list of {ship, before}. Which station a
+    trader works for is not in the save, only its group number
+    (save_parser._assignment), so "a trader of this station" means: in the
+    station's trade group, and in the station's sector.
     """
     import sitrep
     assets = {a.get("code"): a for a in state.get("assets", [])}
     occupied = state.get("player", {}).get("occupied_ship")
-    taken = {f["ship"] for f in feeders.values()}
+    taken = {f["ship"] for lent in feeders.values() for f in lent}
     commands = []
     for bs in state.get("assets", []):
         if bs.get("cls") != "buildstorage" or not bs.get("station"):
             continue
         code = bs["station"]
         build = bs.get("build") or {}
-        building = bool(build.get("queued") or build.get("in_progress"))
         # Ships of ours at this build storage already, whether lent by this
         # memory or by a run before it: each run starts with no feeders, and
         # ship7-camp ended with six of GKL-870's freighters there.
-        lent = [a["code"] for a in state.get("assets", [])
-                if serves(a, state) == (code, STATION_GROUPS["buildstorage"])]
-        if code in feeders:
-            if not building:
-                feeder = feeders.pop(code)
-                commands.append(f"assign {feeder['ship']} {code} trade"
-                                if feeder["before"] == "trade" else f"autotrade {feeder['ship']}")
+        at_storage = [a["code"] for a in state.get("assets", [])
+                      if serves(a, state) == (code, STATION_GROUPS["buildstorage"])]
+        # A lent ship that was shot down is no feeder any more, and blocks no new one.
+        mine = [f for f in feeders.pop(code, []) if f["ship"] in assets]
+        known = {f["ship"] for f in mine}
+        mine += [{"ship": ship, "before": "trade"} for ship in at_storage if ship not in known]
+        taken |= set(at_storage)
+        if not (build.get("queued") or build.get("in_progress")):
+            commands += [_give_back(code, f) for f in mine]
             continue
-        if lent and not building:
-            commands += [f"assign {ship} {code} trade" for ship in lent]
-            continue
-        buying = any(o.get("side") == "buy" and (o.get("amount") or 0) > 0
-                     for o in bs.get("offers", []))
-        if not (building and buying):
+        want = _feeders_wanted(bs)
+        if not want and not mine:
             continue
         station = assets.get(code) or {}
         sector = (station.get("place") or {}).get("sector")
@@ -961,23 +985,26 @@ def feed_build_storages(state: dict, feeders: dict) -> list[str]:
                       and (a.get("place") or {}).get("sector") == sector), key=_hull_size)
         idle = sorted((a for a in freighters if (a.get("assignment") or {}).get("group") is None
                        and sitrep.role_of(a) == "IDLE"), key=_hull_size)
-        if lent:
-            # A lent ship bigger than one of the station's own traders is swapped
-            # for the smaller one (see _hull_size).
-            smallest = min(_hull_size(assets.get(ship) or {}) for ship in lent)
-            if not (own and _hull_size(own[0]) < smallest):
-                feeders[code] = {"ship": lent[0], "before": "trade"}
-                continue
-            commands += [f"assign {ship} {code} trade" for ship in lent]
+        # A lent ship bigger than one of the station's own traders is swapped
+        # for the smaller one (see _hull_size).
         if own:
-            pick, before = own[0], "trade"
-        elif idle:
-            pick, before = idle[0], "free"
-        else:
-            continue
-        feeders[code] = {"ship": pick["code"], "before": before}
-        taken.add(pick["code"])
-        commands.append(f"assign {pick['code']} {code} buildstorage")
+            bigger = [f for f in mine if _hull_size(assets[f["ship"]]) > _hull_size(own[0])]
+            commands += [_give_back(code, f) for f in bigger]
+            mine = [f for f in mine if f not in bigger]
+        while len(mine) > max(want, 1):
+            commands.append(_give_back(code, mine.pop()))
+        pool, before = (own, "trade") if own else (idle, "free")
+        if pool:
+            pool = [a for a in pool if _hull_size(a) == _hull_size(pool[0])]
+        while len(mine) < want and pool:
+            if mine and before == "trade" and len(own) - len(mine) <= KEEP_TRADING:
+                break
+            pick = pool.pop(0)
+            mine.append({"ship": pick["code"], "before": before})
+            taken.add(pick["code"])
+            commands.append(f"assign {pick['code']} {code} buildstorage")
+        if mine:
+            feeders[code] = mine
     return commands
 
 

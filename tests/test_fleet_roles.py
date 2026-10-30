@@ -99,7 +99,7 @@ def test_station_trader_preferred_and_returned_to_trade(small_state):
     aso["assignment"] = {"group": 1}
     feeders = {}
     assert executor.feed_build_storages(state, feeders) == ["assign ASO-629 KYV-745 buildstorage"]
-    assert feeders["KYV-745"]["before"] == "trade"
+    assert feeders["KYV-745"][0]["before"] == "trade"
 
 
 def test_a_ship_left_at_the_build_storage_is_taken_up_or_sent_back(small_state):
@@ -111,7 +111,7 @@ def test_a_ship_left_at_the_build_storage_is_taken_up_or_sent_back(small_state):
     next(a for a in state["assets"] if a["code"] == "ASO-629")["assignment"] = {"group": 1}
     feeders = {}
     assert executor.feed_build_storages(state, feeders) == []
-    assert feeders == {"KYV-745": {"ship": "ASO-629", "before": "trade"}}
+    assert feeders == {"KYV-745": [{"ship": "ASO-629", "before": "trade"}]}
     next(a for a in state["assets"] if a["code"] == "XQL-000")["build"]["in_progress"] = 0
     assert executor.feed_build_storages(state, {}) == ["assign ASO-629 KYV-745 trade"]
 
@@ -145,7 +145,35 @@ def test_a_lent_large_freighter_is_swapped_for_a_smaller_trader(small_state):
     feeders = {}
     assert executor.feed_build_storages(state, feeders) == [
         "assign SBA-383 KYV-745 trade", "assign BOJ-123 KYV-745 buildstorage"]
-    assert feeders == {"KYV-745": {"ship": "BOJ-123", "before": "trade"}}
+    assert feeders == {"KYV-745": [{"ship": "BOJ-123", "before": "trade"}]}
+
+
+def _big_build(state, amount=4892):
+    """A build asking for a lot: advanced composites are 32 m3 each."""
+    next(a for a in state["assets"] if a["code"] == "XQL-000")["offers"] = [
+        {"ware": "advancedcomposites", "side": "buy", "price": 648, "amount": amount, "desired": amount}]
+    return state
+
+
+def test_a_big_build_gets_more_freighters_and_gives_them_back(small_state):
+    """ship7e2: 233,000 m3 open, one M freighter, 19 traders for a plan of 4."""
+    codes = [(f"TRD-00{i}", M_FREIGHTER) for i in range(1, 8)]
+    state = _traders(_big_build(_building(small_state)), *codes)
+    feeders = {}
+    assert executor.feed_build_storages(state, feeders) == [
+        f"assign TRD-00{i} KYV-745 buildstorage" for i in range(1, 4)]      # 7 traders, 4 keep trading
+    assert len(feeders["KYV-745"]) == 3
+    _big_build(state, amount=100)
+    assert executor.feed_build_storages(state, feeders) == [
+        "assign TRD-003 KYV-745 trade", "assign TRD-002 KYV-745 trade"]
+    assert [f["ship"] for f in feeders["KYV-745"]] == ["TRD-001"]
+
+
+def test_a_lent_ship_that_was_shot_down_blocks_no_new_one(small_state):
+    state = _traders(_building(small_state), ("BOJ-123", M_FREIGHTER))
+    feeders = {"KYV-745": [{"ship": "GON-000", "before": "trade"}]}
+    assert executor.feed_build_storages(state, feeders) == ["assign BOJ-123 KYV-745 buildstorage"]
+    assert feeders == {"KYV-745": [{"ship": "BOJ-123", "before": "trade"}]}
 
 
 def test_nothing_to_buy_means_no_feeder(small_state):

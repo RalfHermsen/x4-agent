@@ -140,7 +140,7 @@ def choose(ware: str, state: dict, data: dict, table: dict | None = None,
     # and was the nearest ship to the Teladi seller of the next blueprints.
     ships = _errand_ships(state, set(data.get("purchases", {}).get(w, {}).get("ship")
                                      for w in data.get("purchases", {}))
-                          | {f.get("ship") for f in (data.get("feeders") or {}).values()})
+                          | {f.get("ship") for lent in (data.get("feeders") or {}).values() for f in lent})
     if not ships:
         return None, "no ship of ours is free for an errand (scouts, couriers, fighters, freighters)"
 

@@ -48,7 +48,7 @@ def test_never_the_occupied_ship_and_never_a_miner(small_state):
 
 def test_never_a_ship_lent_to_a_build_storage(small_state):
     state = _with_teladi_station(small_state)
-    data = {"feeders": {"KYV-745": {"ship": "ASO-629", "before": "trade"}}}
+    data = {"feeders": {"KYV-745": [{"ship": "ASO-629", "before": "trade"}]}}
     pick, reason = purchases.choose(WARE, state, data, TABLE, GRAPH)
     assert pick is None and "no ship of ours is free" in reason
 
