@@ -2,7 +2,7 @@
 
 The plan says where each station should be by the end of a few game hours:
 how many production modules of which ware, how many miners and traders work
-for it (`schemas.Strategy`). The rules do the rest: `standing.grow` builds
+for it and how many combat ships defend it (`schemas.Strategy`). The rules do the rest: `standing.grow` builds
 toward the modules, `fleet` assigns and buys toward the ships, `blueprints`
 buys the blueprint a planned module needs and the ship and equipment
 blueprints the plan names. A ship whose blueprint we hold is built at a wharf
@@ -136,8 +136,9 @@ def own_build(state: dict, pattern: str, size: str = "m") -> str | None:
     """`buildship` at a wharf of ours, for the first race whose blueprint of
     this ship we hold, with an engine and a thruster blueprint of its size.
 
-    Our wharf builds from the blueprints we hold, and the bridge leaves the
-    shields out (x4agent.lua, build_own_ship). The ship menu takes no order
+    Our wharf builds from the blueprints we hold (x4agent.lua,
+    build_own_ship): engine, thruster, shields, weapons and turrets, each
+    where a blueprint of ours fits the slot. The ship menu takes no order
     with the engine or thruster slot empty (helper.lua, allowempty), and
     ship7-camp's first order went in with no thruster: none was ours. A
     generic thruster has no owner in wares.xml; the factions' representatives
@@ -186,7 +187,7 @@ def _working(code: str, role: str) -> set[tuple[str, str]]:
 
 
 def fleet(state: dict, data: dict) -> list[str]:
-    """Miners and traders toward the plan's numbers for each station.
+    """Miners, traders and defenders toward the plan's numbers for each station.
 
     A free ship of the kind (no commander, no orders, not on an errand) is
     assigned first; with none, one is bought at the nearest wharf we know,
@@ -217,6 +218,11 @@ def fleet(state: dict, data: dict) -> list[str]:
         wants.append(("trade", None, goal.get("traders") or 0, "container freighter",
                       "ship_{race}_m_trans_container_01_a_macro",
                       lambda s: sitrep.ship_type(s.get("macro")) in executor.FREIGHTERS))
+        # Any combat ship of ours defends; a new one is an M frigate, which
+        # our S/M wharf builds with the M engine, thruster and turrets whose
+        # blueprints we hold.
+        wants.append(("defend", None, goal.get("defenders") or 0, "frigate",
+                      "ship_{race}_m_frigate_01_a_macro", catalog._combat))
         for role, kind, target, label, pattern, fits in wants:
             have = sum(1 for s in catalog._ships(state) if executor.serves(s, state) in _working(code, role)
                        and fits(s))
@@ -265,6 +271,9 @@ def lines(state: dict, data: dict) -> list[str]:
             parts.append(f"{kind} miners {have}/{n}")
         have = sum(1 for s in catalog._ships(state) if executor.serves(s, state) in _working(code, "trade"))
         parts.append(f"traders {have}/{goal.get('traders') or 0}")
+        have = sum(1 for s in catalog._ships(state)
+                   if executor.serves(s, state) in _working(code, "defend") and catalog._combat(s))
+        parts.append(f"defenders {have}/{goal.get('defenders') or 0}")
         out.append(f"{code}: " + ", ".join(parts)
                    + (f"; the bridge cannot build {', '.join(unknown)}" if unknown else ""))
     return out

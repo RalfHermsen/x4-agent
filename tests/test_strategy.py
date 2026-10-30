@@ -11,7 +11,7 @@ import strategy
 
 PLAN = {"horizon_hours": 3, "rationale": "hull parts for the yards",
         "stations": {"KYV-745": {"build": {"hullparts": 2, "storage_container": 1},
-                                 "miners": {"solid": 2}, "traders": 1}},
+                                 "miners": {"solid": 2}, "traders": 1, "defenders": 0}},
         "blueprints": []}
 
 
@@ -163,6 +163,27 @@ def test_fleet_assigns_a_free_ship_before_it_buys_one(small_state, monkeypatch):
     for code in ("MNR-001", "ASO-629"):
         next(a for a in state["assets"] if a["code"] == code)["orders"] = [{"order": "MiningRoutine", "default": True}]
     assert strategy.fleet(state, plan) == ["buyship solid miner"]
+
+
+def test_defenders_are_a_free_combat_ship_first_then_a_frigate_of_our_own(small_state, monkeypatch):
+    state = copy.deepcopy(small_state)
+    state["assets"] = [a for a in state["assets"] if a.get("cls") == "station" or a["code"] == "ASO-629"]
+    _station(state)["modules"] = list(_station(state)["modules"]) + [executor.EXPANSION_MODULES["wharf"][0]]
+    state["player"]["blueprints"] = ["ship_tel_m_frigate_01_a", "engine_tel_m_allround_01_mk1",
+                                     "thruster_gen_m_allround_01_mk1"]
+    _ship(state, "NBO-436", "ship_tel_s_fighter_01_a_macro")
+    monkeypatch.setattr(catalog, "_through_gates",
+                        lambda action, state: f"assign {action['ship_ref']} {action['station_id']} {action['role']}")
+    monkeypatch.setattr(catalog, "_buy_options", lambda state, roles: [catalog.Option("buy", f"buyship {roles[0][0]}")])
+    plan = {"strategy": {"plan": dict(PLAN, stations={"KYV-745": {"build": {}, "miners": {}, "traders": 0,
+                                                                  "defenders": 2}})}}
+    assert strategy.fleet(state, plan) == ["assign NBO-436 KYV-745 defend"]
+    # The fighter defends (group 1 is the station's defence); the second is built.
+    _station(state)["assignment"] = {"groups": {1: "defence"}}
+    next(a for a in state["assets"] if a["code"] == "NBO-436").update(
+        assignment={"group": 1}, orders=[{"order": "ProtectStation", "default": True}])
+    assert strategy.fleet(state, plan) == ["buildship KYV-745 ship_tel_m_frigate_01_a_macro x4-agent-m"]
+    assert "defenders 1/2" in strategy.lines(state, plan)[1]
 
 
 def test_the_report_shows_how_far_each_station_is(small_state):

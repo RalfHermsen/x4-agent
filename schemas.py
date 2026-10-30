@@ -411,12 +411,13 @@ class StationGoal(BaseModel):
     miners: dict[str, int] = Field(
         description="'solid' or 'liquid' -> how many miners of that kind should work for the station")
     traders: int = Field(description="how many freighters should trade for the station")
+    defenders: int = Field(description="how many combat ships should defend the station")
 
 
 class Strategy(BaseModel):
     """Goals for the next hours, set by a strategist and carried out by the
     rules: `grow` builds toward `build`, `fleet` assigns and buys toward the
-    miners and traders. Every gate a rule passes through still applies.
+    miners, traders and defenders. Every gate a rule passes through still applies.
 
     No defaults, for the reason PlannerResponse gives: a field with one leaves
     `required`, and a model under a grammar may then skip it."""

@@ -68,7 +68,8 @@ SHIP_TYPES = (
     ("miner_solid", "solid miner"), ("miner_liquid", "liquid miner"),
     ("trans_container", "container freighter"), ("trans_solid", "solid freighter"),
     ("trans_liquid", "liquid freighter"), ("_trans_", "freighter"),
-    ("scout", "scout"), ("fighter", "fighter"), ("builder", "construction vessel"),
+    ("scout", "scout"), ("fighter", "fighter"), ("frigate", "frigate"),
+    ("builder", "construction vessel"),
     # Not a ship you can give work to. An escape pod is what is left when one of
     # ours is destroyed, and two of them were being reported every cycle as
     # ships sitting idle, which is true and useless.

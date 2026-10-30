@@ -1680,22 +1680,19 @@ local function build_own_ship(station, args)
     if not ok then
         return refuse("buildship: no loadout for " .. macro .. ": " .. tostring(loadout))
     end
-    -- No shields: ours are made of field coils and shield components, which
-    -- no station we know sells, and a build waits for every ware it lacks
-    -- (KYV-745's 270 station shields, 2026-10-28). The ship menu's player
-    -- clears the slots the same way. What is left is logged with the order.
+    -- Shields stay in: they are made of field coils and shield components,
+    -- which KYV-745 makes since ship6-camp. Until then they were taken out,
+    -- as a build waits for every ware it lacks (KYV-745's 270 station
+    -- shields, 2026-10-28). What the loadout holds is logged with the order.
     local okparts, parts, complete = pcall(function()
-        local shields = loadout.numshields
-        loadout.numshields = 0
-        loadout.numshieldgroups = 0
         local thruster = (loadout.thruster.macro ~= nil) and ffi.string(loadout.thruster.macro) or ""
-        return string.format("%d engine(s), thruster %s, %d weapon(s), %d turret(s), %d shield(s) left out",
+        return string.format("%d engine(s), thruster %s, %d weapon(s), %d turret(s), %d shield(s)",
                              loadout.numengines, (thruster ~= "") and thruster or "none",
-                             loadout.numweapons, loadout.numturrets, shields),
+                             loadout.numweapons, loadout.numturrets, loadout.numshields),
                loadout.numengines > 0 and thruster ~= ""
     end)
     if not okparts then
-        return refuse("buildship: could not take the shields out of the loadout: " .. tostring(parts))
+        return refuse("buildship: could not read the loadout: " .. tostring(parts))
     end
     -- The ship menu takes no order with the engine or thruster slot empty
     -- (helper.lua, allowempty); ship7-camp's first order went in without a
