@@ -1349,3 +1349,68 @@ stations destroyed Xenon K destroyers out of the player's sight
 ("lowattentionattack"), so station turrets do fight there.
 
 **Upkeep.** KYV-745 asked for a builder from 297.0 on.
+
+## 2026-10-30: ship7d-camp, frigates from our own wharf
+
+One campaign run, rules only, from ship7c-camp's end save, six hours. The
+plan gets a third kind of ship besides miners and traders: defenders, two at
+KYV-745 and one at GKL-870 (188b169). Any combat ship of ours counts; a new
+one is a Teladi M frigate from our own wharf, with the M pulse laser as main
+gun, whose blueprint the plan names before the frigate's so the first one
+does not leave without guns. Ships we build get shields again: KYV-745 makes
+field coils and shield components since ship6-camp. The rest of the plan is
+ship7c-camp's.
+
+The first try was stopped after half an hour. A ship in a wharf's bay is in
+the save from the start of its build, with its code, owner and equipment,
+and state "construction". QWL-354, the first frigate, was read as a
+delivered idle ship of ours minutes after the order and sent to defend
+KYV-745, then GKL-870; both assignments failed. Since af3344e such a ship is
+on order, not ours. The run below is the restart from the same save.
+
+| | ship7d-camp |
+|---|---|
+| Game hours | 300.6 to 334.6 (34.0) |
+| Net worth | +191.7 M (5.64 M/h) |
+| Net worth at cost | +187.3 M (5.51 M/h) |
+| Player's money | 714.9 M to 905.5 M |
+| Modules | 440 to 449 (KYV-745 260 to 266, GKL-870 180 to 183) |
+| Ships | 49 to 45; five frigates built, none bought |
+| Lost | frigates YSX-645 and DNV-141 (318.9, by the Xenon IDQ-917); container freighters ZVZ-581, WEA-247, XZQ-233 (302.1), JZI-135 (303.8), KYG-099 (305.7), WOL-202 (319.3, by the Xenon K CZJ-432), JUN-174 (323.0, by LXH-323, Scale Plate Pact), the first five by other Xenon; two craft the report types only as "ship", STQ-827 (319.3, CZJ-432) and SFE-049 (332.6) |
+
+**The frigates.** JEP-977 bought both blueprints in one stop at WLI-542
+(Teladi). The orders went in at 302.5, 303.5 and 304.5, one a game hour as
+the brake allows, and each frigate left the bay about half a game hour after
+its order: YSX-645 and DNV-141 to KYV-745, SFC-428 to GKL-870. Each carries
+two M pulse lasers, four Teladi M gatling turrets, three Teladi M shields
+(mk2) and two Teladi M engines. No frigate was bought.
+
+**Combat.** SFC-428 at GKL-870 was attacked by Xenon S fighters from 305.1 on
+and was alive at the end; the end save holds three Xenon S fighters it hit
+as wrecks (GGI-765, OQG-516, UOC-086, 334.4 to 334.5, out of the player's
+sight). At 318.9 IDQ-917 destroyed YSX-645 and DNV-141 in Hewa's Twin I,
+where the report counted Xenon 1 M, 1 S and 2 XL; IDQ-917 is not in the end
+save, so its class is not known. In the same minutes the Xenon K destroyer
+CZJ-432 attacked KYV-745 and destroyed WOL-202, STQ-827 and one of the
+station's three defence discs (defence 2/3 from 320.2). CZJ-432 is a wreck in
+the end save. The fleet rule replaced the two frigates: orders at 318.9 and
+319.9, XHY-024 at KYV-745 from 319.3 and YMW-171 from 320.5. Both were
+attacked by LXH-323 (Scale Plate Pact) at about 323 and survived. The run
+ended with defenders 2/2 and 1/1. An M frigate holds against Xenon fighters;
+against an XL it is lost.
+
+**What a frigate is made of.** By recipe, at average prices, the inputs of a
+frigate with this loadout are worth 336 k Cr. The wares KYV-745 makes (hull
+parts, energy cells, field coils, shield components, engine parts) are 83 %
+of that. It buys the rest: advanced electronics, turret components, weapon
+components and antimatter converters; it held 5,758, 12,101 and 1,397 of the
+first three at the end. Its hull parts stock was 0 at the end: over the trade
+log's last 25.0 game hours it sold 77,918 and bought 1,727. A frigate needs
+985. So by recipe the hull and the shields are ours, the engines nearly
+(antimatter converters are bought) and the guns not; what left the store for
+each ship is still not traced.
+
+**No builder.** KYV-745's lost defence disc was not rebuilt. Its medical
+supplies expansion waited 16.6 game hours at the end with "build queued but
+no construction vessel assigned", GKL-870's two for 29.4; the station has
+asked for a builder since 297.0. Every module waits on that, the plan's too.

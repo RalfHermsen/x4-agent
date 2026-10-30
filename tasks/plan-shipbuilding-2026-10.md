@@ -236,6 +236,12 @@ one on the second errand; the first modules stood at 269.2 and 270.8, and
 by margin KYV-745 ended with six engine parts and five antimatter cells
 modules, selling about half of what they make. No ship was ordered, so the
 proof is still open.
+*Found* (ship7d-camp): five Teladi M frigates came from our wharf, each
+about half a game hour after its order. By recipe value 83 % of their inputs
+are wares KYV-745 makes (hull parts, energy cells, field coils, shield
+components, engine parts); advanced electronics, turret and weapon components
+and antimatter converters are bought. What left the store for each ship is
+not traced, and KYV-745 sells nearly all its hull parts.
 
 **G. Claytronics.** 20.8 M for the blueprint; antimatter cells, microchips
 and quantum tubes in. Every station module and every L or XL hull needs it,
@@ -246,6 +252,13 @@ factions buy from it too, which turns our hull parts into sales where the
 economy has its largest sink (`docs/forum-findings.md`). Defence fighters
 for the stations follow. *Proof:* a game week in which the fleet grew
 without a ship bought.
+*Written* (188b169, af3344e): the plan sets defenders per station; any
+combat ship of ours counts, a new one is an M frigate from our wharf, and a
+ship still in the bay is on order, not ours. *Found* (ship7d-camp): 34 game
+hours without a ship bought; three frigates defended from 304.9, two were
+lost to the Xenon IDQ-917 at 318.9 and replaced within two game hours. One
+held off Xenon fighters at GKL-870 through the run. Against an XL an M
+frigate is lost, which points at stage I.
 
 **I. L and XL.** An L fabrication bay is about 244 M. Carriers and
 destroyers are what the guides name against the Xenon later in the game;
