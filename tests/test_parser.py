@@ -196,6 +196,23 @@ def test_a_wreck_is_no_threat_and_no_ship(tmp_path):
     assert not [a for a in state["assets"] if a.get("code") == "XYZ-999"]
 
 
+def test_a_ship_still_being_built_is_not_ours_yet(tmp_path):
+    """QWL-354, a frigate in KYV-745's bay, was in the save with its equipment
+    and code minutes after the order, and was sent to defend a station."""
+    from save_parser import parse_save
+    ships = ('<component class="ship_m" macro="ship_tel_m_frigate_01_a_macro" code="QWL-354" '
+             'owner="player" knownto="player" state="construction"/>'
+             '<component class="ship_m" macro="ship_tel_m_miner_solid_01_a_macro" code="ENF-175" '
+             'owner="player" knownto="player"/>')
+    nest = ships
+    for cls in ("zone", "sector", "cluster", "galaxy"):
+        nest = f'<component class="{cls}" macro="{cls}_macro"><connections><connection>{nest}</connection></connections></component>'
+    save = tmp_path / "save.xml"
+    save.write_text('<savegame><info><game time="900000"/><player money="1"/></info>'
+                    f'<universe>{nest}</universe></savegame>', encoding="utf-8")
+    assert [a["code"] for a in parse_save(save)["assets"]] == ["ENF-175"]
+
+
 def test_ships_paid_for_and_not_delivered_are_read_from_the_wharf_queue():
     from lxml import etree
 

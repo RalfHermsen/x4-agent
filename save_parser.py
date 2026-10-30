@@ -708,7 +708,8 @@ def parse_save(path: str | os.PathLike) -> dict:
                 comps.append({"cls": elem.get("class"), "macro": elem.get("macro"),
                               "code": elem.get("code"), "owner": elem.get("owner"),
                               "knownto": elem.get("knownto"),
-                              "wreck": elem.get("state") == "wreck"})
+                              "wreck": elem.get("state") == "wreck",
+                              "building": elem.get("state") == "construction"})
         else:
             depth = len(stack)
             stack.pop()
@@ -754,7 +755,15 @@ def parse_save(path: str | os.PathLike) -> dict:
                         counts[cls] = counts.get(cls, 0) + 1
                 if cls == "station":
                     on_order += _ships_on_order(elem, current["code"])
-                if cls in ASSET_CLASSES and not wreck:
+                # A ship still in a wharf's bay is in the save with its
+                # equipment and code from the start of its build. QWL-354, our
+                # first frigate, was read as an idle ship of ours and sent to
+                # defend KYV-745, then GKL-870, minutes after it was ordered
+                # (ship7d, 2026-10-30). It is on order until it is delivered
+                # (`_ships_on_order`). Ships only: a station being built has
+                # the same state and is ours from its first module.
+                building = current["building"] and cls in SHIP_CLASSES
+                if cls in ASSET_CLASSES and not wreck and not building:
                     if current["owner"] == "player":
                         assets.append(_asset(elem, comps))
                     elif cls == "station" and current["knownto"] == "player":
