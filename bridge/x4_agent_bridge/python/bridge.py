@@ -235,7 +235,7 @@ def main(args):
     print("[x4-agent] X4 connected")
 
     last_cycle = 0.0
-    urgent = False
+    urgent = save_asked = False
     while 1:
         message = pipe.Read()
         # Log before filtering out pings. If you only ever see 'state' and never
@@ -253,15 +253,19 @@ def main(args):
         if message == "saved":
             last_cycle = time.monotonic()
             run_cycle(pipe, force=urgent)
-            urgent = False
+            urgent = save_asked = False
             continue
 
         # 4.8: something of ours was attacked or destroyed. Ask for a save now
         # and plan on it the moment it arrives, past the quiet-cycle rule.
+        # An attack waits for the next regular cycle: the throttle in MD is per
+        # object and in game time, so with Xenon around and SETA on, ship7e3
+        # saved about once a real minute and ran at 4.4 times speed, not 6.
         if message.startswith("event "):
             print(f"[x4-agent] {message}: planning as soon as the save is in")
-            if not urgent:
-                urgent = True
+            urgent = True
+            if not message.startswith("event attacked ") and not save_asked:
+                save_asked = True
                 pipe.Write(SAVE_VERB)
             continue
 
