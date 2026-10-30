@@ -269,3 +269,16 @@ def test_a_ship_blueprint_is_chosen_like_a_module_one_at_ten_times_its_average(s
     assert entry["price"] == 10 * gamedata.wares()[ware]["avgprice"]     # the menu's rule
     pick, reason = purchases.choose(ware, _with_teladi_station(small_state), {}, TABLE, GRAPH)
     assert reason is None and pick["faction"] == "teladi" and pick["station"] == "ZIR-755"
+
+
+def test_the_sector_graph_has_the_superhighways():
+    """Hewa's Twin I and II share a cluster and are joined by a superhighway,
+    not a gate. The table that had only gates put them 99 jumps apart, and
+    Bright Promise, two jumps from KYV-745, just as far."""
+    import gamedata
+    graph = gamedata.sector_graph()
+    if not graph:
+        pytest.skip("no game installation and no cached table")
+    assert purchases.jumps(graph, SECTOR, "cluster_19_sector002_macro") == 1
+    assert purchases.jumps(graph, SECTOR, "cluster_09_sector001_macro") == 2
+    assert all(purchases.jumps(graph, SECTOR, s) < 99 for s in graph)

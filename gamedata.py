@@ -467,6 +467,79 @@ def licences(rebuild: bool = False) -> dict[str, dict]:
     return table
 
 
+SECTOR_GRAPH = Path(__file__).parent / "data" / "sector_graph.json"
+UNIVERSE = "maps/xu_ep2_universe/"
+_CLUSTER_FILES = ("clusters.xml", "dlc4_clusters.xml", "dlc7_clusters.xml",
+                  "dlc_mini_01_clusters.xml", "dlc_mini_02_clusters.xml",
+                  "dlc_pirate_clusters.xml", "dlc_terran_clusters.xml")
+
+
+def _sector_of(path: str, sectors: dict[str, str]) -> str | None:
+    """The sector macro a connection path runs through, or None."""
+    return next((sectors[step] for step in path.split("/") if step in sectors), None)
+
+
+def build_sector_graph(x4_dir: Path = X4_DIR) -> dict[str, list[str]]:
+    """Which sectors a ship can reach in one step: {sector macro: [sector macros]}.
+
+    Two kinds of step. Gates and Terran accelerators between clusters are the
+    `destination` connections in galaxy.xml and its DLC patches, and go both
+    ways. Superhighways between the sectors of one cluster are the `sechighways`
+    connections in the cluster files, from their entry point to their exit point.
+    The table that stood here before had only the gates, so Hewa's Twin I and II
+    were 99 jumps apart and KYV-745 reached 5 of 125 sectors.
+    """
+    sectors: dict[str, str] = {}    # sector connection name -> sector macro
+    highways = []
+    for name in _CLUSTER_FILES:
+        try:
+            parts = extract_all(x4_dir, UNIVERSE + name)
+        except FileNotFoundError:
+            continue
+        for part in parts:
+            root = etree.fromstring(part)
+            for conn in root.iter("connection"):
+                macro = conn.find("macro")
+                if conn.get("ref") == "sectors" and macro is not None:
+                    sectors[conn.get("name")] = macro.get("ref").lower()
+                elif conn.get("ref") == "sechighways":
+                    ends = {end.get("ref"): end.find("macro")
+                            for end in conn.iterfind("macro/connections/connection")}
+                    highways.append({ref: m.get("path") for ref, m in ends.items()
+                                     if m is not None and m.get("path")})
+    graph: dict[str, set[str]] = {}
+
+    def link(a: str | None, b: str | None) -> None:
+        if a and b and a != b:
+            graph.setdefault(a, set()).add(b)
+
+    for ends in highways:
+        link(_sector_of(ends.get("entrypoint", ""), sectors),
+             _sector_of(ends.get("exitpoint", ""), sectors))
+    for part in extract_all(x4_dir, UNIVERSE + "galaxy.xml"):
+        for conn in etree.fromstring(part).iter("connection"):
+            target = conn.find("macro")
+            if conn.get("ref") != "destination" or target is None:
+                continue
+            here = _sector_of(conn.get("path", ""), sectors)
+            there = _sector_of(target.get("path", ""), sectors)
+            link(here, there)
+            link(there, here)
+    return {sector: sorted(nxt) for sector, nxt in sorted(graph.items())}
+
+
+def sector_graph(rebuild: bool = False) -> dict[str, list[str]]:
+    if SECTOR_GRAPH.exists() and not rebuild:
+        return json.loads(SECTOR_GRAPH.read_text(encoding="utf-8"))
+    try:
+        table = build_sector_graph()
+    except OSError:
+        return {}
+    SECTOR_GRAPH.parent.mkdir(parents=True, exist_ok=True)
+    SECTOR_GRAPH.write_text(json.dumps(table, indent=1, sort_keys=True), encoding="utf-8")
+    return table
+
+
 # Sectors belonging to a scenario rather than the living universe. The Timelines
 # missions reuse real sector names, so 92 display names in this table belong to
 # more than one macro and "Ianamus Zura IV" can mean either the sector the
@@ -506,6 +579,7 @@ def main() -> int:
         wares(rebuild=True)
         licences(rebuild=True)
         blueprints(rebuild=True)
+        sector_graph(rebuild=True)
         table = modules(rebuild=True)
         print(f"{len(table)} module macros in {MODULES}, "
               f"{sum(1 for m in table.values() if m['ware'])} with a blueprint ware")

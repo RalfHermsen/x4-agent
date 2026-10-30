@@ -20,14 +20,11 @@ then those two rules simply do not discriminate.
 
 from __future__ import annotations
 
-import json
 from collections import deque
-from pathlib import Path
 
 import gamedata
 import sitrep
 
-GRAPH = Path(__file__).parent / "data" / "sector_graph.json"
 
 # Hull types that may run an errand. A miner or a construction vessel away
 # from its work costs more than the errand is worth, and an escape pod is not
@@ -48,10 +45,7 @@ BLUEPRINT_RESERVE = 0.05
 
 
 def _graph() -> dict[str, list[str]]:
-    try:
-        return json.loads(GRAPH.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return {}
+    return gamedata.sector_graph()
 
 
 def jumps(graph: dict, start: str | None, goal: str | None) -> int:
