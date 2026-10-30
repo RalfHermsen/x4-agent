@@ -116,5 +116,37 @@ def test_a_ship_left_at_the_build_storage_is_taken_up_or_sent_back(small_state):
     assert executor.feed_build_storages(state, {}) == ["assign ASO-629 KYV-745 trade"]
 
 
+L_FREIGHTER = "ship_tel_l_trans_container_03_a_macro"
+M_FREIGHTER = "ship_par_m_trans_container_01_a_macro"
+
+
+def _traders(state, *ships):
+    """KYV-745 with trade group 1 holding these (code, macro) freighters, in this order."""
+    next(a for a in state["assets"] if a["code"] == "KYV-745")["assignment"] = {"groups": {1: "trade"}}
+    aso = next(a for a in state["assets"] if a["code"] == "ASO-629")
+    state["assets"] = [a for a in state["assets"] if a["code"] != "ASO-629"]
+    state["assets"] += [dict(copy.deepcopy(aso), code=code, macro=macro, assignment={"group": 1})
+                        for code, macro in ships]
+    return state
+
+
+def test_the_smallest_station_trader_feeds_the_build(small_state):
+    """The game's build storage routine wants a seller holding half the hold:
+    an L freighter waited 16 h for 1,291 claytronics in one place."""
+    state = _traders(_building(small_state), ("SBA-383", L_FREIGHTER), ("BOJ-123", M_FREIGHTER))
+    assert executor.feed_build_storages(state, {}) == ["assign BOJ-123 KYV-745 buildstorage"]
+
+
+def test_a_lent_large_freighter_is_swapped_for_a_smaller_trader(small_state):
+    state = _traders(_building(small_state), ("SBA-383", L_FREIGHTER), ("BOJ-123", M_FREIGHTER))
+    next(a for a in state["assets"] if a["code"] == "KYV-745")["assignment"] = {
+        "groups": {1: "trade", 2: "tradeforbuildstorage"}}
+    next(a for a in state["assets"] if a["code"] == "SBA-383")["assignment"] = {"group": 2}
+    feeders = {}
+    assert executor.feed_build_storages(state, feeders) == [
+        "assign SBA-383 KYV-745 trade", "assign BOJ-123 KYV-745 buildstorage"]
+    assert feeders == {"KYV-745": {"ship": "BOJ-123", "before": "trade"}}
+
+
 def test_nothing_to_buy_means_no_feeder(small_state):
     assert executor.feed_build_storages(_building(small_state, offers=False), {}) == []

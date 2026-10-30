@@ -1403,14 +1403,76 @@ against an XL it is lost.
 frigate with this loadout are worth 336 k Cr. The wares KYV-745 makes (hull
 parts, energy cells, field coils, shield components, engine parts) are 83 %
 of that. It buys the rest: advanced electronics, turret components, weapon
-components and antimatter converters; it held 5,758, 12,101 and 1,397 of the
-first three at the end. Its hull parts stock was 0 at the end: over the trade
-log's last 25.0 game hours it sold 77,918 and bought 1,727. A frigate needs
-985. So by recipe the hull and the shields are ours, the engines nearly
+components and antimatter converters; it held 1,626, 4,087 and 875 of the
+first three at the end, and wanted 5,758, 12,101 and 1,397 more (its buy
+offers; an earlier version of this entry gave those as the stock). Its hull
+parts stock was 0 at the end: over the trade log's last 25.0 game hours it
+sold 77,918 and bought 1,727. A frigate needs 985. So by recipe the hull and the shields are ours, the engines nearly
 (antimatter converters are bought) and the guns not; what left the store for
 each ship is still not traced.
 
-**No builder.** KYV-745's lost defence disc was not rebuilt. Its medical
-supplies expansion waited 16.6 game hours at the end with "build queued but
-no construction vessel assigned", GKL-870's two for 29.4; the station has
-asked for a builder since 297.0. Every module waits on that, the plan's too.
+**No builder, as reported.** KYV-745's lost defence disc was not rebuilt. Its
+medical supplies expansion waited 16.6 game hours at the end with "build
+queued but no construction vessel assigned", GKL-870's two for 29.4; the
+station has asked for a builder since 297.0. Every module waits on that, the
+plan's too. For KYV-745 that report was wrong: a construction vessel lay at
+the build from 318.3, waiting for claytronics and turret components, and the
+game sent away each one hired after it (fixed in fcb69d6; see the next entry
+for what the build waited on).
+
+## 2026-10-30: proof-feed, what KYV-745's build waited on
+
+From the ship7d-camp end save (334.6 h), 4.5 game hours under SETA, no
+planner: only the commands below. Question: why did the build storage XQL-000
+get nothing for 16.6 game hours, with 4.72 M on its account and SBA-383 lent
+to it?
+
+**Why the routine found nothing.** SBA-383's TradeRoutine for the build
+storage had failed with "No trades found in allowed sectors". The game's
+trade.find.commander.xml buys for a build storage only from a seller that
+holds at least the whole demand or half the ship's free hold, whichever is
+less (`totalvolume`). SBA-383 is an L freighter of 62,000 m3: 1,291
+claytronics in one place. The one claytronics seller within reach, TEN-917 in
+Bright Promise, two jumps from KYV-745, had 843. The two with more, ZCD-993 in
+Argon Prime and XKZ-211 in Second Contact VII, are reached only through
+Profit Center Alpha, Silent Witness I and Hatikvah's Choice I, all Xenon
+now, and the avoid-hostile blacklist keeps the routine out of those
+(lib.find.sectors.inrange.xml). The price was not it: XQL-000 bid 2,346 Cr,
+the top of the range.
+
+**The fix.** `feed_build_storages` lends the smallest freighter, and swaps a
+lent one for a smaller trader of the station. On the end save it sent SBA-383
+back to trading and lent CQN-712, a Paranid M freighter.
+
+| Game hour | Claytronics still wanted | Turret components still wanted | Build |
+|---|---|---|---|
+| 334.6 | 1,864 | 836 | step 4 of 15, waiting for resources |
+| 335.5 | 877 | 753 | |
+| 336.5 | 606 | 836 | step 12 of 12, building |
+| 337.6 | 222 | 836 | step 5 of 11, building |
+| 338.6 | 0 | 836 | no step, no vessel |
+| 339.2 | 0 | 836 | no step, no vessel |
+
+KYV-745 went from 266 modules to 289: nine connectors, four graphene, two
+silicon wafers, one each of refined metals, water, microchips, smartchips,
+medical supplies and engine parts, a base structure, and the defence disc
+lost at 320.2. XQL-000's account went from 4.72 M to 0.65 M. CQN-712 had 210
+claytronics aboard at 335.5; NPC traders may have brought some too, and the
+saves do not say which ship brought what.
+
+**Turret components did not come.** They are for the M gatlings the bridge
+puts on every module, and all 690 of KYV-745's turrets fired during
+ship7d-camp (last shot 326.4 h), so they stay. The market we know sells 62.
+KYV-745 holds 4,087 and wants 12,101 more for its wharf. Making that ware
+sellable for our own faction only (`tradeware` and `traderule`, both
+confirmed in the logbook) produced no sell offer: a station does not offer a
+resource it is short of. It was switched off again before the end. At the
+end one build was still listed as in progress, with no step and no vessel,
+and 836 turret components wanted.
+
+**The sector graph.** The agent's own table had gates only, so the two
+sectors of one cluster were 99 jumps apart and KYV-745 reached 5 of 125
+sectors; purchases, hires and repairs chose "nearest" from it. It is now
+built from the game files (`gamedata.build_sector_graph`): gates and Terran
+accelerators from galaxy.xml and its DLC patches, superhighways from the
+cluster files. 140 sectors, every one reachable from KYV-745.

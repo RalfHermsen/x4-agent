@@ -891,14 +891,31 @@ def plan_haul(action, state: dict, busy: set[str] | None = None) -> tuple[str | 
             f"{amount} {int(price) + 1} {action.to_station}"), None
 
 
+_HULL_SIZES = {"xs": 0, "s": 1, "m": 2, "l": 3, "xl": 4}
+
+
+def _hull_size(ship: dict) -> int:
+    """Size class from the macro, smallest first: ship_par_m_trans_container_01_a_macro is m.
+
+    The smaller hold buys from more sellers. The game's routine for a build
+    storage only buys from a seller holding at least half its free hold, or
+    the whole demand if that is less (trade.find.commander.xml, totalvolume).
+    SBA-383, an L freighter of 62,000 m3, so wanted 1,291 claytronics in one
+    place; the one seller within reach outside Xenon space had 843, and the
+    build of KYV-745 waited from 318 h to the end of ship7d-camp.
+    """
+    parts = (ship.get("macro") or "").split("_")
+    return _HULL_SIZES.get(parts[2], 9) if len(parts) > 2 else 9
+
+
 def feed_build_storages(state: dict, feeders: dict) -> list[str]:
     """Give a building station one of our freighters to supply its build.
 
     A build storage buys what the build needs and waits for whoever brings it,
     which is NPC traders unless one of ours is assigned. Python, every cycle:
     a build running with open buy offers gets one freighter, preferably a
-    trader of that station, else an idle freighter; when the build is over the
-    ship goes back to what it did before.
+    trader of that station, else an idle freighter, the smallest of them; when
+    the build is over the ship goes back to what it did before.
 
     `feeders` maps station code to {ship, before}. Which station a trader works
     for is not in the save, only its group number (save_parser._assignment),
@@ -934,19 +951,24 @@ def feed_build_storages(state: dict, feeders: dict) -> list[str]:
                      for o in bs.get("offers", []))
         if not (building and buying):
             continue
-        if lent:
-            feeders[code] = {"ship": lent[0], "before": "trade"}
-            continue
         station = assets.get(code) or {}
         sector = (station.get("place") or {}).get("sector")
         freighters = [a for a in state.get("assets", [])
                       if sitrep.ship_type(a.get("macro")) in FREIGHTERS
                       and a.get("code") not in taken and a.get("code") != occupied]
-        own = [a for a in freighters
-               if serves(a, state) == (code, "trade")
-               and (a.get("place") or {}).get("sector") == sector]
-        idle = [a for a in freighters if (a.get("assignment") or {}).get("group") is None
-                and sitrep.role_of(a) == "IDLE"]
+        own = sorted((a for a in freighters
+                      if serves(a, state) == (code, "trade")
+                      and (a.get("place") or {}).get("sector") == sector), key=_hull_size)
+        idle = sorted((a for a in freighters if (a.get("assignment") or {}).get("group") is None
+                       and sitrep.role_of(a) == "IDLE"), key=_hull_size)
+        if lent:
+            # A lent ship bigger than one of the station's own traders is swapped
+            # for the smaller one (see _hull_size).
+            smallest = min(_hull_size(assets.get(ship) or {}) for ship in lent)
+            if not (own and _hull_size(own[0]) < smallest):
+                feeders[code] = {"ship": lent[0], "before": "trade"}
+                continue
+            commands += [f"assign {ship} {code} trade" for ship in lent]
         if own:
             pick, before = own[0], "trade"
         elif idle:
