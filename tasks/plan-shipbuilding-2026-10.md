@@ -289,3 +289,104 @@ changelog was not reached, most of this is forum posts):
 So the step after the wharf is defence: our stations are already attacked
 (IJK-742 was lost to Xenon raiders at KYV-745 in the ceremony series), and
 the ships we build ourselves are what makes a defence fleet affordable.
+
+## Raids on the Xenon (2026-10-31)
+
+Why now: Xenon went from 21 of 141 sectors at game hour 74 to 49 at hour 410,
+and from 151 stations to 208. Teladi went from 21 sectors to 10. Two sectors
+next to our route, Ianamus Zura IV and VII, were Teladi's. Protecting KYV-745
+does nothing about this, and freighters keep being shot down on the way.
+
+Numbers from the save at hour 410 and the game files. Hull, shields and damage
+are worked out from the macros and the loadouts in the save, with every weapon
+firing: good for comparing, not a forecast. Out of the player's range turrets
+fire less (docs/forum-findings.md), for both sides.
+
+| Ship | Hull + shields | Damage per second |
+|---|---|---|
+| Our Teladi destroyer | 391,000 | 11,000 (7,600 of it two forward guns) |
+| Our Teladi frigate | 63,000 | 2,500 |
+| Xenon K (XL destroyer) | 535,000 | 13,700 |
+| Xenon I (XL carrier) | 1,438,000 | 44,800 |
+| Xenon corvette | 22,000 to 24,000 | 400 to 1,700 |
+| Xenon heavy fighter | 7,200 | 1,500 |
+| Xenon fighter | 3,700 to 4,100 | 550 |
+
+Xenon in all: 85 K, 4 I, 7 terraformers, about 500 corvettes, 2,000 S and 208
+stations. We will not beat that, only what stands in one place.
+
+### Can the economy carry it?
+
+Yes on money; the limit is a few wares.
+
+* One destroyer takes 4,960 hull parts, about 7,000 energy cells, 528 advanced
+  electronics, 490 weapon components, 541 antimatter converters, 270 engine
+  parts, 172 field coils, 146 shield components and 144 turret components, by
+  the recipes and its loadout. That is about 2 M Cr of wares at market prices.
+  ship7g built five in eight game hours from stock.
+* Money: 888 M Cr unspent, and 5.5 M Cr per game hour in ship7e3 (180 M in 33
+  hours). Money does not limit this.
+* KYV-745's own lines, nominal rates: hull parts 3,528 per hour, so 0.7
+  destroyers; advanced electronics 270, so 0.5. About one destroyer per two
+  game hours once stocks are gone, unless the plan adds lines. It costs the
+  hull parts we now sell. Weapon components and antimatter converters come
+  from the market; we have no blueprint for either.
+* A fighter is cheap: 152 hull parts and 69 energy cells for the hull. It needs
+  blueprints we do not hold yet: the ship, S engine, S thruster, S weapon, S
+  shield.
+* Turret components were the true limit: thousands wait on the discs, one
+  seller on the map holds 45. The blueprint came with the Paranid ally ceremony
+  and ship8 builds the line.
+
+### Targets within reach
+
+| Sector | Jumps | Owner | Xenon there |
+|---|---|---|---|
+| Trinity Sanctum III | 1 | Paranid | 1 K, 5 M, 8 S, one base: 24 turrets, 3 build modules |
+| Scale Plate Green I | 3 | Xenon | 1 M, three stations with 74 to 120 turrets each |
+| Ianamus Zura IV | 3 | Xenon | 7 M, 23 S, three stations with 77 to 89 turrets |
+| Memory of Profit IX | 3 | Xenon | 7 M, 15 S, three stations with 76 to 111 turrets |
+| Bright Promise | 2 | Xenon | 8 K, 25 M, 84 S, three stations: the hub on the way |
+
+The first target is the base in Trinity Sanctum III. It is the one Xenon
+foothold next to us, on our trade route, in a sector Paranid still owns. Six
+destroyers bring 2.3 M hit points and 66,000 damage per second against about
+30,000 before the base's turrets. A full Xenon station has three to five times
+those turrets, so red sectors come after that, at 20 or more destroyers.
+Bright Promise is not a raid: it takes a fleet that can beat eight K.
+
+### Does it help the factions, and can a sector change hands?
+
+* It happens without us: since hour 74 Terran took Faulty Logic VII, Atiya's
+  Misfortune I and III, Frontier Edge and Ore Belt from the Xenon, and Teladi
+  took Turquoise Sea X. Sector ownership follows stations that can claim it
+  (`canclaimownership`, the `defence_*_claim` modules), and factions run
+  `factiongoal_hold_space` and `factiongoal_invade_space`.
+* From player reports, not proven here: Xenon share one pool of resources, so a
+  sector does not starve when cut off, and a destroyed station's build storage
+  can rebuild it. A raid has to kill the build storage too.
+* We can feed them. Faction wharfs want wares they cannot get: HOW-875 asks
+  8,416 turret components at 421 Cr, CXY-258 61,036 hull parts at 276 Cr. Once
+  the discs are armed, surplus goes there. A faction with wares builds warships.
+* Taking a sector ourselves is not known to be possible. The claim modules are
+  wares, but no blueprint for one is listed for sale, and of the faction tags
+  only Terran and Kaori carry `claimspace`. To find out before planning on it:
+  the game's scripts first, then a probe.
+
+### What to build
+
+1. Verbs, read from the game's order scripts first: send a fleet to a sector,
+   attack a target, withdraw. Today the bridge has `command` (subordinates) and
+   `patrol` (only the sector of our own station).
+2. A rule for a raid: gather at KYV-745, go when the plan's numbers stand,
+   withdraw when the fleet's hull falls below a set share, repair, go again. No
+   raid while the target holds an XL more than we can outgun.
+3. Fighters for the plan: blueprints, then a `fighters` number, as `destroyers`
+   has. They take the Xenon S off the destroyers, whose big guns miss them.
+4. Measure: Xenon sectors and stations within five jumps, ships lost per raid
+   and Teladi and Paranid sectors, in the report and in the score of each run.
+
+Order: ship8's turret line and six destroyers; the verbs; the Trinity Sanctum
+III raid as the proof, reading what it cost; then more destroyers, fighters and
+a red sector with no XL. The stage is judged by the sector count around us and
+by freighters lost, not by kills.
