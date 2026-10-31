@@ -132,7 +132,7 @@ def offers(state: dict, data: dict) -> list[str]:
     return out
 
 
-def own_build(state: dict, pattern: str, size: str = "m") -> str | None:
+def own_build(state: dict, pattern: str, size: str = "m", brake: bool = True) -> str | None:
     """`buildship` at a wharf of ours, for the first race whose blueprint of
     this ship we hold, with an engine and a thruster blueprint of its size.
 
@@ -146,6 +146,8 @@ def own_build(state: dict, pattern: str, size: str = "m") -> str | None:
     brake as a purchase: one an hour, none while a ship of the kind is on
     order or idle, and not at a wharf where one of ours has waited too long.
     Nothing is built until the wharf has a ship trader (`standing.shiptraders`).
+    A fighter takes `brake=False`: a wing of 24 at one an hour would take a day,
+    and a ship on order still holds the next.
     """
     import catalog
     import executor
@@ -154,11 +156,11 @@ def own_build(state: dict, pattern: str, size: str = "m") -> str | None:
     for part in ("engine_", "thruster_"):
         if not any(w.startswith(part) and f"_{size}_" in w for w in held):
             return None
-    if catalog._bought_recently(state):
+    if brake and catalog._bought_recently(state):
         return None
     stuck, coming = catalog._orders(state)
     kind = sitrep.ship_type(pattern.format(race="arg"))
-    if kind in coming or catalog._idle_ship(state, kind):
+    if kind in coming or (brake and catalog._idle_ship(state, kind)):
         return None
     macro = next((pattern.format(race=race) for race in sorted(set(catalog.RACE.values()))
                   if pattern.format(race=race).removesuffix("_macro") in held), None)
@@ -261,6 +263,15 @@ def fleet(state: dict, data: dict) -> list[str]:
                 if own or options:
                     out.append(own or options[0].command)
                     bought = True
+        # The wing: three guns against the Xenon S the destroyers' big guns
+        # miss. Named by `standing.wings` once delivered.
+        fighters = sum(1 for s in catalog._ships(state) if sitrep.ship_type(s.get("macro")) == "fighter")
+        wanted = (goal.get("fighters_per_destroyer") or 0) * (goal.get("destroyers") or 0)
+        if not bought and fighters < wanted:
+            own = own_build(state, "ship_{race}_s_fighter_02_a_macro", "s", brake=False)
+            if own:
+                out.append(own)
+                bought = True
     return out
 
 
@@ -297,6 +308,9 @@ def lines(state: dict, data: dict) -> list[str]:
                        if executor.serves(s, state) in _working(code, "defend")
                        and sitrep.ship_type(s.get("macro")) == "destroyer")
             parts.append(f"destroyers {have}/{goal['destroyers']}")
+        if goal.get("fighters_per_destroyer"):
+            wing = len((data.get("standing") or {}).get("wing") or {})
+            parts.append(f"fighters {wing}/{goal['fighters_per_destroyer'] * (goal.get('destroyers') or 0)}")
         raid = (data.get("standing") or {}).get("raid")
         if raid:
             parts.append(f"raid on {raid['sector']} {raid['phase']}, led by {raid['leader']}")

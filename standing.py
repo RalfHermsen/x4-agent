@@ -168,6 +168,9 @@ def patrols(state: dict, data: dict) -> list[str]:
     threatened = [home[t["sector"]] for t in sitrep.threats(state) if t["sector"] in home]
     if not threatened:
         return []
+    import strategy
+    if any(goal.get("fighters_per_destroyer") for goal in strategy.goals(data).values()):
+        return []       # the plan's fighters are for the destroyers (`wings`)
     sent = _done(data, "patrol")
     for ship in state.get("assets", []):
         if (sitrep.ship_type(ship.get("macro")) == "fighter" and sitrep.role_of(ship) == "IDLE"
@@ -685,12 +688,42 @@ def _hull_share(ship: dict) -> float:
     return (ship["hull"] / top) if (ship.get("hull") is not None and top) else 1.0
 
 
+def wings(state: dict, data: dict) -> list[str]:
+    """A free fighter flies under the destroyer with the fewest, as interception:
+    it takes small and medium ships, and docks in the destroyer's four S bays."""
+    import catalog
+    import strategy
+    per = max((goal.get("fighters_per_destroyer") or 0 for goal in strategy.goals(data).values()), default=0)
+    if not per:
+        return []
+    ships = catalog._ships(state)
+    codes = {s.get("code") for s in ships}
+    wing = data.setdefault("standing", {}).setdefault("wing", {})
+    for code in [c for c, leader in wing.items() if c not in codes or leader not in codes]:
+        del wing[code]
+    load = {s["code"]: 0 for s in ships if sitrep.ship_type(s.get("macro")) == "destroyer"}
+    for leader in wing.values():
+        load[leader] += 1
+    out = []
+    for ship in ships:
+        if (sitrep.ship_type(ship.get("macro")) != "fighter" or ship.get("code") in wing
+                or (ship.get("assignment") or {}).get("group") is not None or sitrep.role_of(ship) != "IDLE"):
+            continue
+        leader = min(load, key=load.get, default=None)
+        if leader is None or load[leader] >= per:
+            break
+        load[leader] += 1
+        wing[ship["code"]] = leader
+        out.append(f"command {ship['code']} {leader} interception")
+    return out
+
+
 def raids(state: dict, data: dict) -> list[str]:
     """The plan's destroyers go for the Xenon in its `raid_sector`: its
     stations, or with none its ships, by the `raid` verb's priority order.
 
-    They gather at the station, go when all of them stand and are whole, under
-    one leader, and come back when the fleet is hurt or no Xenon is left. The
+    They gather at the station, go when all of them and their fighters stand and
+    are whole, under one leader, and come back when the fleet is hurt or no Xenon is left. The
     leader's own orders stay queued behind the raid, so `release` flies it home.
     `repairs` takes out a single badly damaged ship on the way. One raid at a
     time. tasks/plan-shipbuilding-2026-10.md, Raids.
@@ -734,7 +767,8 @@ def raids(state: dict, data: dict) -> list[str]:
                  and executor.serves(s, state) == (code, "defence") and s["code"] not in busy
                  and (s.get("place") or {}).get("sector") == home_sector
                  and _hull_share(s) >= RAID_GO_FROM]
-        if len(ready) < wanted:
+        fighters = len(held.get("wing") or {})
+        if len(ready) < wanted or fighters < (goal.get("fighters_per_destroyer") or 0) * wanted:
             continue
         leader, *rest = [s["code"] for s in ready]
         held["raid"] = {"sector": sector, "home": code, "home_sector": home_sector, "leader": leader,
@@ -751,7 +785,7 @@ def fleet(state: dict, data: dict) -> list[str]:
 
 RULES = (sell_limits, revisit, satellites, ledger, once, patrols, find_builds, hire_builders,
          own_stock, repairs, seminars, scouts, empty_builds, docks, managers, shiptraders,
-         cargo_drones, accounts, raids, fleet, grow)
+         cargo_drones, accounts, wings, raids, fleet, grow)
 
 
 def commands(state: dict, data: dict, off: set | frozenset = frozenset()) -> list[str]:

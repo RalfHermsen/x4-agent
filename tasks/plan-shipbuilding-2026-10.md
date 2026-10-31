@@ -373,6 +373,64 @@ Bright Promise is not a raid: it takes a fleet that can beat eight K.
   only Terran and Kaori carry `claimspace`. To find out before planning on it:
   the game's scripts first, then a probe.
 
+### The fleet: what we can build, and what it takes
+
+Ship tables from the game files, for Teladi and Paranid, whose ally licences we
+hold. Hull parts are for the hull alone; the blueprint is paid once.
+
+| Ship | Hull | Turrets | Main guns | Docks | Crew | Hull parts | Blueprint |
+|---|---|---|---|---|---|---|---|
+| Teladi fighter 02 | 4,100 | 0 | 3 | | 3 | 146 | 1.6 M |
+| Teladi frigate | 36,000 | 4 | 3 | | 15 | 985 | held |
+| Teladi destroyer 01 | 104,000 | 11 | 2 | 4 S | 50 | 4,960 | held |
+| Teladi destroyer 02 | 123,200 | 11 | 2 | 4 S | 44 | 6,857 | 60.3 M |
+| Paranid destroyer 02 | 140,000 | 16 | 2 | 2 M, 4 S | 60 | 11,126 | 97.9 M |
+| Teladi resupplier | 162,000 | 9 | 0 | 6 M, 12 S | 200 | 7,291 | 77.8 M |
+| Teladi carrier | 290,000 | 13 | 0 | 6 M, 24 S | 135 | 10,462 | 111.7 M |
+| Paranid carrier 02 | 303,000 | 19 | 0 | 8 M, 24 S | 143 | 16,670 | 175.4 M |
+
+The largest we can build is the Paranid carrier 02. A Xenon I has 480,000 hull.
+The carriers and the resupplier need an XL bay on KYV-745: 247.9 M for the
+blueprint, and 8,902 hull parts, 2,434 claytronics and 4,866 energy cells for
+the module. With 880 M unspent, the bay, a Teladi carrier and a resupplier come
+to about 440 M.
+
+**Crew.** Our own builds flew with three officers and nobody else: the bridge
+passed the ship menu an empty crew list. L ships bought from a wharf do carry
+crew. `buildship` now hires what the menu's own preset hires, half the capacity,
+split over service and marines, from the station's workforce: 24 for a
+destroyer, none for a fighter, against a workforce of 500. What service crew
+brings is unclear: players report repair in the field, capped by skill, and a
+developer called the values low. The six destroyers of ship8 stay without crew.
+The refit needs a verb of its own.
+
+**Fighters.** `fighters_per_destroyer` in the plan, built at our S/M wharf
+(`buildship`, whether it takes S is to be proven), flown under the destroyers as
+interception by `standing.wings`. Six destroyers carry 24. A raid waits for them.
+
+**Support.** From the community wiki's page on resupply ships: a carrier repairs
+and rearms S and M ships docked at it; a fleet auxiliary serves every size, but
+only once assigned to a fleet or set to Supply Fleet. Players report a carrier
+does not restock its own materials. The rule so far sends a damaged ship to a
+wharf (`repairs`); a resupplier with the fleet is the next step after the first
+raid, and needs its order in the bridge.
+
+**What players report on fleet battles** (forums, older patches, anecdotes, no
+official guide found):
+
+* Fighters take the swarm and let the big ships work; destroyers without them
+  take heavy losses.
+* Xenon K close up tear apart a destroyer, whose AI tends to charge.
+* A Xenon station: turrets first. Reports: 8 or 9 destroyers, a carrier with 60
+  fighters and a supply ship did it; 14 destroyers and 37 heavy fighters did it
+  and lost 7; 22 destroyers alone were losing ships too fast.
+* Interception goes for S and M; against capital ships fighters need bombardment,
+  which the bridge's `command` does not offer yet.
+* Enter a Xenon sector with the fighting ships first, the carrier after.
+
+So the sizes to aim at: 6 destroyers and 24 fighters for ships in Trinity Sanctum
+III; about 10 destroyers, a carrier and a resupplier before a Xenon station.
+
 ### What to build
 
 1. Verbs. Built, not yet proven in the game: `raid <SHIP> <SECTOR>` gives the

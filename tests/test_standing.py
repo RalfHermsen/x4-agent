@@ -229,6 +229,33 @@ def test_no_raid_on_more_xl_than_the_fleet_can_take(small_state):
     assert standing.raids(state, data) == []                      # 3 destroyers, one XL takes 6
 
 
+def _with_fighters(state, n):
+    aso = next(a for a in state["assets"] if a["code"] == "ASO-629")
+    state["assets"] += [dict(copy.deepcopy(aso), code=f"FIG-00{i}", cls="ship_s", assignment={},
+                             macro="ship_tel_s_fighter_02_a_macro",
+                             orders=[{"order": "Wait", "state": "started", "default": True}])
+                        for i in range(n)]
+
+
+def test_free_fighters_spread_over_the_destroyers_up_to_the_plan(small_state):
+    state, data = _raid_ready(small_state, destroyers=2)
+    data["strategy"]["plan"]["stations"]["KYV-745"]["fighters_per_destroyer"] = 1
+    _with_fighters(state, 3)
+    assert standing.wings(state, data) == ["command FIG-000 DES-000 interception",
+                                           "command FIG-001 DES-001 interception"]
+    assert standing.wings(state, data) == []
+    state["assets"] = [a for a in state["assets"] if a["code"] != "FIG-000"]
+    assert standing.wings(state, data) == ["command FIG-002 DES-000 interception"]
+
+
+def test_a_raid_waits_for_its_fighters(small_state):
+    state, data = _raid_ready(small_state)
+    data["strategy"]["plan"]["stations"]["KYV-745"]["fighters_per_destroyer"] = 1
+    assert standing.raids(state, data) == []
+    data.setdefault("standing", {})["wing"] = {"FIG-000": "DES-000", "FIG-001": "DES-001", "FIG-002": "DES-002"}
+    assert standing.raids(state, data)[-1] == f"raid DES-000 {XEN_SECTOR}"
+
+
 def test_a_hurt_fleet_comes_back_and_defends_again(small_state):
     import gamedata
     state, data = _raid_ready(small_state)

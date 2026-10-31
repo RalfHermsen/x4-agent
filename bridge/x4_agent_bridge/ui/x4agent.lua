@@ -108,6 +108,7 @@ declare [[ int64_t GetBuildWarePrice(UniverseID containerid, const char* warenam
 declare [[ float GetContainerBuildPriceFactor(UniverseID containerid); ]]
 -- Shipbuilding step 4: copied from menu_ship_configuration.lua.
 declare [[ uint32_t GetNumContainerBuilderMacros(UniverseID containerid); ]]
+declare [[ uint32_t GetPeopleCapacity(UniverseID controllableid, const char* macroname, bool includepilot); ]]
 declare [[ uint32_t GetContainerBuilderMacros(const char** result, uint32_t resultlen, UniverseID containerid); ]]
 -- 4.9: copied from menu_ship_configuration.lua and menu_map.lua.
 declare [[ int64_t GetRepairPrice(UniverseID componenttorepairid, UniverseID containerid); ]]
@@ -1756,6 +1757,30 @@ local function build_own_ship(station, args)
     if not okstructs then
         return refuse("buildship: the ship menu's types are not available: " .. tostring(crew))
     end
+    -- Crew as the menu's own preset of 0.5 hires it (menu_ship_configuration.lua):
+    -- half the capacity, split over service and marines, out of the station's
+    -- workforce. Without this our destroyers flew with their three officers and
+    -- nobody else (ship7g). At the top of the menu's price range, never below it.
+    local okcrew, hired = pcall(function()
+        local perrole = math.floor(0.5 * C.GetPeopleCapacity(0, macro, false) / 2)
+        if perrole < 1 then
+            return 0
+        end
+        local _, maxprice = GetWareData("crew", "minprice", "maxprice")
+        local price = Helper.round(tonumber(C.GetContainerBuildPriceFactor(station)) * maxprice)
+        crew.numadded = 2
+        crew.added = Helper.ffiNewHelper("CrewTransferContainer2[?]", 2)
+        for i, role in ipairs({ "service", "marine" }) do
+            crew.added[i - 1].newroleid = Helper.ffiNewString(role)
+            crew.added[i - 1].amount = perrole
+            crew.added[i - 1].price = price
+        end
+        return perrole * 2
+    end)
+    if not okcrew then
+        return refuse("buildship: could not hire the crew: " .. tostring(hired))
+    end
+    parts = parts .. string.format(", crew %d", hired)
     local oktask, task = pcall(C.AddBuildTask6, station, 0, macro, loadout, 0, crew, false, name, info)
     if not oktask then
         return refuse("buildship: AddBuildTask6 failed: " .. tostring(task))

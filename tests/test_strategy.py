@@ -12,7 +12,8 @@ import strategy
 
 PLAN = {"horizon_hours": 3, "rationale": "hull parts for the yards",
         "stations": {"KYV-745": {"build": {"hullparts": 2, "storage_container": 1},
-                                 "miners": {"solid": 2}, "traders": 1, "defenders": 0, "destroyers": 0, "raid_sector": ""}},
+                                 "miners": {"solid": 2}, "traders": 1, "defenders": 0, "destroyers": 0, "fighters_per_destroyer": 0,
+                                 "raid_sector": ""}},
         "blueprints": []}
 
 
@@ -209,6 +210,18 @@ def test_a_destroyer_comes_from_our_own_l_bay_and_is_never_bought(small_state, m
     assert strategy.fleet(state, plan) == ["buildship KYV-745 ship_tel_l_destroyer_01_a_macro x4-agent-des"]
     assert strategy.built(_station(state), "wharf_l") == 1
     assert "destroyers 0/1" in strategy.lines(state, plan)[1]
+
+
+def test_a_wing_of_fighters_comes_from_our_wharf_without_the_hourly_brake(small_state):
+    state = copy.deepcopy(small_state)
+    state["player"]["blueprints"] = ["ship_tel_s_fighter_02_a", "engine_tel_s_allround_01_mk1",
+                                     "thruster_gen_s_allround_01_mk1"]
+    state["sent_at"] = {"buyship": state["meta"]["playtime_s"]}
+    _station(state)["modules"] = list(_station(state)["modules"]) + [executor.EXPANSION_MODULES["wharf"][0]]
+    plan = {"strategy": {"plan": dict(PLAN, stations={"KYV-745": {"build": {}, "miners": {}, "traders": 0,
+                                                                  "destroyers": 1, "fighters_per_destroyer": 4}})}}
+    assert strategy.fleet(state, plan) == ["buildship KYV-745 ship_tel_s_fighter_02_a_macro x4-agent-fig"]
+    assert "fighters 0/4" in strategy.lines(state, plan)[1]
 
 
 def test_a_ship_we_order_carries_its_type_in_its_name():
