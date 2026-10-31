@@ -54,7 +54,7 @@ def built(st: dict, ware: str) -> int:
     import economics
     import executor
     mods = st.get("modules") or []
-    if ware in ("wharf", "maintenance"):
+    if ware in ("wharf", "wharf_l", "maintenance"):
         return mods.count(executor.EXPANSION_MODULES[ware][0])
     if ware == "defence":
         return sum(1 for m in mods if m.startswith("defence_"))
@@ -162,12 +162,18 @@ def own_build(state: dict, pattern: str, size: str = "m") -> str | None:
         return None
     macro = next((pattern.format(race=race) for race in sorted(set(catalog.RACE.values()))
                   if pattern.format(race=race).removesuffix("_macro") in held), None)
+    bay = executor.EXPANSION_MODULES["wharf_l" if size == "l" else "wharf"][0]
     wharf = next((st for st in catalog._stations(state)
-                  if executor.EXPANSION_MODULES["wharf"][0] in (st.get("modules") or [])
+                  if bay in (st.get("modules") or [])
                   and st.get("code") not in stuck), None)
     if not (macro and wharf):
         return None
     return f"buildship {wharf['code']} {macro} x4-agent-{size}"
+
+
+def _size(pattern: str) -> str:
+    """"ship_{race}_l_destroyer_01_a_macro" -> "l"."""
+    return pattern.split("_")[2]
 
 
 def _working(code: str, role: str) -> set[tuple[str, str]]:
@@ -223,6 +229,13 @@ def fleet(state: dict, data: dict) -> list[str]:
         # blueprints we hold.
         wants.append(("defend", None, goal.get("defenders") or 0, "frigate",
                       "ship_{race}_m_frigate_01_a_macro", catalog._combat))
+        # Against an XL an M frigate is lost (ship7d-camp, ship7e3-camp). The
+        # plan's destroyers come from our own L bay only: a faction's capital
+        # ship needs its ally ceremony, we hold Teladi's, and we know no Teladi
+        # wharf for L.
+        wants.append(("defend", None, goal.get("destroyers") or 0, "destroyer",
+                      "ship_{race}_l_destroyer_01_a_macro",
+                      lambda s: sitrep.ship_type(s.get("macro")) == "destroyer"))
         for role, kind, target, label, pattern, fits in wants:
             have = sum(1 for s in catalog._ships(state) if executor.serves(s, state) in _working(code, role)
                        and fits(s))
@@ -237,10 +250,11 @@ def fleet(state: dict, data: dict) -> list[str]:
                     free.remove(pick)
                     continue
             if not bought:
-                own = own_build(state, pattern)
+                own = own_build(state, pattern, _size(pattern))
                 waiting = (not own and named - held
                            and any(pattern.format(race=r).removesuffix("_macro") in named for r in races))
-                options = [] if (own or waiting) else catalog._buy_options(state, ((label, pattern),))
+                options = ([] if (own or waiting or _size(pattern) != "m")
+                           else catalog._buy_options(state, ((label, pattern),)))
                 if own or options:
                     out.append(own or options[0].command)
                     bought = True

@@ -502,3 +502,20 @@ def test_own_stock_leaves_a_ware_sold_already_or_held_short(small_state):
     _station(state)["offers"].append({"ware": "turretcomponents", "side": "sell", "price": 300,
                                       "amount": 100, "desired": 0})
     assert standing.own_stock(state, {}) == []
+
+
+def test_a_large_station_without_discs_gets_one_before_anything_else(small_state, monkeypatch):
+    """GKL-870 fell at 187 modules with 8 turrets and no disc (ship7e3-camp)."""
+    import copy
+    import catalog
+    state = copy.deepcopy(small_state)
+    state["player"]["money"] = 50_000_000
+    st = next(a for a in state["assets"] if a["code"] == "KYV-745")
+    st["modules"] = ["dockarea_arg_m_station_01_lowtech_macro"] + ["prod_gen_water_macro"] * 59
+    st["manager"] = {"name": "M"}
+    monkeypatch.setattr(catalog, "expansion_margins", lambda state: [("water", 9000.0)])
+    monkeypatch.setattr(catalog, "_through_gates",
+                        lambda action, state: f"expand {action['station_id']} {action['ware']}")
+    assert standing.grow(state, {}) == ["expand KYV-745 defence"]
+    st["modules"].append("defence_tel_disc_01_macro")              # 61 modules, 1 disc
+    assert standing.grow(state, {}) == ["expand KYV-745 water"]

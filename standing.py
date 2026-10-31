@@ -426,6 +426,17 @@ def scouts(state: dict, data: dict) -> list[str]:
     return out
 
 
+# One defence disc per this many modules, before any other module. GKL-870 was
+# expanded on margins to 187 modules with 8 turrets and no disc, and the Xenon
+# took it in about nine game hours (ship7e3-camp).
+DEFENCE_EVERY = 60
+
+
+def _defence_due(st: dict) -> bool:
+    import strategy
+    return len(st.get("modules") or []) // DEFENCE_EVERY > strategy.built(st, "defence")
+
+
 def grow(state: dict, data: dict) -> list[str]:
     """6.2 and 6.7: a station with modules and no build running is expanded
     with the ware that pays most at the prices and demand we know.
@@ -456,6 +467,8 @@ def grow(state: dict, data: dict) -> list[str]:
             # first module can make alone (6.3); the bridge finds such
             # stations since checkoperational="false".
             wares = catalog._growth_wares(st, margins)
+        if _defence_due(st) and catalog._has_dock(st) and st.get("manager"):
+            wares = ["defence", *wares]
         for ware in wares:
             command = catalog._through_gates({"type": "expand_station", "station_id": st["code"],
                                               "ware": ware}, state)

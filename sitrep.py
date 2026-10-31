@@ -69,6 +69,7 @@ SHIP_TYPES = (
     ("trans_container", "container freighter"), ("trans_solid", "solid freighter"),
     ("trans_liquid", "liquid freighter"), ("_trans_", "freighter"),
     ("scout", "scout"), ("fighter", "fighter"), ("frigate", "frigate"),
+    ("destroyer", "destroyer"),
     ("builder", "construction vessel"),
     # Not a ship you can give work to. An escape pod is what is left when one of
     # ours is destroyed, and two of them were being reported every cycle as

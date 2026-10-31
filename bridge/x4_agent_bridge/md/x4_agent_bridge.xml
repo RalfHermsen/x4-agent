@@ -473,6 +473,11 @@
           <set_value name="$agent_ware" exact="ware.module_gen_build_dockarea_m_01"/>
           <set_value name="$agent_module" exact="macro.buildmodule_gen_ships_m_dockarea_01_macro"/>
         </do_if>
+        <!-- Stage I: the L Ship Fabrication Bay. -->
+        <do_if value="event.param == 'expand %s wharf_l'.[$agent_station.idcode]">
+          <set_value name="$agent_ware" exact="ware.module_gen_build_l_01"/>
+          <set_value name="$agent_module" exact="macro.buildmodule_gen_ships_l_macro"/>
+        </do_if>
         <do_if value="event.param == 'expand %s maintenance'.[$agent_station.idcode]">
           <set_value name="$agent_ware" exact="ware.module_gen_equip_dockarea_m_01"/>
           <set_value name="$agent_module" exact="macro.buildmodule_gen_equip_m_dockarea_01_macro"/>

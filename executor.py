@@ -111,6 +111,9 @@ EXPANSION_MODULES = {
     # station_equip_sm, held from Teladi on the ally ceremony).
     "wharf": ("buildmodule_gen_ships_m_dockarea_01_macro", None),
     "maintenance": ("buildmodule_gen_equip_m_dockarea_01_macro", None),
+    # Shipbuilding stage I: the L Ship Fabrication Bay (licence
+    # station_equip_lxl, also from Teladi).
+    "wharf_l": ("buildmodule_gen_ships_l_macro", None),
     # A Teladi defence disc: 8 M and 10 L turret mounts, 4 M and 4 L shield
     # mounts, 0.72 M for the blueprint (station_gen_intermediate). KYV-745 had
     # two M turrets in all, on its docks, when Xenon came through.

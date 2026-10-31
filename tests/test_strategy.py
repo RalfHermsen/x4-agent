@@ -192,3 +192,18 @@ def test_the_report_shows_how_far_each_station_is(small_state):
     text = "\n".join(strategy.lines(state, {"strategy": {"plan": PLAN, "since": 7200, "source": "plan.json"}}))
     assert "hull parts for the yards" in text and "hullparts 1/2" in text and "storage_container 0/1" in text
     assert "traders" in text and "solid miners" in text
+
+
+def test_a_destroyer_comes_from_our_own_l_bay_and_is_never_bought(small_state, monkeypatch):
+    state = copy.deepcopy(small_state)
+    state["assets"] = [a for a in state["assets"] if a.get("cls") == "station"]
+    state["player"]["blueprints"] = ["ship_tel_l_destroyer_01_a", "engine_tel_l_allround_01_mk1",
+                                     "thruster_gen_l_allround_01_mk1"]
+    monkeypatch.setattr(catalog, "_buy_options", lambda state, roles: [catalog.Option("buy", "buyship")])
+    plan = {"strategy": {"plan": dict(PLAN, stations={"KYV-745": {"build": {}, "miners": {}, "traders": 0,
+                                                                  "destroyers": 1}})}}
+    _station(state)["modules"] = list(_station(state)["modules"]) + [executor.EXPANSION_MODULES["wharf"][0]]
+    assert strategy.fleet(state, plan) == []                       # an S/M bay builds no L ship
+    _station(state)["modules"].append(executor.EXPANSION_MODULES["wharf_l"][0])
+    assert strategy.fleet(state, plan) == ["buildship KYV-745 ship_tel_l_destroyer_01_a_macro x4-agent-l"]
+    assert strategy.built(_station(state), "wharf_l") == 1
