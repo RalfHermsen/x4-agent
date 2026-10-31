@@ -1508,8 +1508,7 @@ ended at 0.
 before advanced composites and plasma conductors, because the plan looked at
 what the factory consumes. The module's own build recipe asks 5,630 advanced
 composites and 4,737 plasma conductors. Corrected at 349 h: both modules were
-added, and the market supplied the first one. The agent's report filter
-(`known_stations`) hid sellers two jumps away, in Trinity Sanctum VII, and
+added. The agent's report filter (`known_stations`) hid sellers two jumps away, in Trinity Sanctum VII, and
 that looked like a dead end for a while.
 
 **Waiting on a ware the station holds.** A build storage does not buy from its
@@ -1530,25 +1529,24 @@ in one run.
 in the same save. Its plan said field coils and then let margins decide, so
 `grow` kept adding modules. Attacks were reported from 352.2 h. Its defender,
 the frigate ZYO-082, was lost at 355.6 h, the station by 360.9 h, with Xenon
-in Ianamus Zura IV at 6 M, 17 S and 7 XL in the last report before. I saw the
-line "GKL-870: not one of our stations" in a cycle I read and reported only on
-KYV-745; the scorecard at the end made me look. Modules value fell by 68 M.
+in Ianamus Zura IV at 6 M, 17 S and 7 XL in the last report before. The loss was
+in the report as "GKL-870: not one of our stations" and was noticed only on the
+scorecard at the end. Modules value fell by 68 M net.
 Why it had 8 turrets where the bridge fits M gatlings on every module is not
 known. Since e303f38 a station gets one defence disc per 60 modules before any
 other module.
 
 **Other losses.** 11 ships in ship7e3: 6 solid miners, 3 container freighters,
 a frigate and one other. At the end Trinity Sanctum III, one jump from
-KYV-745, had 12 M, 30 S and 3 XL Xenon and a Xenon station. KYV-745 itself
-was not reported lost modules.
+KYV-745, had 12 M, 30 S and 3 XL Xenon and a Xenon station.
 
-**Saves.** I told this as a save per real minute and 4.4 times speed, from the
-first 22 real minutes. Over the whole run it was 262 cycles in 360 minutes and
+**Saves.** The first 22 real minutes gave a save per real minute and 4.4 times
+speed. Over the whole run it was 262 cycles in 360 minutes and
 5.5 times speed (ship7d-camp 5.7). The change that lets attacks wait for the
 regular cycle (355ff0b) came after this run started.
 
-**A wrong number.** The report said "short 1242448 helium", and I read that as
-a growing shortage. `shortage/ware/@amount` is a game time: of 1,095 in the end
+**A wrong number.** The report said "short 1242448 helium", which reads as a
+large shortage. `shortage/ware/@amount` is a game time: of 1,095 in the end
 save none lay past the clock and the median was near it. Fixed in 6caf029.
 
 **Next.** Stage I (ship7f-camp): discs to 5 at KYV-745, the L Ship Fabrication
