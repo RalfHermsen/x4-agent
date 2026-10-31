@@ -1476,3 +1476,82 @@ sectors; purchases, hires and repairs chose "nearest" from it. It is now
 built from the game files (`gamedata.build_sector_graph`): gates and Terran
 accelerators from galaxy.xml and its DLC patches, superhighways from the
 cluster files. 140 sectors, every one reachable from KYV-745.
+
+## 2026-10-30: ship7e-camp, claytronics of our own, and the loss of GKL-870
+
+Three runs, rules only, each from the end save of the one before, from the
+proof-feed end save (339.15 h) to 382.18 h. The goal was a chain of our own
+for claytronics: every expansion of KYV-745 waited on them, and the sellers
+holding enough sat behind Xenon sectors. All of it stands now. GKL-870, our
+second station, was destroyed on the way.
+
+| | ship7e3-camp start | ship7e3-camp end |
+|---|---|---|
+| Game hour | 349.19 | 382.18 |
+| Credits | 907.7 M | 1,088.2 M |
+| Net worth | 1,514.2 M | 1,616.2 M |
+| Stations | 2 | 1 |
+| Modules | 481 | 317 |
+| Ships | 46 | 44 |
+
+**The chain.** Superfluid coolant, quantum tubes and four liquid miners came
+in ship7e and ship7e2. The claytronics module's save stamp says operational
+at 362.2 h, advanced composites at 364.6 h, plasma conductors at 365.6 h,
+advanced electronics after that. Its production line stood at "producing" in
+both saves read, 108 claytronics per 900 s. The later modules took about 25
+and 11 real minutes where the claytronics module took hours. Up to the end
+the builds asked for at most 4,779 claytronics, against 8,631 if the line
+never stopped; the rest is not traced. Stock moved between 0 and 216 and
+ended at 0.
+
+**The plan was wrong first.** The first plan had the claytronics module
+before advanced composites and plasma conductors, because the plan looked at
+what the factory consumes. The module's own build recipe asks 5,630 advanced
+composites and 4,737 plasma conductors. Corrected at 349 h: both modules were
+added, and the market supplied the first one. The agent's report filter
+(`known_stations`) hid sellers two jumps away, in Trinity Sanctum VII, and
+that looked like a dead end for a while.
+
+**Waiting on a ware the station holds.** A build storage does not buy from its
+own station unless that station sells, and a station does not offer a resource
+it is short of. In ship7e manual `limit` commands proved a sell limit opens an
+offer for the stock above it; they were undone three minutes later and made a
+rule, `own_stock` (eedfdb4). Its whole cycle ran in the game for plasma
+conductors: opened, limit lowered from 529 to 143, cleared. A ware held short
+alone stays short (837 plasma conductors against 2,405 wanted).
+
+**One freighter was too slow.** 233,000 m3 was open with one M freighter and
+19 traders for a plan of 4. Feeders now go by open volume (a762459), at most
+four, keeping four traders trading: PAR-984, CKG-869, CQN-712 and VKB-235 ran
+together, and the 4,892 advanced composites wanted were bought down to zero
+in one run.
+
+**GKL-870.** 187 modules, 8 turrets, no defence disc; KYV-745 has 696 turrets
+in the same save. Its plan said field coils and then let margins decide, so
+`grow` kept adding modules. Attacks were reported from 352.2 h. Its defender,
+the frigate ZYO-082, was lost at 355.6 h, the station by 360.9 h, with Xenon
+in Ianamus Zura IV at 6 M, 17 S and 7 XL in the last report before. I saw the
+line "GKL-870: not one of our stations" in a cycle I read and reported only on
+KYV-745; the scorecard at the end made me look. Modules value fell by 68 M.
+Why it had 8 turrets where the bridge fits M gatlings on every module is not
+known. Since e303f38 a station gets one defence disc per 60 modules before any
+other module.
+
+**Other losses.** 11 ships in ship7e3: 6 solid miners, 3 container freighters,
+a frigate and one other. At the end Trinity Sanctum III, one jump from
+KYV-745, had 12 M, 30 S and 3 XL Xenon and a Xenon station. KYV-745 itself
+was not reported lost modules.
+
+**Saves.** I told this as a save per real minute and 4.4 times speed, from the
+first 22 real minutes. Over the whole run it was 262 cycles in 360 minutes and
+5.5 times speed (ship7d-camp 5.7). The change that lets attacks wait for the
+regular cycle (355ff0b) came after this run started.
+
+**A wrong number.** The report said "short 1242448 helium", and I read that as
+a growing shortage. `shortage/ware/@amount` is a game time: of 1,095 in the end
+save none lay past the clock and the median was near it. Fixed in 6caf029.
+
+**Next.** Stage I (ship7f-camp): discs to 5 at KYV-745, the L Ship Fabrication
+Bay (`wharf_l`, licence `station_equip_lxl`, held), Teladi destroyers of our
+own. `capitalship` is held from Teladi only and we know no Teladi L wharf, so a
+destroyer is never bought in this plan.
