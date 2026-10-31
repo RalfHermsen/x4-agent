@@ -1411,7 +1411,8 @@ def plan_ship_purchase(action, state: dict) -> tuple[str | None, str | None]:
     sector = (home.get("place") or {}).get("sector")
     graph = _graph()
     yard = min(yards, key=lambda k: jumps(graph, sector, (k.get("place") or {}).get("sector")))
-    name = f"x4-agent-{size}"
+    import sitrep
+    name = sitrep.ship_name(macro)
     return f"buyship {yard['code']} {yard.get('owner')} {macro} {name} {cap}", None
 
 

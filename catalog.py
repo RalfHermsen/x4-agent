@@ -274,7 +274,7 @@ def _buy_options(state: dict, roles: tuple[tuple[str, str], ...], size: str = "m
                 options.append(Option(
                     f"buy an {size.upper()} {role} at {yard['code']} ({yard['owner']}, {hops} jumps), "
                     f"at most {cap:,} Cr",
-                    f"buyship {yard['code']} {yard['owner']} {macro} x4-agent-{size} {cap}"))
+                    f"buyship {yard['code']} {yard['owner']} {macro} {sitrep.ship_name(macro)} {cap}"))
     return options
 
 

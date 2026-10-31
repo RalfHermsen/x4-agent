@@ -6,6 +6,7 @@ import json
 import catalog
 import executor
 import purchases
+import sitrep
 import standing
 import strategy
 
@@ -113,7 +114,7 @@ def test_a_ship_whose_blueprint_we_hold_is_built_at_our_wharf(small_state, monke
                                      "thruster_gen_m_allround_01_mk1"]
     monkeypatch.setattr(catalog, "_buy_options", lambda state, roles: [catalog.Option("buy", f"buyship {roles[0][0]}")])
     plan = {"strategy": {"plan": PLAN}}
-    assert strategy.fleet(state, plan) == ["buildship KYV-745 ship_tel_m_miner_solid_01_a_macro x4-agent-m"]
+    assert strategy.fleet(state, plan) == ["buildship KYV-745 ship_tel_m_miner_solid_01_a_macro x4-agent-min-sol"]
     # Not without a thruster: the ship menu takes no order with that slot empty.
     state["player"]["blueprints"].remove("thruster_gen_m_allround_01_mk1")
     assert strategy.own_build(state, "ship_{race}_m_miner_solid_01_a_macro") is None
@@ -182,7 +183,7 @@ def test_defenders_are_a_free_combat_ship_first_then_a_frigate_of_our_own(small_
     _station(state)["assignment"] = {"groups": {1: "defence"}}
     next(a for a in state["assets"] if a["code"] == "NBO-436").update(
         assignment={"group": 1}, orders=[{"order": "ProtectStation", "default": True}])
-    assert strategy.fleet(state, plan) == ["buildship KYV-745 ship_tel_m_frigate_01_a_macro x4-agent-m"]
+    assert strategy.fleet(state, plan) == ["buildship KYV-745 ship_tel_m_frigate_01_a_macro x4-agent-fri"]
     assert "defenders 1/2" in strategy.lines(state, plan)[1]
 
 
@@ -205,9 +206,16 @@ def test_a_destroyer_comes_from_our_own_l_bay_and_is_never_bought(small_state, m
     _station(state)["modules"] = list(_station(state)["modules"]) + [executor.EXPANSION_MODULES["wharf"][0]]
     assert strategy.fleet(state, plan) == []                       # an S/M bay builds no L ship
     _station(state)["modules"].append(executor.EXPANSION_MODULES["wharf_l"][0])
-    assert strategy.fleet(state, plan) == ["buildship KYV-745 ship_tel_l_destroyer_01_a_macro x4-agent-l"]
+    assert strategy.fleet(state, plan) == ["buildship KYV-745 ship_tel_l_destroyer_01_a_macro x4-agent-des"]
     assert strategy.built(_station(state), "wharf_l") == 1
     assert "destroyers 0/1" in strategy.lines(state, plan)[1]
+
+
+def test_a_ship_we_order_carries_its_type_in_its_name():
+    assert sitrep.ship_name("ship_tel_s_fighter_01_a_macro") == "x4-agent-fig"
+    assert sitrep.ship_name("ship_tel_m_trans_container_03_a_macro") == "x4-agent-tra-con"
+    assert sitrep.ship_name("ship_tel_xl_carrier_01_a_macro") == "x4-agent-car"
+    assert sitrep.ship_name(None) == "x4-agent-ship"
 
 
 def test_a_plan_file_keeps_its_destroyers_and_refuses_what_it_does_not_know(small_state, tmp_path, monkeypatch):

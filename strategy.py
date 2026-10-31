@@ -168,7 +168,7 @@ def own_build(state: dict, pattern: str, size: str = "m") -> str | None:
                   and st.get("code") not in stuck), None)
     if not (macro and wharf):
         return None
-    return f"buildship {wharf['code']} {macro} x4-agent-{size}"
+    return f"buildship {wharf['code']} {macro} {sitrep.ship_name(macro)}"
 
 
 def _size(pattern: str) -> str:

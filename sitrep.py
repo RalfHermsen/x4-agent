@@ -86,6 +86,15 @@ def ship_type(macro: str | None) -> str:
     return "ship"
 
 
+def ship_name(macro: str | None) -> str:
+    """What a ship we order is called, so the type can be read in the game:
+    ship_tel_l_destroyer_01_a_macro -> x4-agent-des,
+    ship_tel_m_miner_solid_01_a_macro -> x4-agent-min-sol."""
+    words = (macro or "").split("_")[3:]
+    kind = [word[:3] for word in words[:2] if word.isalpha()]
+    return "x4-agent-" + ("-".join(kind) or "ship")
+
+
 def by_role(ships: list[dict]) -> dict[str, list[dict]]:
     groups: dict[str, list[dict]] = {}
     for ship in ships:
