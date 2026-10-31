@@ -1553,3 +1553,60 @@ save none lay past the clock and the median was near it. Fixed in 6caf029.
 Bay (`wharf_l`, licence `station_equip_lxl`, held), Teladi destroyers of our
 own. `capitalship` is held from Teladi only and we know no Teladi L wharf, so a
 destroyer is never bought in this plan.
+
+## 2026-10-31: ship7f, ship7g and ship8, the first destroyers
+
+Three runs in a row, ending with six destroyers of our own and a turret
+component line. Saves: ship7f and ship7g continue each other; ship8 starts from
+a save at 402.35 h in which the player went through the Paranid ally ceremony by
+hand, which opened the turret components blueprint.
+
+| Run | Commit | Game hours | Net worth | Result |
+|---|---|---|---|---|
+| ship7f-camp | e303f38 | 382.2 to 402.1 | no score, stopped by hand | discs to 5, L bay built |
+| ship7g-camp | 3a4bd6c | 402.2 to 410.2 | +32 M | 5 destroyers in 8 game hours, ended when the player's ship died |
+| ship8-camp | 0f16b55 | 402.4 to 437.1 | +162 M | 6 of 6 destroyers, turret lines 2 of 4, no station or destroyer lost |
+
+ship8-camp in numbers: credits 888 M to 980 M, accounts +56 M, stock at market
+average +12 M, modules 324 to 329, ships 35 to 40. One ship was shot down, a
+solid miner, by a criminal. Two more left the fleet with no cause in the report.
+That is 4.7 M of net worth per game hour.
+
+**A run ends with the player's ship.** The harness closes the game when the
+player's ship dies, and a player in a spacesuit makes the save unusable as a
+start. A player can also sit in the game during a run: a ship the report showed
+flying on its own turned out to be flown by hand.
+
+**The plan's destroyers dropped by the schema.** A plan had `destroyers` before
+the schema did, pydantic ignored the unknown field, and the test built its plan
+by hand. `StationGoal` now forbids unknown fields, and a test goes through
+`strategy.load`.
+
+**Turret components: stock that does not reach the build.** The new line's stock
+stood frozen at 1,660 to 1,708 with 12,669 wanted, because the game moves stock
+to a station's build storage only above the sell limit. One hand-set `limit KYV-745
+turretcomponents sell 300` moved all of it within a cycle. The rule does this now
+(`own_stock`, 4957f96), but ship8 ran on the older code.
+
+**Then the same again with hull parts.** The third turret line waited 21 game
+hours on 1,785 hull parts with 51,163 in store. In the end save the station's sell
+offer for them has amount 0, and the rule in ship8 took any offer as "it sells
+already". Since 4957f96 it sums the amounts on offer. ship9 should show this
+working. The turret line stayed at 2 of 4, so scanning arrays and the second
+advanced electronics module never started. By then the turret stock had grown to
+5,664 and the discs' demand was met, so its surplus went unused while TXT-319
+paid 421 Cr against our 166 Cr.
+
+**A wrong statement of ours.** The report said no expansion starts behind a build
+waiting for equipment. Two did, after 7.7 and about 9 game hours, in ship7f and
+ship7g, reason unknown. The report now says so.
+
+**Crew.** Everything we built flew with three officers and nobody else; the
+bridge passed an empty crew list. Fixed for new builds in 72e0e4a. The six
+destroyers of ship8 stay without crew until there is a refit verb.
+
+**Saves and speed (355ff0b).** Attacks no longer ask for a save of their own:
+ship8 ran 117 cycles in 360 minutes at 5.8 times speed, against 262 cycles and
+5.5 times in ship7e3, with Xenon around in both. So the change did what it was for.
+
+**Next.** ship9-camp: `tasks/plan-shipbuilding-2026-10.md`, Raids.

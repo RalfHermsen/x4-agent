@@ -592,6 +592,16 @@ def test_a_line_of_our_own_feeds_the_build_above_a_keep(small_state):
         "limit KYV-745 turretcomponents sell clear", "traderule KYV-745 turretcomponents sell default"]
 
 
+def test_an_offer_of_nothing_does_not_count_as_selling(small_state):
+    """ship8-camp: 51,163 hull parts in store, offered 0, a build waiting 21 game hours on 1,785."""
+    state = _waiting_on_turrets(small_state, held=51163, wanted=1785)
+    _station(state)["offers"] = [{"ware": "turretcomponents", "side": "sell", "price": 168, "amount": 0,
+                                  "desired": None}]
+    assert standing.own_stock(state, {}) == [
+        "traderule KYV-745 turretcomponents sell own", "limit KYV-745 turretcomponents sell 49378",
+        "tradeware KYV-745 turretcomponents sell on"]
+
+
 def test_own_stock_goes_to_the_build_for_our_ships_only(small_state):
     """ship7e: the build waited on 836 turret components, KYV-745 held 4,087
     and offered none, and no other expansion of KYV-745 could start."""
