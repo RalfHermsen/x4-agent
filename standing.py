@@ -764,6 +764,12 @@ def raids(state: dict, data: dict) -> list[str]:
     for code, goal in strategy.goals(data).items():
         sector, wanted = goal.get("raid_sector"), goal.get("destroyers") or 0
         home = next((a for a in state.get("assets", []) if a.get("code") == code), None)
+        # A run that ends during a raid leaves its destroyers under the leader,
+        # and the next one has no raid in its memory: ship9d-camp read 1 of 6.
+        strays = [s for s in ours.values() if sitrep.ship_type(s.get("macro")) == "destroyer"
+                  and executor.serves(s, state)[1] == "attack"]
+        if wanted and home and strays:
+            return [f"assign {s['code']} {code} defend" for s in strays]
         if not (sector and wanted and home):
             continue
         xenon = ((state.get("hostiles") or {}).get(sector) or {}).get("xenon", {})

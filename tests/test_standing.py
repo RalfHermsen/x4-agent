@@ -257,6 +257,15 @@ def test_a_fighter_left_waiting_under_a_leader_gets_its_orders(small_state):
     assert standing.wings(state, data) == []
 
 
+def test_destroyers_left_under_a_leader_by_an_ended_run_go_back_to_the_station(small_state):
+    state, data = _raid_ready(small_state, destroyers=2)
+    leader = next(a for a in state["assets"] if a["code"] == "DES-000")
+    leader["assignment"] = {"group": 3, "groups": {2: "attack"}}
+    next(a for a in state["assets"] if a["code"] == "DES-001")["assignment"] = {"group": 2}
+    state["assigned_to"] = {"DES-001": "DES-000"}
+    assert standing.raids(state, data) == ["assign DES-001 KYV-745 defend"]
+
+
 def test_a_raid_waits_for_its_fighters(small_state):
     state, data = _raid_ready(small_state)
     data["strategy"]["plan"]["stations"]["KYV-745"]["fighters_per_destroyer"] = 1
