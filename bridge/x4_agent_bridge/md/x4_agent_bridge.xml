@@ -1192,9 +1192,11 @@
 
   <!-- 3.4 roles under a ship. Lua finds both ships by their codes and hands them
        over as two UI events, the ship first, then the commander with the role
-       in the control name; MD assigns with set_object_commander, the action
-       already proven for station roles. An AssignCommander order created from
-       Lua removed the old commander and never set the new one. -->
+       in the control name; MD creates the AssignCommander order, as for station
+       roles. Created from Lua that order removed the old commander and never set
+       the new one. set_object_commander alone leaves the ship's orders as they
+       are: in ship9c-camp a raid's leader flew off alone, five destroyers still
+       on ProtectStation and 24 fighters on Wait, all "under" it. -->
   <cue name="Agent_Command_Store">
     <actions>
       <set_value name="$ship" exact="null"/>
@@ -1220,20 +1222,23 @@
       <set_value name="$commander" exact="event.param3"/>
       <set_value name="Agent_Command_Store.$ship" exact="null"/>
       <do_if value="@$ship.isoperational and @$commander.isoperational and $ship != $commander">
+        <set_value name="$role" exact="assignment.assist"/>
         <do_if value="event.param2 == 'command_attack'">
-          <set_object_commander object="$ship" commander="$commander" assignment="assignment.attack"/>
+          <set_value name="$role" exact="assignment.attack"/>
         </do_if>
         <do_elseif value="event.param2 == 'command_interception'">
-          <set_object_commander object="$ship" commander="$commander" assignment="assignment.interception"/>
+          <set_value name="$role" exact="assignment.interception"/>
         </do_elseif>
         <do_elseif value="event.param2 == 'command_defence'">
-          <set_object_commander object="$ship" commander="$commander" assignment="assignment.defence"/>
+          <set_value name="$role" exact="assignment.defence"/>
         </do_elseif>
-        <do_else>
-          <set_object_commander object="$ship" commander="$commander" assignment="assignment.assist"/>
-        </do_else>
+        <create_order object="$ship" id="'AssignCommander'" immediate="true">
+          <param name="commander" value="$commander"/>
+          <param name="assignment" value="$role"/>
+          <param name="cancelorders" value="false"/>
+        </create_order>
         <write_to_logbook category="general"
-          text="'[x4-agent] ORDER: %s under %s as %s, commander now %s'.[$ship.idcode, $commander.idcode, event.param2, @$ship.commander.idcode]"/>
+          text="'[x4-agent] ORDER: %s goes under %s as %s'.[$ship.idcode, $commander.idcode, event.param2]"/>
       </do_if>
       <do_else>
         <write_to_logbook category="general"

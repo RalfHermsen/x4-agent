@@ -690,7 +690,9 @@ def _hull_share(ship: dict) -> float:
 
 def wings(state: dict, data: dict) -> list[str]:
     """A free fighter flies under the destroyer with the fewest, as interception:
-    it takes small and medium ships, and docks in the destroyer's four S bays."""
+    it takes small and medium ships, and docks in the destroyer's four S bays.
+    Free means idle, also with a commander on paper: ship9c-camp's 24 sat on Wait
+    under theirs, and a run started from a save has no wing in its memory."""
     import catalog
     import strategy
     per = max((goal.get("fighters_per_destroyer") or 0 for goal in strategy.goals(data).values()), default=0)
@@ -707,7 +709,7 @@ def wings(state: dict, data: dict) -> list[str]:
     out = []
     for ship in ships:
         if (sitrep.ship_type(ship.get("macro")) != "fighter" or ship.get("code") in wing
-                or (ship.get("assignment") or {}).get("group") is not None or sitrep.role_of(ship) != "IDLE"):
+                or sitrep.role_of(ship) != "IDLE"):
             continue
         leader = min(load, key=load.get, default=None)
         if leader is None or load[leader] >= per:

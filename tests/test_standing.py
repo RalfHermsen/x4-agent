@@ -248,6 +248,15 @@ def test_free_fighters_spread_over_the_destroyers_up_to_the_plan(small_state):
     assert standing.wings(state, data) == ["command FIG-002 DES-000 interception"]
 
 
+def test_a_fighter_left_waiting_under_a_leader_gets_its_orders(small_state):
+    state, data = _raid_ready(small_state, destroyers=2)
+    data["strategy"]["plan"]["stations"]["KYV-745"]["fighters_per_destroyer"] = 1
+    _with_fighters(state, 1)
+    next(a for a in state["assets"] if a["code"] == "FIG-000")["assignment"] = {"group": 1}
+    assert standing.wings(state, data) == ["command FIG-000 DES-000 interception"]
+    assert standing.wings(state, data) == []
+
+
 def test_a_raid_waits_for_its_fighters(small_state):
     state, data = _raid_ready(small_state)
     data["strategy"]["plan"]["stations"]["KYV-745"]["fighters_per_destroyer"] = 1
