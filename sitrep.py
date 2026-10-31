@@ -205,9 +205,10 @@ def build_lines(state: dict) -> list[str]:
         if executor._waits_for_equipment(asset, state):
             since = min(run["since"] for run in build["running"])
             lines.append(f"    every module of the running build stands; it has waited for "
-                         f"equipment since game hour {since / 3600:.0f}, and no other expansion "
-                         f"of {asset['station']} starts before it is done. The game does not "
-                         f"cancel a running build: what it is buying has to come.")
+                         f"equipment since game hour {since / 3600:.0f}, and the game does not "
+                         f"cancel it. A new expansion of {asset['station']} starts once the game "
+                         f"lets go of it, with or without the equipment: after 7.7 and about 9 "
+                         f"game hours in ship7f-camp and ship7g-camp, for a reason not yet known.")
         wanted = [(o["ware"], o["amount"]) for o in asset.get("offers", [])
                   if o.get("side") == "buy" and o.get("amount")]
         if wanted:

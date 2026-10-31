@@ -1686,9 +1686,18 @@ local function build_own_ship(station, args)
     -- shields, 2026-10-28). What the loadout holds is logged with the order.
     local okparts, parts, complete = pcall(function()
         local thruster = (loadout.thruster.macro ~= nil) and ffi.string(loadout.thruster.macro) or ""
+        -- A large ship's turrets and shields come in groups: ship7g's first
+        -- destroyer was logged with 0 turrets and flew with 7.
+        local function total(single, groups)
+            local n = loadout["num" .. single]
+            for i = 0, loadout["num" .. groups] - 1 do
+                n = n + loadout[groups][i].count
+            end
+            return n
+        end
         return string.format("%d engine(s), thruster %s, %d weapon(s), %d turret(s), %d shield(s)",
                              loadout.numengines, (thruster ~= "") and thruster or "none",
-                             loadout.numweapons, loadout.numturrets, loadout.numshields),
+                             loadout.numweapons, total("turrets", "turretgroups"), total("shields", "shieldgroups")),
                loadout.numengines > 0 and thruster ~= ""
     end)
     if not okparts then
