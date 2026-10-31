@@ -215,10 +215,12 @@ def test_a_raid_goes_when_every_destroyer_stands(small_state):
     assert standing.raids(state, data) == []                      # once
 
 
-def test_no_raid_without_a_xenon_station_seen_there(small_state):
+def test_no_raid_without_xenon_seen_there(small_state):
     state, data = _raid_ready(small_state)
-    state["hostiles"] = {XEN_SECTOR: {"xenon": {"ship_m": 5}}}
+    state["hostiles"] = {XEN_SECTOR: {"outlaw": {"ship_s": 1}}}
     assert standing.raids(state, data) == []
+    state["hostiles"] = {XEN_SECTOR: {"xenon": {"ship_m": 5}}}    # no station: it goes for the ships
+    assert standing.raids(state, data)[-1] == f"raid DES-000 {XEN_SECTOR}"
 
 
 def test_no_raid_on_more_xl_than_the_fleet_can_take(small_state):
@@ -236,7 +238,7 @@ def test_a_hurt_fleet_comes_back_and_defends_again(small_state):
         if ship["code"].startswith("DES-"):
             ship["hull"] = top * 0.6
             ship["place"] = {"sector": XEN_SECTOR}
-    assert standing.raids(state, data) == ["patrol DES-000 KYV-745"]
+    assert standing.raids(state, data) == ["release DES-000"]
     assert data["standing"]["raid"]["phase"] == "back"
     assert standing.raids(state, data) == []                      # still on the way
     for ship in state["assets"]:
@@ -250,7 +252,7 @@ def test_a_raid_ends_when_the_station_is_gone_or_the_leader_is(small_state):
     state, data = _raid_ready(small_state)
     standing.raids(state, data)
     state["hostiles"] = {}
-    assert standing.raids(state, data) == ["patrol DES-000 KYV-745"]
+    assert standing.raids(state, data) == ["release DES-000"]
     state, data = _raid_ready(small_state)
     standing.raids(state, data)
     state["assets"] = [a for a in state["assets"] if a["code"] != "DES-000"]
@@ -546,6 +548,23 @@ def _waiting_on_turrets(small_state, held=4087, wanted=836):
     return state
 
 
+def test_a_line_of_our_own_feeds_the_build_above_a_keep(small_state):
+    """ship8-camp: 1,708 turret components in store, 48 on offer, 12,669 wanted."""
+    state = _waiting_on_turrets(small_state, held=1708, wanted=12669)
+    st = _station(state)
+    st["offers"] = [{"ware": "turretcomponents", "side": "sell", "price": 332, "amount": 48, "desired": None}]
+    st["production_queue"] = ["turretcomponents"]
+    data = {}
+    assert standing.own_stock(state, data) == [
+        "traderule KYV-745 turretcomponents sell own", "limit KYV-745 turretcomponents sell 300",
+        "tradeware KYV-745 turretcomponents sell on"]
+    assert standing.own_stock(state, data) == []
+    state = _waiting_on_turrets(small_state, held=1708, wanted=0)
+    _station(state)["production_queue"] = ["turretcomponents"]
+    assert standing.own_stock(state, data) == [            # it still sells what it makes
+        "limit KYV-745 turretcomponents sell clear", "traderule KYV-745 turretcomponents sell default"]
+
+
 def test_own_stock_goes_to_the_build_for_our_ships_only(small_state):
     """ship7e: the build waited on 836 turret components, KYV-745 held 4,087
     and offered none, and no other expansion of KYV-745 could start."""
@@ -567,10 +586,10 @@ def test_own_stock_goes_to_the_build_for_our_ships_only(small_state):
 
 
 def test_own_stock_leaves_a_ware_sold_already_or_held_short(small_state):
-    assert standing.own_stock(_waiting_on_turrets(small_state, held=500), {}) == []
+    assert standing.own_stock(_waiting_on_turrets(small_state, held=300), {}) == []
     state = _waiting_on_turrets(small_state)
     _station(state)["offers"].append({"ware": "turretcomponents", "side": "sell", "price": 300,
-                                      "amount": 100, "desired": 0})
+                                      "amount": 836, "desired": 0})
     assert standing.own_stock(state, {}) == []
 
 

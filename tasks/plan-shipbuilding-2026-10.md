@@ -376,8 +376,9 @@ Bright Promise is not a raid: it takes a fleet that can beat eight K.
 ### What to build
 
 1. Verbs. Built, not yet proven in the game: `raid <SHIP> <SECTOR>` gives the
-   Attack order the interact menu gives, on a Xenon station in that sector.
-   `command` puts the others under it; `patrol` brings it home.
+   Attack order the interact menu gives, on a Xenon station in that sector, or
+   with no station a Patrol of the sector, as priority orders. `command` puts the
+   others under it; `release` lets its own orders bring it home.
 2. The rule, `standing.raids`, built, not yet proven: gather at KYV-745, go when
    the plan's `destroyers` stand at 90 % hull, come back at 75 % fleet hull, when
    half are lost or no station is left, and defend again; `repairs` takes out a
@@ -387,7 +388,11 @@ Bright Promise is not a raid: it takes a fleet that can beat eight K.
 4. Measure: Xenon sectors and stations within five jumps, ships lost per raid
    and Teladi and Paranid sectors, in the report and in the score of each run.
 
-Order: ship8's turret line and six destroyers; the verbs; the Trinity Sanctum
-III raid as the proof, reading what it cost; then more destroyers, fighters and
-a red sector with no XL. The stage is judged by the sector count around us and
+In ship8-camp the Xenon base in Trinity Sanctum III was gone by game hour 410,
+without us, with 6 M and 8 S left in the sector. So the first proof is clearing
+those ships off our trade route, and the first station comes after that.
+
+Order: ship8's turret line and six destroyers; the verbs; Trinity Sanctum III
+as the proof, reading what it cost; then more destroyers, fighters and a red
+sector with no XL. The stage is judged by the sector count around us and
 by freighters lost, not by kills.

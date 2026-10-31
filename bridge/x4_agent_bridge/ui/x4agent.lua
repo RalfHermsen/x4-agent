@@ -1107,8 +1107,10 @@ local function patrol(args)
 end
 
 --- "raid PSV-645 cluster_18_sector001_macro" -> the ship attacks a Xenon station
---- in that sector, by the Attack order the interact menu gives. Subordinates
---- under it in an attack group go with it (`command`).
+--- in that sector, by the Attack order the interact menu gives, or with no
+--- station there patrols the sector. A priority order, as in `dockat`: the
+--- ship's own orders stay queued behind it and `release` hands it back to them.
+--- Subordinates under it in an attack group go with it (`command`).
 local function raid(args)
     local shipcode, sector = args[1], args[2]
     local ship = shipcode and player_ships()[shipcode]
@@ -1125,13 +1127,23 @@ local function raid(args)
         local sectorid = station_sector(buffer[i])
         if sectorid and string.lower(GetComponentData(sectorid, "macro") or "") == sector then
             CreateOrder(ConvertStringToLuaID(tostring(ship)), "Attack",
-                        { primarytarget = ConvertStringToLuaID(tostring(buffer[i])) }, false, true, false)
+                        { primarytarget = ConvertStringToLuaID(tostring(buffer[i])) }, false, false, true)
             log(string.format("ORDER: %s attacks %s in %s", shipcode,
                               ffi.string(C.GetObjectIDCode(buffer[i])), sector))
             return true
         end
     end
-    return refuse("raid: no Xenon station in " .. sector)
+    for _, cluster in ipairs(GetClusters(true)) do
+        for _, space in ipairs(GetSectors(cluster)) do
+            if string.lower(GetComponentData(space, "macro") or "") == sector then
+                CreateOrder(ConvertStringToLuaID(tostring(ship)), "Patrol",
+                            { space = space, pursuetargets = true }, false, false, true)
+                log(string.format("ORDER: %s patrols %s", shipcode, sector))
+                return true
+            end
+        end
+    end
+    return refuse("raid: no sector " .. sector .. " on the map")
 end
 
 --- "findbuilds XYZ-123" -> a construction vessel of ours looks for our builds

@@ -280,6 +280,10 @@ def hire_builders(state: dict, data: dict) -> list[str]:
     return out
 
 
+OWN_STOCK_KEEP = 300       # of a ware the wharf builds with, stays for the ships
+OWN_STOCK_ENOUGH = 500     # on offer, enough for the freighters to buy it (trade.find.commander)
+
+
 def own_stock(state: dict, data: dict) -> list[str]:
     """A build waiting on a ware its own station holds gets it from that station.
 
@@ -290,8 +294,12 @@ def own_stock(state: dict, data: dict) -> list[str]:
     So: our ships only, then a limit that leaves exactly what the build wants
     on offer, then sellable; the freighter lent to the build storage buys it
     there like from any seller. Lowered when the stock drops, cleared when the
-    build no longer wants the ware. A ware the station sells already is left
-    alone, and so is one it holds too little of.
+    build no longer wants the ware. A ware the station sells enough of already
+    is left alone, and so is one it holds no more of than OWN_STOCK_KEEP.
+
+    A ware it makes counts too, and the build gets what stands above the keep
+    when it wants more than the stock: in ship8-camp the new line's turret
+    components piled up to 1,708 with 48 on offer and 12,669 wanted.
     """
     opened = data.setdefault("standing", {}).setdefault("own_stock", {})
     assets = {a.get("code"): a for a in state.get("assets", [])}
@@ -306,11 +314,13 @@ def own_stock(state: dict, data: dict) -> list[str]:
     for key, amount in wanted.items():
         code, ware = key.split()
         station = assets.get(code) or {}
-        if key not in opened and any(o.get("ware") == ware and o.get("side") == "sell"
-                                     for o in station.get("offers", [])):
+        on_offer = sum(o.get("amount") or 0 for o in station.get("offers", [])
+                       if o.get("ware") == ware and o.get("side") == "sell")
+        if key not in opened and on_offer >= min(amount, OWN_STOCK_ENOUGH):
             continue
-        limit = ((station.get("cargo") or {}).get(ware) or 0) - amount
-        if limit < 0 or (key in opened and opened[key] <= limit):
+        stock = (station.get("cargo") or {}).get(ware) or 0
+        limit = max(stock - amount, OWN_STOCK_KEEP)
+        if stock <= OWN_STOCK_KEEP or (key in opened and opened[key] <= limit):
             continue
         if key not in opened:
             out.append(f"traderule {code} {ware} sell own")
@@ -319,8 +329,9 @@ def own_stock(state: dict, data: dict) -> list[str]:
     for key in [k for k in opened if k not in wanted]:
         code, ware = key.split()
         del opened[key]
-        out += [f"tradeware {code} {ware} sell off", f"limit {code} {ware} sell clear",
-                f"traderule {code} {ware} sell default"]
+        if ware not in ((assets.get(code) or {}).get("production_queue") or []):
+            out.append(f"tradeware {code} {ware} sell off")
+        out += [f"limit {code} {ware} sell clear", f"traderule {code} {ware} sell default"]
     return out
 
 
@@ -675,12 +686,14 @@ def _hull_share(ship: dict) -> float:
 
 
 def raids(state: dict, data: dict) -> list[str]:
-    """The plan's destroyers attack the Xenon stations in its `raid_sector`.
+    """The plan's destroyers go for the Xenon in its `raid_sector`: its
+    stations, or with none its ships, by the `raid` verb's priority order.
 
     They gather at the station, go when all of them stand and are whole, under
-    one leader, and come back when the fleet is hurt or nothing is left to
-    attack. `repairs` takes out a single badly damaged ship on the way. One raid
-    at a time. tasks/plan-shipbuilding-2026-10.md, Raids.
+    one leader, and come back when the fleet is hurt or no Xenon is left. The
+    leader's own orders stay queued behind the raid, so `release` flies it home.
+    `repairs` takes out a single badly damaged ship on the way. One raid at a
+    time. tasks/plan-shipbuilding-2026-10.md, Raids.
     """
     import executor
     import strategy
@@ -692,14 +705,14 @@ def raids(state: dict, data: dict) -> list[str]:
     if raid:
         alive = [ours[code] for code in raid["ships"] if code in ours]
         if raid["phase"] == "out":
-            left = ((state.get("hostiles") or {}).get(raid["sector"]) or {}).get("xenon", {}).get("station", 0)
+            left = ((state.get("hostiles") or {}).get(raid["sector"]) or {}).get("xenon")
             hurt = (len(alive) * 2 < len(raid["ships"])
                     or sum(_hull_share(s) for s in alive) < RAID_BACK_BELOW * max(len(alive), 1))
             if raid["leader"] in ours and not (hurt or not left):
                 return []
             if raid["leader"] in ours:
                 raid["phase"], raid["since"] = "back", now
-                return [f"patrol {raid['leader']} {raid['home']}"]
+                return [f"release {raid['leader']}"]
         elif raid["leader"] in ours and now - raid["since"] < RAID_BACK_WAIT:
             sector = (ours[raid["leader"]].get("place") or {}).get("sector")
             if sector != raid["home_sector"]:
@@ -712,7 +725,7 @@ def raids(state: dict, data: dict) -> list[str]:
         if not (sector and wanted and home):
             continue
         xenon = ((state.get("hostiles") or {}).get(sector) or {}).get("xenon", {})
-        if not xenon.get("station") or xenon.get("ship_xl", 0) * RAID_PER_XL > wanted:
+        if not xenon or xenon.get("ship_xl", 0) * RAID_PER_XL > wanted:
             continue
         busy = held.get("repairing") or {}
         home_sector = (home.get("place") or {}).get("sector")
