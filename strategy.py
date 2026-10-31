@@ -147,13 +147,15 @@ def own_build(state: dict, pattern: str, size: str = "m", brake: bool = True) ->
     order or idle, and not at a wharf where one of ours has waited too long.
     Nothing is built until the wharf has a ship trader (`standing.shiptraders`).
     A fighter takes `brake=False`: a wing of 24 at one an hour would take a day,
-    and a ship on order still holds the next.
+    and a ship on order still holds the next. A ship of size s also waits for a
+    weapon and a shield blueprint: the wharf fits only what we hold, and ship9-camp
+    ordered its first fighter with the guns and the shield still to be bought.
     """
     import catalog
     import executor
     import sitrep
     held = set((state.get("player") or {}).get("blueprints") or [])
-    for part in ("engine_", "thruster_"):
+    for part in ("engine_", "thruster_", *(("weapon_", "shield_") if size == "s" else ())):
         if not any(w.startswith(part) and f"_{size}_" in w for w in held):
             return None
     if brake and catalog._bought_recently(state):
