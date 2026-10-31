@@ -333,12 +333,13 @@ def _supplies(elem) -> dict[str, int]:
 
 
 def _production(elem) -> list[dict]:
-    """Production lines of a station, with what each one is short of.
+    """Production lines of a station, with when each one last ran short.
 
     A line appears here as soon as the module is planned, so its presence does
-    not mean the station is producing that ware yet. The shortage is the useful
-    part: it says how much of an input the line is missing, which is a much
-    sharper number than the stock on a trade offer.
+    not mean the station is producing that ware yet. `short_of` maps a ware to
+    a game time in seconds, despite the attribute being called amount: of 1,095
+    in one save none lay past the game clock and the median was near it. An old
+    one is an old shortage, not a large one.
     """
     out = []
     for queue in elem.iter("queue"):

@@ -61,3 +61,17 @@ def test_report_section_and_a_defender_goes_out(large_state):
          "role": "defend", "rationale": "threat"}]})
     commands, skipped = executor.to_commands(plan.actions, state)
     assert commands == [f"assign {fighter['code']} KYV-745 defend"] or skipped
+
+
+def test_a_shortage_is_a_time_not_an_amount(small_state):
+    """ship7e3 reported "short 1242448 helium": that is when, at 345 h, not how much."""
+    state = copy.deepcopy(small_state)
+    now = state["meta"]["playtime_s"]
+    station = next(a for a in state["assets"] if a["code"] == "KYV-745")
+    station["production"] = [
+        {"ware": "superfluidcoolant", "short_of": {"helium": int(now - 90000)}},
+        {"ware": "quantumtubes", "short_of": {"superfluidcoolant": int(now - 1800)}},
+    ]
+    text = sitrep.build(state)
+    assert "production line: superfluidcoolant\n" in text
+    assert "production line: quantumtubes, last short of superfluidcoolant 0.5 h ago" in text

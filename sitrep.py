@@ -213,6 +213,9 @@ def build_lines(state: dict) -> list[str]:
 # An attack on one of ours counts as current for this long, in game seconds.
 RECENT_ATTACK = 1800
 
+# A production line's shortage older than this has passed; it is not reported.
+SHORT_RECENT = 3600
+
 
 def threats(state: dict) -> list[dict]:
     """Hostile presence in every sector where we own something.
@@ -446,12 +449,14 @@ def build(state: dict, goals: list[str] | None = None,
                     f"star{'' if stars == 1 else 's'} "
                     f"({mgr['management_raw']}/15).{warn}")
             for line in st.get("production", []):
-                short = ", ".join(f"{amount} {ware}"
-                                  for ware, amount in (line["short_of"] or {}).items())
+                now = meta.get("playtime_s", 0)
+                short = ", ".join(f"{ware} {(now - at) / 3600:.1f} h ago"
+                                  for ware, at in (line["short_of"] or {}).items()
+                                  if now - at < SHORT_RECENT)
                 # A production line exists from the moment its module is
                 # planned, so say "line", not "produces".
                 add(f"  production line: {line['ware']}"
-                    + (f", short {short}" if short else ""))
+                    + (f", last short of {short}" if short else ""))
             for offer in st["offers"][:OFFER_LIMIT]:
                 verb = "buys" if offer["side"] == "buy" else "sells"
                 need = ""
