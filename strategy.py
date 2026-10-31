@@ -132,6 +132,14 @@ def offers(state: dict, data: dict) -> list[str]:
     return out
 
 
+def fighters_flying(state: dict) -> int:
+    """Fighters under a leader, from the save: a run started from a save has no wing in its memory."""
+    import catalog
+    import sitrep
+    return sum(1 for s in catalog._ships(state) if sitrep.ship_type(s.get("macro")) == "fighter"
+               and (s.get("assignment") or {}).get("group") is not None)
+
+
 def own_build(state: dict, pattern: str, size: str = "m", brake: bool = True) -> str | None:
     """`buildship` at a wharf of ours, for the first race whose blueprint of
     this ship we hold, with an engine and a thruster blueprint of its size.
@@ -311,8 +319,8 @@ def lines(state: dict, data: dict) -> list[str]:
                        and sitrep.ship_type(s.get("macro")) == "destroyer")
             parts.append(f"destroyers {have}/{goal['destroyers']}")
         if goal.get("fighters_per_destroyer"):
-            wing = len((data.get("standing") or {}).get("wing") or {})
-            parts.append(f"fighters {wing}/{goal['fighters_per_destroyer'] * (goal.get('destroyers') or 0)}")
+            parts.append(f"fighters {fighters_flying(state)}/"
+                         f"{goal['fighters_per_destroyer'] * (goal.get('destroyers') or 0)}")
         raid = (data.get("standing") or {}).get("raid")
         if raid:
             parts.append(f"raid on {raid['sector']} {raid['phase']}, led by {raid['leader']}")

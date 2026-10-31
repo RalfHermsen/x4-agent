@@ -252,7 +252,10 @@ def test_a_raid_waits_for_its_fighters(small_state):
     state, data = _raid_ready(small_state)
     data["strategy"]["plan"]["stations"]["KYV-745"]["fighters_per_destroyer"] = 1
     assert standing.raids(state, data) == []
-    data.setdefault("standing", {})["wing"] = {"FIG-000": "DES-000", "FIG-001": "DES-001", "FIG-002": "DES-002"}
+    _with_fighters(state, 3)
+    for ship in state["assets"]:
+        if ship["code"].startswith("FIG-"):
+            ship["assignment"] = {"group": 1}      # as a run started from a save finds them, with no wing in memory
     assert standing.raids(state, data)[-1] == f"raid DES-000 {XEN_SECTOR}"
 
 
@@ -279,7 +282,15 @@ def test_a_raid_ends_when_the_station_is_gone_or_the_leader_is(small_state):
     state, data = _raid_ready(small_state)
     standing.raids(state, data)
     state["hostiles"] = {}
+    assert standing.raids(state, data) == []                      # not there yet: out of sight, not gone
+    for ship in state["assets"]:
+        if ship["code"].startswith("DES-"):
+            ship["place"] = {"sector": XEN_SECTOR}
     assert standing.raids(state, data) == ["release DES-000"]
+    state, data = _raid_ready(small_state)
+    standing.raids(state, data)
+    state["meta"]["playtime_s"] += standing.RAID_BACK_WAIT
+    assert standing.raids(state, data) == ["release DES-000"]     # never got there
     state, data = _raid_ready(small_state)
     standing.raids(state, data)
     state["assets"] = [a for a in state["assets"] if a["code"] != "DES-000"]

@@ -723,8 +723,12 @@ def raids(state: dict, data: dict) -> list[str]:
     stations, or with none its ships, by the `raid` verb's priority order.
 
     They gather at the station, go when all of them and their fighters stand and
-    are whole, under one leader, and come back when the fleet is hurt or no Xenon is left. The
-    leader's own orders stay queued behind the raid, so `release` flies it home.
+    are whole, under one leader, and come back when the fleet is hurt, when it has
+    not arrived in RAID_BACK_WAIT, or when it has arrived and no Xenon is left. On the way
+    "none left" means nothing: what we see of a sector is what our ships there see, and
+    ship9-camp's first raid turned back after one cycle because the one Xenon S
+    a freighter had seen was out of sight. The leader's own orders stay queued
+    behind the raid, so `release` flies it home.
     `repairs` takes out a single badly damaged ship on the way. One raid at a
     time. tasks/plan-shipbuilding-2026-10.md, Raids.
     """
@@ -738,10 +742,13 @@ def raids(state: dict, data: dict) -> list[str]:
     if raid:
         alive = [ours[code] for code in raid["ships"] if code in ours]
         if raid["phase"] == "out":
+            if ((ours.get(raid["leader"]) or {}).get("place") or {}).get("sector") == raid["sector"]:
+                raid["arrived"] = True
             left = ((state.get("hostiles") or {}).get(raid["sector"]) or {}).get("xenon")
             hurt = (len(alive) * 2 < len(raid["ships"])
                     or sum(_hull_share(s) for s in alive) < RAID_BACK_BELOW * max(len(alive), 1))
-            if raid["leader"] in ours and not (hurt or not left):
+            done = not left if raid.get("arrived") else now - raid["since"] >= RAID_BACK_WAIT
+            if raid["leader"] in ours and not (hurt or done):
                 return []
             if raid["leader"] in ours:
                 raid["phase"], raid["since"] = "back", now
@@ -767,8 +774,7 @@ def raids(state: dict, data: dict) -> list[str]:
                  and executor.serves(s, state) == (code, "defence") and s["code"] not in busy
                  and (s.get("place") or {}).get("sector") == home_sector
                  and _hull_share(s) >= RAID_GO_FROM]
-        fighters = len(held.get("wing") or {})
-        if len(ready) < wanted or fighters < (goal.get("fighters_per_destroyer") or 0) * wanted:
+        if len(ready) < wanted or strategy.fighters_flying(state) < (goal.get("fighters_per_destroyer") or 0) * wanted:
             continue
         leader, *rest = [s["code"] for s in ready]
         held["raid"] = {"sector": sector, "home": code, "home_sector": home_sector, "leader": leader,
