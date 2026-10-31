@@ -46,7 +46,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Annotated, Literal, Optional, Union
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 # ======================================================================
@@ -404,7 +404,12 @@ class PlannerResponse(BaseModel):
 
 class StationGoal(BaseModel):
     """Where one station should be by the end of the horizon, in absolute
-    numbers, so a plan read twice or after a restart asks for nothing twice."""
+    numbers, so a plan read twice or after a restart asks for nothing twice.
+
+    An unknown field is refused, not dropped: ship7f-camp's plan asked for three
+    destroyers, the field was not here yet, and none was ever ordered."""
+    model_config = ConfigDict(extra="forbid")
+
     build: dict[str, int] = Field(
         description="ware -> how many production modules of it the station should have; "
                     "also storage_solid, storage_container, dock, habitation_<race>")
@@ -412,6 +417,7 @@ class StationGoal(BaseModel):
         description="'solid' or 'liquid' -> how many miners of that kind should work for the station")
     traders: int = Field(description="how many freighters should trade for the station")
     defenders: int = Field(description="how many combat ships should defend the station")
+    destroyers: int = Field(description="how many destroyers from our own L bay should defend the station")
 
 
 class Strategy(BaseModel):

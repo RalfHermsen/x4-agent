@@ -265,6 +265,7 @@ def lines(state: dict, data: dict) -> list[str]:
     """The plan and how far each station is, for the report."""
     import catalog
     import executor
+    import sitrep
     held = data.get("strategy") or {}
     plan = goals(data)
     if not plan:
@@ -288,6 +289,11 @@ def lines(state: dict, data: dict) -> list[str]:
         have = sum(1 for s in catalog._ships(state)
                    if executor.serves(s, state) in _working(code, "defend") and catalog._combat(s))
         parts.append(f"defenders {have}/{goal.get('defenders') or 0}")
+        if goal.get("destroyers"):
+            have = sum(1 for s in catalog._ships(state)
+                       if executor.serves(s, state) in _working(code, "defend")
+                       and sitrep.ship_type(s.get("macro")) == "destroyer")
+            parts.append(f"destroyers {have}/{goal['destroyers']}")
         out.append(f"{code}: " + ", ".join(parts)
                    + (f"; the bridge cannot build {', '.join(unknown)}" if unknown else ""))
     return out

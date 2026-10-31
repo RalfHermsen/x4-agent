@@ -11,7 +11,7 @@ import strategy
 
 PLAN = {"horizon_hours": 3, "rationale": "hull parts for the yards",
         "stations": {"KYV-745": {"build": {"hullparts": 2, "storage_container": 1},
-                                 "miners": {"solid": 2}, "traders": 1, "defenders": 0}},
+                                 "miners": {"solid": 2}, "traders": 1, "defenders": 0, "destroyers": 0}},
         "blueprints": []}
 
 
@@ -207,3 +207,19 @@ def test_a_destroyer_comes_from_our_own_l_bay_and_is_never_bought(small_state, m
     _station(state)["modules"].append(executor.EXPANSION_MODULES["wharf_l"][0])
     assert strategy.fleet(state, plan) == ["buildship KYV-745 ship_tel_l_destroyer_01_a_macro x4-agent-l"]
     assert strategy.built(_station(state), "wharf_l") == 1
+    assert "destroyers 0/1" in strategy.lines(state, plan)[1]
+
+
+def test_a_plan_file_keeps_its_destroyers_and_refuses_what_it_does_not_know(small_state, tmp_path, monkeypatch):
+    """ship7f-camp: the file asked for 3 destroyers, the schema had no such
+    field and dropped it, and the L bay stood with nothing ordered."""
+    path = tmp_path / "plan.json"
+    goal = dict(PLAN["stations"]["KYV-745"], destroyers=3)
+    path.write_text(json.dumps(dict(PLAN, stations={"KYV-745": goal})), encoding="utf-8")
+    monkeypatch.setattr(strategy, "STRATEGY_FILE", str(path))
+    data = {}
+    assert strategy.load(data, small_state) == []
+    assert strategy.goals(data)["KYV-745"]["destroyers"] == 3
+    path.write_text(json.dumps(dict(PLAN, stations={"KYV-745": dict(goal, cruisers=1)})), encoding="utf-8")
+    assert "not used" in strategy.load(data, small_state)[0]
+    assert strategy.goals(data)["KYV-745"]["destroyers"] == 3
