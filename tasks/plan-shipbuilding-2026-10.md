@@ -375,12 +375,13 @@ Bright Promise is not a raid: it takes a fleet that can beat eight K.
 
 ### What to build
 
-1. Verbs, read from the game's order scripts first: send a fleet to a sector,
-   attack a target, withdraw. Today the bridge has `command` (subordinates) and
-   `patrol` (only the sector of our own station).
-2. A rule for a raid: gather at KYV-745, go when the plan's numbers stand,
-   withdraw when the fleet's hull falls below a set share, repair, go again. No
-   raid while the target holds an XL more than we can outgun.
+1. Verbs. Built, not yet proven in the game: `raid <SHIP> <SECTOR>` gives the
+   Attack order the interact menu gives, on a Xenon station in that sector.
+   `command` puts the others under it; `patrol` brings it home.
+2. The rule, `standing.raids`, built, not yet proven: gather at KYV-745, go when
+   the plan's `destroyers` stand at 90 % hull, come back at 75 % fleet hull, when
+   half are lost or no station is left, and defend again; `repairs` takes out a
+   single damaged ship. No raid on more than one Xenon XL per six destroyers.
 3. Fighters for the plan: blueprints, then a `fighters` number, as `destroyers`
    has. They take the Xenon S off the destroyers, whose big guns miss them.
 4. Measure: Xenon sectors and stations within five jumps, ships lost per raid

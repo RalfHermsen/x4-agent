@@ -236,8 +236,11 @@ def fleet(state: dict, data: dict) -> list[str]:
         wants.append(("defend", None, goal.get("destroyers") or 0, "destroyer",
                       "ship_{race}_l_destroyer_01_a_macro",
                       lambda s: sitrep.ship_type(s.get("macro")) == "destroyer"))
+        # A ship out on a raid is under its leader, and still ours to count.
+        raiding = set(((data.get("standing") or {}).get("raid") or {}).get("ships") or [])
         for role, kind, target, label, pattern, fits in wants:
-            have = sum(1 for s in catalog._ships(state) if executor.serves(s, state) in _working(code, role)
+            have = sum(1 for s in catalog._ships(state)
+                       if (executor.serves(s, state) in _working(code, role) or s.get("code") in raiding)
                        and fits(s))
             if have >= target:
                 continue
@@ -294,6 +297,9 @@ def lines(state: dict, data: dict) -> list[str]:
                        if executor.serves(s, state) in _working(code, "defend")
                        and sitrep.ship_type(s.get("macro")) == "destroyer")
             parts.append(f"destroyers {have}/{goal['destroyers']}")
+        raid = (data.get("standing") or {}).get("raid")
+        if raid:
+            parts.append(f"raid on {raid['sector']} {raid['phase']}, led by {raid['leader']}")
         out.append(f"{code}: " + ", ".join(parts)
                    + (f"; the bridge cannot build {', '.join(unknown)}" if unknown else ""))
     return out

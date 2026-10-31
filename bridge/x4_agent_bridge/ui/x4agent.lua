@@ -1106,6 +1106,34 @@ local function patrol(args)
     return true
 end
 
+--- "raid PSV-645 cluster_18_sector001_macro" -> the ship attacks a Xenon station
+--- in that sector, by the Attack order the interact menu gives. Subordinates
+--- under it in an attack group go with it (`command`).
+local function raid(args)
+    local shipcode, sector = args[1], args[2]
+    local ship = shipcode and player_ships()[shipcode]
+    if not ship or not sector then
+        return refuse("raid needs a ship of ours and a sector macro: raid <SHIP> <SECTOR>")
+    end
+    if not C.IsOrderSelectableFor("Attack", ship) then
+        return refuse("raid: " .. shipcode .. " cannot take an Attack order")
+    end
+    local count = C.GetNumAllFactionStations("xenon")
+    local buffer = ffi.new("UniverseID[?]", math.max(count, 1))
+    count = C.GetAllFactionStations(buffer, count, "xenon")
+    for i = 0, count - 1 do
+        local sectorid = station_sector(buffer[i])
+        if sectorid and string.lower(GetComponentData(sectorid, "macro") or "") == sector then
+            CreateOrder(ConvertStringToLuaID(tostring(ship)), "Attack",
+                        { primarytarget = ConvertStringToLuaID(tostring(buffer[i])) }, false, true, false)
+            log(string.format("ORDER: %s attacks %s in %s", shipcode,
+                              ffi.string(C.GetObjectIDCode(buffer[i])), sector))
+            return true
+        end
+    end
+    return refuse("raid: no Xenon station in " .. sector)
+end
+
 --- "findbuilds XYZ-123" -> a construction vessel of ours looks for our builds
 --- itself (order.build.find.task.xml; playeronly is the default for ours).
 local function find_builds(args)
@@ -1854,6 +1882,7 @@ local BARE_HANDLERS = {
     ledger = ledger,
     repair = repair,
     patrol = patrol,
+    raid = raid,
     findbuilds = find_builds,
     hire = hire_builder,
     deploy = deploy_builder,

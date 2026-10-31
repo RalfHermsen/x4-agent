@@ -255,7 +255,7 @@ def to_strategy(answer: StrategistPlan, state: dict) -> dict:
                             "miners": {m.kind: work[m.kind] + max(0, min(m.add, SHIPS_PER_KIND)) for m in p.miners},
                             "traders": work["traders"] + max(0, min(p.traders_add, SHIPS_PER_KIND)),
                             # Not the strategist's to plan: 0 asks for nothing.
-                            "defenders": 0, "destroyers": 0}
+                            "defenders": 0, "destroyers": 0, "raid_sector": ""}
     return Strategy.model_validate({"horizon_hours": answer.horizon_hours, "rationale": answer.rationale,
                                     "stations": goals, "blueprints": []}).model_dump()
 

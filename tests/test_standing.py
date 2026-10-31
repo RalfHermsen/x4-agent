@@ -187,6 +187,76 @@ def test_inventory_read_from_the_save(large_state):
     assert not any(w.startswith("inv_seminar") for w in inventory)
 
 
+XEN_SECTOR = "cluster_18_sector001_macro"
+
+
+def _raid_ready(state, destroyers=3):
+    """KYV-745 with this many whole destroyers defending it, a plan for 3 and a Xenon base next door."""
+    state = copy.deepcopy(state)
+    home = _station(state)
+    home["assignment"] = {"groups": {3: "defence"}}
+    aso = next(a for a in state["assets"] if a["code"] == "ASO-629")
+    state["assets"] += [dict(copy.deepcopy(aso), code=f"DES-00{i}", cls="ship_l", hull=None, assignment={"group": 3},
+                             macro="ship_tel_l_destroyer_01_a_macro", place=dict(home["place"]))
+                        for i in range(destroyers)]
+    state["hostiles"] = {XEN_SECTOR: {"xenon": {"station": 1, "ship_m": 5}}}
+    data = {"strategy": {"plan": {"stations": {"KYV-745": {"build": {}, "miners": {}, "traders": 0, "defenders": 0,
+                                                           "destroyers": 3, "raid_sector": XEN_SECTOR}}}}}
+    return state, data
+
+
+def test_a_raid_goes_when_every_destroyer_stands(small_state):
+    state, data = _raid_ready(small_state, destroyers=2)
+    assert standing.raids(state, data) == []
+    state, data = _raid_ready(small_state)
+    assert standing.raids(state, data) == ["command DES-001 DES-000 attack", "command DES-002 DES-000 attack",
+                                           f"raid DES-000 {XEN_SECTOR}"]
+    assert data["standing"]["raid"]["phase"] == "out"
+    assert standing.raids(state, data) == []                      # once
+
+
+def test_no_raid_without_a_xenon_station_seen_there(small_state):
+    state, data = _raid_ready(small_state)
+    state["hostiles"] = {XEN_SECTOR: {"xenon": {"ship_m": 5}}}
+    assert standing.raids(state, data) == []
+
+
+def test_no_raid_on_more_xl_than_the_fleet_can_take(small_state):
+    state, data = _raid_ready(small_state)
+    state["hostiles"][XEN_SECTOR]["xenon"]["ship_xl"] = 1
+    assert standing.raids(state, data) == []                      # 3 destroyers, one XL takes 6
+
+
+def test_a_hurt_fleet_comes_back_and_defends_again(small_state):
+    import gamedata
+    state, data = _raid_ready(small_state)
+    standing.raids(state, data)
+    top = gamedata.ships()["ship_tel_l_destroyer_01_a_macro"]["hull"]
+    for ship in state["assets"]:
+        if ship["code"].startswith("DES-"):
+            ship["hull"] = top * 0.6
+            ship["place"] = {"sector": XEN_SECTOR}
+    assert standing.raids(state, data) == ["patrol DES-000 KYV-745"]
+    assert data["standing"]["raid"]["phase"] == "back"
+    assert standing.raids(state, data) == []                      # still on the way
+    for ship in state["assets"]:
+        if ship["code"].startswith("DES-"):
+            ship["place"] = dict(_station(state)["place"])
+    assert standing.raids(state, data) == [f"assign DES-00{i} KYV-745 defend" for i in range(3)]
+    assert "raid" not in data["standing"]
+
+
+def test_a_raid_ends_when_the_station_is_gone_or_the_leader_is(small_state):
+    state, data = _raid_ready(small_state)
+    standing.raids(state, data)
+    state["hostiles"] = {}
+    assert standing.raids(state, data) == ["patrol DES-000 KYV-745"]
+    state, data = _raid_ready(small_state)
+    standing.raids(state, data)
+    state["assets"] = [a for a in state["assets"] if a["code"] != "DES-000"]
+    assert standing.raids(state, data) == ["assign DES-001 KYV-745 defend", "assign DES-002 KYV-745 defend"]
+
+
 def test_no_repair_where_the_ship_cannot_dock(small_state):
     import gamedata
     state = copy.deepcopy(small_state)

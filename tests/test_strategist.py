@@ -22,7 +22,7 @@ def test_the_models_additions_become_the_plans_totals_from_what_stands():
     plan = strategist.to_strategy(ANSWER, _one_station())
     # One container store stands, one is added; three miners asked, one allowed.
     assert plan["stations"]["GKL-870"] == {"build": {"storage_container": 2}, "miners": {"solid": 1}, "traders": 1,
-                                               "defenders": 0, "destroyers": 0}
+                                               "defenders": 0, "destroyers": 0, "raid_sector": ""}
     assert plan["horizon_hours"] == 4 and plan["rationale"].startswith("GKL-870")
 
 

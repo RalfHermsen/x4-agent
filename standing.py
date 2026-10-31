@@ -327,6 +327,9 @@ def own_stock(state: dict, data: dict) -> list[str]:
 # Below this share of its maximum hull a ship goes for repair; at or above
 # the second it counts as repaired.
 REPAIR_BELOW, REPAIRED_AT = 0.70, 0.95
+RAID_GO_FROM, RAID_BACK_BELOW = 0.90, 0.75     # the fleet's hull, as a share of its whole
+RAID_PER_XL = 6                                # destroyers it takes per Xenon XL in the target sector
+RAID_BACK_WAIT = 3600                          # game seconds before a raid counts as home anyway
 SIZE_GROUPS = {"ship_xs": {"s", "m"}, "ship_s": {"s", "m"}, "ship_m": {"s", "m"},
                "ship_l": {"l", "xl"}, "ship_xl": {"l", "xl"}}
 
@@ -665,6 +668,68 @@ SUPPLY_WAIT = 3600
 # Game seconds before an empty build is asked to be cancelled again.
 CANCEL_WAIT = 3600
 
+def _hull_share(ship: dict) -> float:
+    """The save writes a hull value only when a ship is damaged (`repairs`)."""
+    top = (gamedata.ships().get(ship.get("macro")) or {}).get("hull")
+    return (ship["hull"] / top) if (ship.get("hull") is not None and top) else 1.0
+
+
+def raids(state: dict, data: dict) -> list[str]:
+    """The plan's destroyers attack the Xenon stations in its `raid_sector`.
+
+    They gather at the station, go when all of them stand and are whole, under
+    one leader, and come back when the fleet is hurt or nothing is left to
+    attack. `repairs` takes out a single badly damaged ship on the way. One raid
+    at a time. tasks/plan-shipbuilding-2026-10.md, Raids.
+    """
+    import executor
+    import strategy
+    ours = {s["code"]: s for s in state.get("assets", [])
+            if (s.get("cls") or "").startswith("ship") and s.get("code")}
+    held = data.setdefault("standing", {})
+    raid = held.get("raid")
+    now = (state.get("meta") or {}).get("playtime_s") or 0
+    if raid:
+        alive = [ours[code] for code in raid["ships"] if code in ours]
+        if raid["phase"] == "out":
+            left = ((state.get("hostiles") or {}).get(raid["sector"]) or {}).get("xenon", {}).get("station", 0)
+            hurt = (len(alive) * 2 < len(raid["ships"])
+                    or sum(_hull_share(s) for s in alive) < RAID_BACK_BELOW * max(len(alive), 1))
+            if raid["leader"] in ours and not (hurt or not left):
+                return []
+            if raid["leader"] in ours:
+                raid["phase"], raid["since"] = "back", now
+                return [f"patrol {raid['leader']} {raid['home']}"]
+        elif raid["leader"] in ours and now - raid["since"] < RAID_BACK_WAIT:
+            sector = (ours[raid["leader"]].get("place") or {}).get("sector")
+            if sector != raid["home_sector"]:
+                return []
+        held.pop("raid")
+        return [f"assign {s['code']} {raid['home']} defend" for s in alive]
+    for code, goal in strategy.goals(data).items():
+        sector, wanted = goal.get("raid_sector"), goal.get("destroyers") or 0
+        home = next((a for a in state.get("assets", []) if a.get("code") == code), None)
+        if not (sector and wanted and home):
+            continue
+        xenon = ((state.get("hostiles") or {}).get(sector) or {}).get("xenon", {})
+        if not xenon.get("station") or xenon.get("ship_xl", 0) * RAID_PER_XL > wanted:
+            continue
+        busy = held.get("repairing") or {}
+        home_sector = (home.get("place") or {}).get("sector")
+        ready = [s for s in ours.values()
+                 if sitrep.ship_type(s.get("macro")) == "destroyer"
+                 and executor.serves(s, state) == (code, "defence") and s["code"] not in busy
+                 and (s.get("place") or {}).get("sector") == home_sector
+                 and _hull_share(s) >= RAID_GO_FROM]
+        if len(ready) < wanted:
+            continue
+        leader, *rest = [s["code"] for s in ready]
+        held["raid"] = {"sector": sector, "home": code, "home_sector": home_sector, "leader": leader,
+                        "ships": [leader, *rest], "phase": "out", "since": now}
+        return [f"command {s} {leader} attack" for s in rest] + [f"raid {leader} {sector}"]
+    return []
+
+
 def fleet(state: dict, data: dict) -> list[str]:
     """Ships toward a strategist's numbers (strategy.fleet); nothing without a plan."""
     import strategy
@@ -673,7 +738,7 @@ def fleet(state: dict, data: dict) -> list[str]:
 
 RULES = (sell_limits, revisit, satellites, ledger, once, patrols, find_builds, hire_builders,
          own_stock, repairs, seminars, scouts, empty_builds, docks, managers, shiptraders,
-         cargo_drones, accounts, fleet, grow)
+         cargo_drones, accounts, raids, fleet, grow)
 
 
 def commands(state: dict, data: dict, off: set | frozenset = frozenset()) -> list[str]:

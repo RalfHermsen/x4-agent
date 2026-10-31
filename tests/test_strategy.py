@@ -12,7 +12,7 @@ import strategy
 
 PLAN = {"horizon_hours": 3, "rationale": "hull parts for the yards",
         "stations": {"KYV-745": {"build": {"hullparts": 2, "storage_container": 1},
-                                 "miners": {"solid": 2}, "traders": 1, "defenders": 0, "destroyers": 0}},
+                                 "miners": {"solid": 2}, "traders": 1, "defenders": 0, "destroyers": 0, "raid_sector": ""}},
         "blueprints": []}
 
 
