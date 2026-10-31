@@ -314,8 +314,9 @@ def lines(state: dict, data: dict) -> list[str]:
                    if executor.serves(s, state) in _working(code, "defend") and catalog._combat(s))
         parts.append(f"defenders {have}/{goal.get('defenders') or 0}")
         if goal.get("destroyers"):
+            raiding = set(((data.get("standing") or {}).get("raid") or {}).get("ships") or [])
             have = sum(1 for s in catalog._ships(state)
-                       if executor.serves(s, state) in _working(code, "defend")
+                       if (executor.serves(s, state) in _working(code, "defend") or s.get("code") in raiding)
                        and sitrep.ship_type(s.get("macro")) == "destroyer")
             parts.append(f"destroyers {have}/{goal['destroyers']}")
         if goal.get("fighters_per_destroyer"):

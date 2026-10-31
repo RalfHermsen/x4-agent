@@ -741,6 +741,12 @@ def raids(state: dict, data: dict) -> list[str]:
     held = data.setdefault("standing", {})
     raid = held.get("raid")
     now = (state.get("meta") or {}).get("playtime_s") or 0
+    # Held one cycle past the `assign`s, for `fleet` to count them: in ship9-camp
+    # the raid ended, the five under its leader read as gone, and a seventh
+    # destroyer went on order in that same cycle.
+    if raid and raid["phase"] == "settling":
+        held.pop("raid")
+        raid = None
     if raid:
         alive = [ours[code] for code in raid["ships"] if code in ours]
         if raid["phase"] == "out":
@@ -759,7 +765,7 @@ def raids(state: dict, data: dict) -> list[str]:
             sector = (ours[raid["leader"]].get("place") or {}).get("sector")
             if sector != raid["home_sector"]:
                 return []
-        held.pop("raid")
+        raid["phase"] = "settling"
         return [f"assign {s['code']} {raid['home']} defend" for s in alive]
     for code, goal in strategy.goals(data).items():
         sector, wanted = goal.get("raid_sector"), goal.get("destroyers") or 0

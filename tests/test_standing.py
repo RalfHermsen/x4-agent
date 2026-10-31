@@ -293,6 +293,10 @@ def test_a_hurt_fleet_comes_back_and_defends_again(small_state):
         if ship["code"].startswith("DES-"):
             ship["place"] = dict(_station(state)["place"])
     assert standing.raids(state, data) == [f"assign DES-00{i} KYV-745 defend" for i in range(3)]
+    assert data["standing"]["raid"]["phase"] == "settling"        # `fleet` still counts them this cycle
+    assert not any("buildship" in c for c in standing.fleet(state, data))
+    state["hostiles"] = {}
+    assert standing.raids(state, data) == []
     assert "raid" not in data["standing"]
 
 
