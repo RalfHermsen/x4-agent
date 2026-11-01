@@ -899,7 +899,8 @@ def _trade_book(trades: list[tuple], assets: list) -> dict:
 # The bridge's logbook line for each assignment it makes, and for each ship's
 # commander when a save is loaded (md/x4_agent_bridge.xml).
 ASSIGNED = re.compile(r"^\[x4-agent\] (?:ORDER: (\S+) (?:now (?:trades for|mines for|defends|"
-                      r"supplies the build storage of) (\S+)|under \S+ as \S+, commander now (\S+))"
+                      r"supplies the build storage of) (\S+)|under \S+ as \S+, commander now (\S+)"
+                      r"|goes under (\S+) as \S+)"
                       r"|COMMANDER: (\S+) works for (\S+))$")
 
 
@@ -921,7 +922,7 @@ def _assigned_to(logbook: list[list]) -> dict[str, str]:
     for _, text in sorted(logbook, key=lambda e: e[0]):
         m = ASSIGNED.match(text or "")
         if m:
-            out[m.group(1) or m.group(4)] = m.group(2) or m.group(3) or m.group(5)
+            out[m.group(1) or m.group(5)] = m.group(2) or m.group(3) or m.group(4) or m.group(6)
     return out
 
 

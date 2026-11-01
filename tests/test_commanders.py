@@ -63,6 +63,20 @@ def test_a_miner_assigned_before_the_bridge_logged_is_still_its_stations(small_s
     assert executor.serves(miner, state) == ("KYV-745", "mining")
 
 
+def test_a_destroyer_under_a_leader_is_no_trader_of_the_station(small_state):
+    # Group 1 under the leader read as group 1 of KYV-745, trade: in ship10e-camp
+    # two destroyers were sent to sell microchips on the way out to a raid.
+    state, _ = _two_stations(small_state)
+    leader = _ship(state, "LED-000", "ship_tel_l_destroyer_01_a_macro", 3)
+    leader["assignment"] = {"group": 3, "groups": {1: "attack"}}
+    ship = _ship(state, "DES-001", "ship_tel_l_destroyer_01_a_macro", 1)
+    state["assigned_to"] = save_parser._assigned_to([
+        [1.0, "[x4-agent] ORDER: DES-001 now defends KYV-745"],
+        [2.0, "[x4-agent] ORDER: DES-001 goes under LED-000 as command_attack"]])
+    assert state["assigned_to"] == {"DES-001": "LED-000"}
+    assert executor.serves(ship, state) == ("LED-000", "attack")
+
+
 def test_a_group_number_is_read_on_the_ships_own_commander(small_state):
     state, _ = _two_stations(small_state)
     miner = _ship(state, "MNR-001", "ship_arg_m_miner_solid_01_a_macro", 1)

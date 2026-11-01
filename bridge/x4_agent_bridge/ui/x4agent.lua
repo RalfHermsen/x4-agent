@@ -1927,6 +1927,20 @@ local function release(args)
     return true
 end
 
+--- "scout VSR-185 cluster_21_sector001_macro" -> the ship explores that sector, also
+--- one not yet on the map; going there is how it gets on the map. Handed to MD,
+--- ship first, as `command` does: MD can reach a sector the map does not show.
+local function scout_sector(args)
+    local shipcode, sector = args[1], args[2]
+    local ship = shipcode and player_ships()[shipcode]
+    if not ship or not sector then
+        return refuse("scout needs a ship of ours and a sector macro: scout <SHIP> <SECTOR>")
+    end
+    pcall(AddUITriggeredEvent, "X4Agent", "scout_ship", ConvertStringToLuaID(tostring(ship)))
+    pcall(AddUITriggeredEvent, "X4Agent", "scout_sector", sector)
+    return true
+end
+
 --- "undock TUR-084" -> the queue goes, last to first, as the map menu's Delete All
 --- does, and the ship is back on its default order. `release` leaves a DockAndWait
 --- the game gave the ship itself: TUR-084 kept one through two releases (ship10b).
@@ -1985,6 +1999,7 @@ local BARE_HANDLERS = {
     dockat = dock_at,
     release = release,
     undock = undock_ship,
+    scout = scout_sector,
     licence = buy_licence,
     command = command_ship,
     haul = haul,

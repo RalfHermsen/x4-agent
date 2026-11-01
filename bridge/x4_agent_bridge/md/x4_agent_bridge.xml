@@ -1231,6 +1231,48 @@
     </actions>
   </cue>
 
+  <cue name="Agent_Scout_Ship" instantiate="true">
+    <conditions>
+      <event_ui_triggered screen="'X4Agent'" control="'scout_ship'"/>
+    </conditions>
+    <actions>
+      <set_value name="Agent_Command_Store.$scout" exact="event.param3"/>
+    </actions>
+  </cue>
+
+  <!-- A scout sent to one sector by name. `explore` takes the first unknown
+       sector in range, which need not be the one a raid is planned for. -->
+  <cue name="Agent_Scout_Sector" instantiate="true">
+    <conditions>
+      <event_ui_triggered screen="'X4Agent'" control="'scout_sector'"/>
+    </conditions>
+    <actions>
+      <set_value name="$ship" exact="Agent_Command_Store.$scout"/>
+      <set_value name="Agent_Command_Store.$scout" exact="null"/>
+      <do_if value="@$ship.isoperational">
+        <set_value name="$target" exact="null"/>
+        <find_sector_in_range name="$nearby" object="$ship" mindistance="0" maxdistance="40" multiple="true"/>
+        <do_for_each name="$sector" in="$nearby">
+          <do_if value="$sector.macro.id == event.param3">
+            <set_value name="$target" exact="$sector"/>
+            <break/>
+          </do_if>
+        </do_for_each>
+        <do_if value="$target">
+          <create_order object="$ship" id="'Explore'" default="true">
+            <param name="targetspace" value="$target"/>
+          </create_order>
+          <write_to_logbook category="general"
+            text="'[x4-agent] ORDER: %s scouts %s'.[$ship.idcode, event.param3]"/>
+        </do_if>
+        <do_else>
+          <write_to_logbook category="general"
+            text="'[x4-agent] REFUSED: scout: %s found no sector %s within 40 jumps'.[$ship.idcode, event.param3]"/>
+        </do_else>
+      </do_if>
+    </actions>
+  </cue>
+
   <cue name="Agent_Command_Commander" instantiate="true">
     <conditions>
       <event_ui_triggered screen="'X4Agent'"/>
