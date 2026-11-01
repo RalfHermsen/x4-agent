@@ -244,8 +244,12 @@ def test_the_reserve_counts_what_is_coming_but_not_what_is_away(small_state):
     repair = {"standing": {"repairing": {"DES-1": 1}}}
     assert strategy.reserve_purchase(state, repair, {"raid_home": 2})
     sent = copy.deepcopy(state)
-    next(a for a in sent["assets"] if a["code"] == "DES-0")["orders"].append({"order": "Patrol"})
-    assert strategy.reserve_purchase(sent, {}, {"raid_home": 2})
+    ship = next(a for a in sent["assets"] if a["code"] == "DES-0")
+    ship["orders"].append({"order": "Attack"})
+    ship["place"] = {"sector": "elsewhere"}
+    assert strategy.reserve_purchase(sent, {}, {"raid_home": 2}, "home")
+    ship["place"] = {"sector": "home"}                      # firing back at home: still the reserve
+    assert strategy.reserve_purchase(sent, {}, {"raid_home": 2}, "home") is None
     now = state["meta"]["playtime_s"]
     state["ships_on_order"] = [{"wharf": "PAR-001", "macro": "ship_par_l_destroyer_02_a_macro", "since": now}]
     assert strategy.reserve_purchase(state, raid, {"raid_home": 2}) is None
