@@ -1,7 +1,7 @@
-from pathlib import Path
 """Standing rules (4.3, 4.4, 4.5, 4.7, 4.10 to 4.13, 4.15) and game events (4.8)."""
 
 import copy
+from pathlib import Path
 
 import memory
 import sitrep
