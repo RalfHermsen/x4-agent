@@ -1,3 +1,4 @@
+from pathlib import Path
 """Standing rules (4.3, 4.4, 4.5, 4.7, 4.10 to 4.13, 4.15) and game events (4.8)."""
 
 import copy
@@ -222,6 +223,12 @@ def test_a_parked_destroyer_leaves_unless_it_waits_for_a_repair(small_state):
     assert standing.undock_fleet(state, data) == ["undock DES-000"]
     ship["orders"].append({"order": "Repair"})
     assert standing.undock_fleet(state, data) == []
+
+
+def test_undock_takes_a_ship_not_a_station():
+    lua = (Path(__file__).parent.parent / "bridge/x4_agent_bridge/ui/x4agent.lua").read_text(encoding="utf-8")
+    bare = lua.split("local BARE_HANDLERS = {", 1)[1].split("}", 1)[0]
+    assert "undock = undock_ship" in bare
 
 
 def test_a_raid_goes_when_every_destroyer_stands(small_state):

@@ -1961,7 +1961,6 @@ local HANDLERS = {
     plot = extend_plot,
     cancelbuild = cancel_build,
     cancelship = cancel_ship,
-    undock = undock_ship,
     buildship = build_own_ship,
 }
 
@@ -1979,6 +1978,7 @@ local BARE_HANDLERS = {
     docked = list_docked,
     dockat = dock_at,
     release = release,
+    undock = undock_ship,
     licence = buy_licence,
     command = command_ship,
     haul = haul,
@@ -2022,7 +2022,7 @@ function X4Agent.onCommand(_, command)
         end
         local ok, err = pcall(bare, args)
         if not ok then
-            log(verb .. " failed: " .. tostring(err))
+            refuse(verb .. " failed: " .. tostring(err))
         end
         return
     end
@@ -2048,7 +2048,7 @@ function X4Agent.onCommand(_, command)
 
     local station = player_stations()[code]
     if not station then
-        log(verb .. ": no station of ours with id code " .. code)
+        refuse(verb .. ": no station of ours with id code " .. code)
         return
     end
 
@@ -2060,7 +2060,7 @@ function X4Agent.onCommand(_, command)
 
     local ok, err = pcall(handler, station, args)
     if not ok then
-        log(verb .. " failed: " .. tostring(err))
+        refuse(verb .. " failed: " .. tostring(err))
     end
 end
 
