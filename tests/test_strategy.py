@@ -214,6 +214,18 @@ def test_a_destroyer_comes_from_our_own_l_bay_and_is_never_bought(small_state, m
     assert "destroyers 0/1" in strategy.lines(state, plan)[1]
 
 
+def test_a_destroyer_does_not_wait_for_the_hourly_brake(small_state):
+    state = copy.deepcopy(small_state)
+    state["assets"] = [a for a in state["assets"] if a.get("cls") == "station"]
+    state["player"]["blueprints"] = ["ship_tel_l_destroyer_01_a", "engine_tel_l_allround_01_mk1",
+                                     "thruster_gen_l_allround_01_mk1"]
+    state["sent_at"] = {"buyship": state["meta"]["playtime_s"]}
+    _station(state)["modules"] = list(_station(state)["modules"]) + [executor.EXPANSION_MODULES["wharf_l"][0]]
+    plan = {"strategy": {"plan": dict(PLAN, stations={"KYV-745": {"build": {}, "miners": {}, "traders": 0,
+                                                                  "destroyers": 1}})}}
+    assert strategy.fleet(state, plan) == ["buildship KYV-745 ship_tel_l_destroyer_01_a_macro x4-agent-des"]
+
+
 def test_a_wing_of_fighters_comes_from_our_wharf_without_the_hourly_brake(small_state):
     state = copy.deepcopy(small_state)
     state["player"]["blueprints"] = ["ship_tel_s_fighter_02_a", "engine_tel_s_allround_01_mk1",

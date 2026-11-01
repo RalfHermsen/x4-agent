@@ -166,10 +166,11 @@ def _spare(state: dict) -> float:
 
 
 def holds_purchases(command: str) -> bool:
-    """A purchase that holds the next for PURCHASE_GAP. A fighter does not, as it
-    is not held itself (strategy.own_build): in ship11-camp one every cycle kept the
-    gap open, and 9 destroyers and 5 miners went unordered with an empty bay."""
-    return command.startswith(("buyship ", "buildship ")) and "_s_fighter_" not in command
+    """A purchase that holds the next for PURCHASE_GAP. A fighter or a destroyer does
+    not, as it is not held itself (strategy.fleet): in ship11-camp a fighter every cycle
+    kept the gap open, and 9 destroyers and 5 miners went unordered with an empty bay."""
+    return (command.startswith(("buyship ", "buildship "))
+            and "_s_fighter_" not in command and "_l_destroyer_" not in command)
 
 
 def _bought_recently(state: dict) -> bool:

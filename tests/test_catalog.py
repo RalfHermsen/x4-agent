@@ -23,7 +23,7 @@ def test_decisions_are_read_in_every_form_and_the_rest_is_reported():
 
 def test_a_fighter_on_order_does_not_hold_the_next_purchase():
     assert catalog.holds_purchases("buyship YRD-001 ship_tel_m_miner_solid_01_a_macro")
-    assert catalog.holds_purchases("buildship KYV-745 ship_tel_l_destroyer_01_a_macro x4-agent-des")
+    assert not catalog.holds_purchases("buildship KYV-745 ship_tel_l_destroyer_01_a_macro x4-agent-des")
     assert not catalog.holds_purchases("buildship KYV-745 ship_tel_s_fighter_02_a_macro x4-agent-fig")
     assert not catalog.holds_purchases("assign ASO-629 KYV-745 trade")
 

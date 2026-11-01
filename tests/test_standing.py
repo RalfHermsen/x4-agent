@@ -324,6 +324,26 @@ def test_free_fighters_spread_over_the_destroyers_up_to_the_plan(small_state):
     assert standing.wings(state, data) == ["command FIG-002 DES-000 interception"]
 
 
+def test_fighters_without_a_place_patrol_until_a_destroyer_stands(small_state):
+    state, data = _raid_ready(small_state, destroyers=1)
+    data["strategy"]["plan"]["stations"]["KYV-745"]["fighters_per_destroyer"] = 1
+    _with_fighters(state, 3)
+    sector = _station(state)["place"]["sector"]
+    state["hostiles"] = {sector: {"xenon": {"ship_s": 2}}}
+    assert standing.patrols(state, data) == []                 # one place free: `wings` first
+    assert standing.wings(state, data) == ["command FIG-000 DES-000 interception"]
+    next(a for a in state["assets"] if a["code"] == "FIG-000")["assignment"] = {"group": 1}
+    next(a for a in state["assets"] if a["code"] == "FIG-000")["orders"] = [{"order": "Escort"}]
+    assert standing.patrols(state, data) == ["patrol FIG-001 KYV-745", "patrol FIG-002 KYV-745"]
+    assert standing.patrols(state, data) == []                 # once
+    for code in ("FIG-001", "FIG-002"):
+        next(a for a in state["assets"] if a["code"] == code)["orders"] = [{"order": "Patrol", "default": True}]
+    assert standing.wings(state, data) == []                   # the one destroyer is full
+    state["assets"].append(dict(copy.deepcopy(next(a for a in state["assets"] if a["code"] == "DES-000")),
+                                code="DES-001"))
+    assert standing.wings(state, data) == ["command FIG-001 DES-001 interception"]
+
+
 def test_a_fighter_left_waiting_under_a_leader_gets_its_orders(small_state):
     state, data = _raid_ready(small_state, destroyers=2)
     data["strategy"]["plan"]["stations"]["KYV-745"]["fighters_per_destroyer"] = 1

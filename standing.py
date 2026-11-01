@@ -162,23 +162,33 @@ def once(state: dict, data: dict) -> list[str]:
 
 
 def patrols(state: dict, data: dict) -> list[str]:
-    """4.11: an idle fighter patrols a home sector where a threat is listed."""
+    """4.11: an idle fighter patrols a home sector where a threat is listed.
+
+    With a plan's wing, every fighter without a place under a destroyer: in
+    ship11b-camp 16 stood on Wait while Xenon shot our miners at home. `wings`
+    takes them back when a destroyer stands.
+    """
     home = {(st.get("place") or {}).get("sector"): st.get("code")
             for st in state.get("assets", []) if st.get("cls") == "station"}
     threatened = [home[t["sector"]] for t in sitrep.threats(state) if t["sector"] in home]
     if not threatened:
         return []
     import strategy
-    if any(goal.get("fighters_per_destroyer") for goal in strategy.goals(data).values()):
-        return []       # the plan's fighters are for the destroyers (`wings`)
+    per = max((goal.get("fighters_per_destroyer") or 0 for goal in strategy.goals(data).values()), default=0)
+    destroyers = sum(1 for s in state.get("assets", []) if sitrep.ship_type(s.get("macro")) == "destroyer")
+    if per and strategy.fighters_flying(state) < per * destroyers:
+        return []       # there is room under a destroyer (`wings`)
     sent = _done(data, "patrol")
+    out = []
     for ship in state.get("assets", []):
         if (sitrep.ship_type(ship.get("macro")) == "fighter" and sitrep.role_of(ship) == "IDLE"
                 and (ship.get("assignment") or {}).get("group") is None
                 and ship.get("code") not in sent):
             _mark(data, "patrol", ship["code"])
-            return [f"patrol {ship['code']} {threatened[0]}"]
-    return []
+            out.append(f"patrol {ship['code']} {threatened[0]}")
+            if not per:
+                break
+    return out
 
 
 def find_builds(state: dict, data: dict) -> list[str]:
@@ -716,7 +726,7 @@ def wings(state: dict, data: dict) -> list[str]:
     out = []
     for ship in ships:
         if (sitrep.ship_type(ship.get("macro")) != "fighter" or ship.get("code") in wing
-                or sitrep.role_of(ship) != "IDLE"):
+                or (sitrep.role_of(ship) != "IDLE" and sitrep._first_order(ship) != "Patrol")):
             continue
         leader = min(load, key=load.get, default=None)
         if leader is None or load[leader] >= per:

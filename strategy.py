@@ -265,7 +265,8 @@ def fleet(state: dict, data: dict) -> list[str]:
                     free.remove(pick)
                     continue
             if not bought:
-                own = own_build(state, pattern, _size(pattern))
+                # The L bay builds nothing else, so a miner on order does not hold it.
+                own = own_build(state, pattern, _size(pattern), brake=_size(pattern) != "l")
                 waiting = (not own and named - held
                            and any(pattern.format(race=r).removesuffix("_macro") in named for r in races))
                 options = ([] if (own or waiting or _size(pattern) != "m")
