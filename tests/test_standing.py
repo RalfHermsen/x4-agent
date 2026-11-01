@@ -264,6 +264,33 @@ def test_an_unseen_sector_is_raided_only_if_the_plan_says_so_and_looked_at_on_ar
     assert standing.raids(state, data) == ["release DES-000"]  # all gone: back
 
 
+def test_a_raid_that_finds_too_many_xl_turns_back_and_stays_away(small_state):
+    state, data = _raid_ready(small_state)
+    assert standing.raids(state, data)[-1] == f"raid DES-000 {XEN_SECTOR}"
+    next(a for a in state["assets"] if a["code"] == "DES-000")["place"] = {"sector": XEN_SECTOR}
+    state["hostiles"][XEN_SECTOR]["xenon"]["ship_xl"] = 1      # 3 destroyers, one XL takes 6
+    assert standing.raids(state, data) == ["release DES-000"]
+    state["meta"]["playtime_s"] += standing.RAID_BACK_WAIT
+    standing.raids(state, data)                                # settling
+    standing.raids(state, data)                                # settled
+    del state["hostiles"][XEN_SECTOR]["xenon"]["ship_xl"]      # out of sight is not gone
+    for ship in state["assets"]:
+        if ship["code"].startswith("DES-"):
+            ship["place"] = dict(_station(state)["place"])
+            ship["assignment"] = {"group": 3}
+    assert standing.raids(state, data) == []
+    state["meta"]["playtime_s"] += standing.RAID_STRONG_WAIT
+    assert standing.raids(state, data)[-1] == f"raid DES-000 {XEN_SECTOR}"
+
+
+def test_a_lost_destroyer_counts_as_damage(small_state):
+    state, data = _raid_ready(small_state)
+    assert standing.raids(state, data)[-1] == f"raid DES-000 {XEN_SECTOR}"
+    next(a for a in state["assets"] if a["code"] == "DES-000")["place"] = {"sector": XEN_SECTOR}
+    state["assets"] = [a for a in state["assets"] if a["code"] != "DES-002"]
+    assert standing.raids(state, data) == ["release DES-000"]  # 2 of 3 whole: 0.67, below 0.75
+
+
 def test_no_raid_without_xenon_seen_there(small_state):
     state, data = _raid_ready(small_state)
     state["hostiles"] = {XEN_SECTOR: {"outlaw": {"ship_s": 1}}}

@@ -345,6 +345,7 @@ RAID_GO_FROM, RAID_BACK_BELOW = 0.90, 0.75     # the fleet's hull, as a share of
 RAID_PER_XL = 6                                # destroyers it takes per Xenon XL in the target sector
 RAID_ASK_AGAIN = 1800                          # game seconds before a raid is told again to attack
 RAID_BACK_WAIT = 3600                          # game seconds before a raid counts as home anyway
+RAID_STRONG_WAIT = 72000                       # game seconds a sector too strong stays off the list
 SIZE_GROUPS = {"ship_xs": {"s", "m"}, "ship_s": {"s", "m"}, "ship_m": {"s", "m"},
                "ship_l": {"l", "xl"}, "ship_xl": {"l", "xl"}}
 
@@ -745,8 +746,12 @@ def raids(state: dict, data: dict) -> list[str]:
     stations, or with none its ships, by the `raid` verb's priority order.
 
     They gather at the station, go when all of them and their fighters stand and
-    are whole, under one leader, and come back when the fleet is hurt, when it has
-    not arrived in RAID_BACK_WAIT, or when it has arrived and no Xenon is left. On the way
+    are whole, under one leader, and come back when the fleet is hurt, when it sees
+    more XL than it can take, when it has
+    not arrived in RAID_BACK_WAIT, or when it has arrived and no Xenon is left. What we
+    see from home is not what stands there: ship11-camp left for 1 station, found
+    4 XL and 90 S, stayed over four game hours and lost all 10 destroyers. A dead ship
+    counts as a hull of nothing, since an average over the living does not fall. On the way
     "none left" means nothing: what we see of a sector is what our ships there see, and
     ship9-camp's first raid turned back after one cycle because the one Xenon S
     a freighter had seen was out of sight. The leader's own orders stay queued
@@ -774,8 +779,10 @@ def raids(state: dict, data: dict) -> list[str]:
                 raid["arrived"] = True
                 raid.setdefault("arrived_at", now)
             left = ((state.get("hostiles") or {}).get(raid["sector"]) or {}).get("xenon")
-            hurt = (len(alive) * 2 < len(raid["ships"])
-                    or sum(_hull_share(s) for s in alive) < RAID_BACK_BELOW * max(len(alive), 1))
+            strong = (left or {}).get("ship_xl", 0) * RAID_PER_XL > len(alive)
+            if strong:
+                held.setdefault("raid_strong", {})[raid["sector"]] = now
+            hurt = strong or sum(_hull_share(s) for s in alive) < RAID_BACK_BELOW * len(raid["ships"])
             done = not left if raid.get("arrived") else now - raid["since"] >= RAID_BACK_WAIT
             if raid.get("unseen") and raid.get("arrived"):
                 # It went in blind, and a sector is wide: nothing in sight on the
@@ -812,6 +819,8 @@ def raids(state: dict, data: dict) -> list[str]:
             continue
         xenon = ((state.get("hostiles") or {}).get(sector) or {}).get("xenon", {})
         if (not xenon and not goal.get("raid_unseen")) or xenon.get("ship_xl", 0) * RAID_PER_XL > wanted:
+            continue
+        if now - (held.get("raid_strong") or {}).get(sector, -1e9) < RAID_STRONG_WAIT:
             continue
         busy = held.get("repairing") or {}
         home_sector = (home.get("place") or {}).get("sector")
