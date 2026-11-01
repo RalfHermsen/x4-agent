@@ -1114,8 +1114,10 @@ end
 --- station there patrols the sector. A priority order, as in `dockat`: the
 --- ship's own orders stay queued behind it and `release` hands it back to them.
 --- Subordinates under it in an attack group go with it (`command`).
+--- "raid PSV-645 cluster_18_sector001_macro ships" patrols there whatever stands:
+--- for helping an ally's wharf against the ships that attack it.
 local function raid(args)
-    local shipcode, sector = args[1], args[2]
+    local shipcode, sector, ships_only = args[1], args[2], args[3] == "ships"
     local ship = shipcode and player_ships()[shipcode]
     if not ship or not sector then
         return refuse("raid needs a ship of ours and a sector macro: raid <SHIP> <SECTOR>")
@@ -1139,7 +1141,7 @@ local function raid(args)
             end
         end
     end
-    if target then
+    if target and not ships_only then
         CreateOrder(ConvertStringToLuaID(tostring(ship)), "Attack",
                     { primarytarget = ConvertStringToLuaID(tostring(target)) }, false, false, true)
         log(string.format("ORDER: %s attacks %s in %s", shipcode,

@@ -192,8 +192,8 @@ def reserve_purchase(state: dict, data: dict, goal: dict) -> str | None:
     """A destroyer bought when those at home and on order fall short of `raid_home`.
 
     Without brake or waiting for our own L bay, which gives one in 3.4 game hours:
-    the reserve goes before any raid. A ship on a raid or away for repairs is not
-    in it, one on its way from the wharf is. An order stuck at a wharf does not count
+    the reserve goes before any raid. A ship on a raid, sent out by hand or away for
+    repairs is not in it, one on its way from the wharf is. An order stuck at a wharf does not count
     (`catalog._orders`), or two waiting for missile components would hold the rest.
     """
     import catalog
@@ -202,7 +202,9 @@ def reserve_purchase(state: dict, data: dict, goal: dict) -> str | None:
     held = data.get("standing") or {}
     away = set((held.get("raid") or {}).get("ships") or []) | set(held.get("repairing") or {})
     home = sum(1 for s in catalog._ships(state)
-               if sitrep.ship_type(s.get("macro")) == "destroyer" and s.get("code") not in away)
+               if sitrep.ship_type(s.get("macro")) == "destroyer" and s.get("code") not in away
+               and not any(o.get("order") in ("Attack", "Patrol") and not o.get("default")
+                           for o in s.get("orders") or []))
     stuck, _ = catalog._orders(state, "l")
     coming = sum(1 for o in state.get("ships_on_order") or []
                  if sitrep.ship_type(o["macro"]) == "destroyer" and o["wharf"] not in stuck)
