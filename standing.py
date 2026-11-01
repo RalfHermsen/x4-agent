@@ -812,16 +812,19 @@ def raids(state: dict, data: dict) -> list[str]:
                     raid["asked"] = now
                     return [f"raid {raid['leader']} {raid['sector']}"]
                 return []
-            if raid["leader"] in ours:
+            if alive:
                 raid["phase"], raid["since"] = "back", now
-                # All of them: in ship12-camp five kept on at the station after their leader left.
-                return [f"release {s['code']}" for s in alive]
+                raid["leader"] = raid["leader"] if raid["leader"] in ours else alive[0]["code"]
+                # A dock order, ahead of what they do: `release` alone leaves a ship under
+                # fire shooting back where it stands (ship12c-camp, WKU-369 lost that way).
+                return [f"dockat {s['code']} {raid['home']} player" for s in alive]
         elif raid["leader"] in ours and now - raid["since"] < RAID_BACK_WAIT:
             sector = (ours[raid["leader"]].get("place") or {}).get("sector")
             if sector != raid["home_sector"]:
                 return []
         raid["phase"] = "settling"
-        return [f"assign {s['code']} {raid['home']} defend" for s in alive]
+        return ([f"release {s['code']}" for s in alive]
+                + [f"assign {s['code']} {raid['home']} defend" for s in alive])
     for code, goal in strategy.goals(data).items():
         sector, wanted = goal.get("raid_sector"), goal.get("destroyers") or 0
         home = next((a for a in state.get("assets", []) if a.get("code") == code), None)
