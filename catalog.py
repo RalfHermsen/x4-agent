@@ -236,7 +236,7 @@ def _room(station: dict, ware: str) -> bool:
 
 
 def _buy_options(state: dict, roles: tuple[tuple[str, str], ...], size: str = "m",
-                 gap: bool = True) -> list[Option]:
+                 gap: bool = True, hold: bool = True, ship_cap: int = SHIP_CAP) -> list[Option]:
     """Ships to buy at the two nearest wharfs we know that build ships of `size`.
 
     `roles` pairs a description with a macro pattern ("solid miner",
@@ -251,7 +251,8 @@ def _buy_options(state: dict, roles: tuple[tuple[str, str], ...], size: str = "m
     entries that show a need call this (5.6): a shortage of a mined ware,
     products piling up with no freighter free. A ship of the kind on order
     holds the purchase too, and a wharf that has sat on one of ours for
-    ORDER_STUCK is not offered (`_orders`).
+    ORDER_STUCK is not offered (`_orders`). `hold=False` is for a caller that
+    has counted those itself (`strategy.reserve_purchase`).
     """
     import gamedata
     from purchases import _graph, jumps
@@ -260,8 +261,8 @@ def _buy_options(state: dict, roles: tuple[tuple[str, str], ...], size: str = "m
         return []
     stuck, coming = _orders(state)
     roles = tuple((role, pattern) for role, pattern in roles
-                  if not _idle_ship(state, sitrep.ship_type(pattern.format(race="arg")))
-                  and sitrep.ship_type(pattern.format(race="arg")) not in coming)
+                  if not hold or (not _idle_ship(state, sitrep.ship_type(pattern.format(race="arg")))
+                                  and sitrep.ship_type(pattern.format(race="arg")) not in coming))
     if not roles:
         return []
     home = next((a for a in _stations(state) if a.get("modules")), None)
@@ -274,7 +275,7 @@ def _buy_options(state: dict, roles: tuple[tuple[str, str], ...], size: str = "m
                     and k.get("code") not in stuck
                     and jumps(graph, sector, (k.get("place") or {}).get("sector")) < UNKNOWN_ROUTE),
                    key=lambda k: jumps(graph, sector, (k.get("place") or {}).get("sector")))
-    cap = int(min(SHIP_CAP, spare))
+    cap = int(min(ship_cap, spare))
     options = []
     for yard in yards[:2]:
         race = RACE[yard["owner"]]

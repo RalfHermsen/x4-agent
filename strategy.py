@@ -183,6 +183,37 @@ def own_build(state: dict, pattern: str, size: str = "m", brake: bool = True) ->
     return f"buildship {wharf['code']} {macro} {sitrep.ship_name(macro)}"
 
 
+# The most a destroyer bought for the reserve may cost: 23 M at HOW-875 in ship12-camp.
+RESERVE_SHIP_CAP = 40_000_000
+ALLY_AT = 1.0       # a faction's capital ships are for its allies: Argon's L wharf refuses us
+
+
+def reserve_purchase(state: dict, data: dict, goal: dict) -> str | None:
+    """A destroyer bought when those at home and on order fall short of `raid_home`.
+
+    Without brake or waiting for our own L bay, which gives one in 3.4 game hours:
+    the reserve goes before any raid. A ship on a raid or away for repairs is not
+    in it, one on its way from the wharf is. An order stuck at a wharf does not count
+    (`catalog._orders`), or two waiting for missile components would hold the rest.
+    """
+    import catalog
+    import sitrep
+    need = goal.get("raid_home") or 0
+    held = data.get("standing") or {}
+    away = set((held.get("raid") or {}).get("ships") or []) | set(held.get("repairing") or {})
+    home = sum(1 for s in catalog._ships(state)
+               if sitrep.ship_type(s.get("macro")) == "destroyer" and s.get("code") not in away)
+    stuck, _ = catalog._orders(state, "l")
+    coming = sum(1 for o in state.get("ships_on_order") or []
+                 if sitrep.ship_type(o["macro"]) == "destroyer" and o["wharf"] not in stuck)
+    if home + coming >= need:
+        return None
+    relations = (state.get("player") or {}).get("relations") or {}
+    options = catalog._buy_options(state, (("destroyer", "ship_{race}_l_destroyer_02_a_macro"),), size="l",
+                                   gap=False, hold=False, ship_cap=RESERVE_SHIP_CAP)
+    return next((o.command for o in options if relations.get(o.command.split()[2], 0) >= ALLY_AT), None)
+
+
 def _size(pattern: str) -> str:
     """"ship_{race}_l_destroyer_01_a_macro" -> "l"."""
     return pattern.split("_")[2]
@@ -250,6 +281,9 @@ def fleet(state: dict, data: dict) -> list[str]:
                       lambda s: sitrep.ship_type(s.get("macro")) == "destroyer"))
         # A ship out on a raid is under its leader, and still ours to count.
         raiding = set(((data.get("standing") or {}).get("raid") or {}).get("ships") or [])
+        reserve = reserve_purchase(state, data, goal)
+        if reserve:
+            out.append(reserve)
         for role, kind, target, label, pattern, fits in wants:
             have = sum(1 for s in catalog._ships(state)
                        if (executor.serves(s, state) in _working(code, role) or s.get("code") in raiding)

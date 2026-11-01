@@ -214,6 +214,42 @@ def test_a_destroyer_comes_from_our_own_l_bay_and_is_never_bought(small_state, m
     assert "destroyers 0/1" in strategy.lines(state, plan)[1]
 
 
+def _reserve(small_state, destroyers=1):
+    state = copy.deepcopy(small_state)
+    state["assets"] = [a for a in state["assets"] if a.get("cls") == "station"]
+    state["player"].update(money=500_000_000, relations={"paranid": 1.0, "argon": 0.02})
+    place = dict(_station(state)["place"])
+    state["known_stations"] = [{"code": "ARG-001", "owner": "argon", "builds": ["l"], "place": place},
+                               {"code": "PAR-001", "owner": "paranid", "builds": ["l"], "place": place}]
+    state["assets"] += [{"code": f"DES-{i}", "cls": "ship_l", "macro": "ship_tel_l_destroyer_01_a_macro",
+                         "owner": "player", "orders": [{"order": "ProtectStation", "default": True}]}
+                        for i in range(destroyers)]
+    return state
+
+
+def test_a_reserve_too_small_buys_from_an_ally_at_once(small_state):
+    state = _reserve(small_state)
+    state["sent_at"] = {"buyship": state["meta"]["playtime_s"]}
+    command = strategy.reserve_purchase(state, {}, {"raid_home": 2})
+    assert command.startswith("buyship PAR-001 paranid ship_par_l_destroyer_02_a_macro ")
+    assert command.endswith(f" {strategy.RESERVE_SHIP_CAP}")
+
+
+def test_the_reserve_counts_what_is_coming_but_not_what_is_away(small_state):
+    state = _reserve(small_state, destroyers=2)
+    assert strategy.reserve_purchase(state, {}, {"raid_home": 2}) is None
+    assert strategy.reserve_purchase(state, {}, {}) is None
+    raid = {"standing": {"raid": {"ships": ["DES-0"]}}}
+    assert strategy.reserve_purchase(state, raid, {"raid_home": 2})
+    repair = {"standing": {"repairing": {"DES-1": 1}}}
+    assert strategy.reserve_purchase(state, repair, {"raid_home": 2})
+    now = state["meta"]["playtime_s"]
+    state["ships_on_order"] = [{"wharf": "PAR-001", "macro": "ship_par_l_destroyer_02_a_macro", "since": now}]
+    assert strategy.reserve_purchase(state, raid, {"raid_home": 2}) is None
+    state["ships_on_order"][0]["since"] = now - catalog.ORDER_STUCK - 1    # stuck: not coming, and not asked again
+    assert strategy.reserve_purchase(state, raid, {"raid_home": 2}) is None
+
+
 def test_a_destroyer_does_not_wait_for_the_hourly_brake(small_state):
     state = copy.deepcopy(small_state)
     state["assets"] = [a for a in state["assets"] if a.get("cls") == "station"]

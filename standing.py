@@ -814,7 +814,8 @@ def raids(state: dict, data: dict) -> list[str]:
                 return []
             if raid["leader"] in ours:
                 raid["phase"], raid["since"] = "back", now
-                return [f"release {raid['leader']}"]
+                # All of them: in ship12-camp five kept on at the station after their leader left.
+                return [f"release {s['code']}" for s in alive]
         elif raid["leader"] in ours and now - raid["since"] < RAID_BACK_WAIT:
             sector = (ours[raid["leader"]].get("place") or {}).get("sector")
             if sector != raid["home_sector"]:

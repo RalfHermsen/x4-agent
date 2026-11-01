@@ -261,7 +261,7 @@ def test_an_unseen_sector_is_raided_only_if_the_plan_says_so_and_looked_at_on_ar
     assert standing.raids(state, data) == [f"raid DES-000 {XEN_SECTOR}"]
     state["hostiles"] = {}
     state["meta"]["playtime_s"] += standing.RAID_BACK_WAIT
-    assert standing.raids(state, data) == ["release DES-000"]  # all gone: back
+    assert standing.raids(state, data) == ["release DES-000", "release DES-001", "release DES-002"]  # all gone: back
 
 
 def test_a_raid_that_finds_too_many_xl_turns_back_and_stays_away(small_state):
@@ -269,7 +269,7 @@ def test_a_raid_that_finds_too_many_xl_turns_back_and_stays_away(small_state):
     assert standing.raids(state, data)[-1] == f"raid DES-000 {XEN_SECTOR}"
     next(a for a in state["assets"] if a["code"] == "DES-000")["place"] = {"sector": XEN_SECTOR}
     state["hostiles"][XEN_SECTOR]["xenon"]["ship_xl"] = 1      # 3 destroyers, one XL takes 6
-    assert standing.raids(state, data) == ["release DES-000"]
+    assert standing.raids(state, data) == ["release DES-000", "release DES-001", "release DES-002"]
     state["meta"]["playtime_s"] += standing.RAID_BACK_WAIT
     standing.raids(state, data)                                # settling
     standing.raids(state, data)                                # settled
@@ -288,7 +288,7 @@ def test_a_lost_destroyer_counts_as_damage(small_state):
     assert standing.raids(state, data)[-1] == f"raid DES-000 {XEN_SECTOR}"
     next(a for a in state["assets"] if a["code"] == "DES-000")["place"] = {"sector": XEN_SECTOR}
     state["assets"] = [a for a in state["assets"] if a["code"] != "DES-002"]
-    assert standing.raids(state, data) == ["release DES-000"]  # 2 of 3 whole: 0.67, below 0.75
+    assert standing.raids(state, data) == ["release DES-000", "release DES-001"]  # 2 of 3 whole: 0.67, below 0.75
 
 
 def test_no_raid_without_xenon_seen_there(small_state):
@@ -402,7 +402,7 @@ def test_a_hurt_fleet_comes_back_and_defends_again(small_state):
         if ship["code"].startswith("DES-"):
             ship["hull"] = top * 0.6
             ship["place"] = {"sector": XEN_SECTOR}
-    assert standing.raids(state, data) == ["release DES-000"]
+    assert standing.raids(state, data) == ["release DES-000", "release DES-001", "release DES-002"]
     assert data["standing"]["raid"]["phase"] == "back"
     assert standing.raids(state, data) == []                      # still on the way
     for ship in state["assets"]:
@@ -424,11 +424,11 @@ def test_a_raid_ends_when_the_station_is_gone_or_the_leader_is(small_state):
     for ship in state["assets"]:
         if ship["code"].startswith("DES-"):
             ship["place"] = {"sector": XEN_SECTOR}
-    assert standing.raids(state, data) == ["release DES-000"]
+    assert standing.raids(state, data) == ["release DES-000", "release DES-001", "release DES-002"]
     state, data = _raid_ready(small_state)
     standing.raids(state, data)
     state["meta"]["playtime_s"] += standing.RAID_BACK_WAIT
-    assert standing.raids(state, data) == ["release DES-000"]     # never got there
+    assert standing.raids(state, data) == ["release DES-000", "release DES-001", "release DES-002"]     # never got there
     state, data = _raid_ready(small_state)
     standing.raids(state, data)
     state["assets"] = [a for a in state["assets"] if a["code"] != "DES-000"]
