@@ -96,6 +96,7 @@ declare [[ int64_t GetBuilderHiringFee(void); ]]
 declare [[ bool IsBuilderBusy(UniverseID shipid); ]]
 declare [[ uint32_t CreateDeployToStationOrder(UniverseID controllableid); ]]
 declare [[ bool RemoveAllOrders(UniverseID controllableid); ]]
+declare [[ bool RemoveOrder(UniverseID controllableid, size_t idx, bool playercancelled, bool checkonly); ]]
 declare [[ bool CanContainerBuildShip(UniverseID containerid, UniverseID shipid); ]]
 declare [[ void SellPlayerShip(UniverseID shipid, UniverseID shipyardid); ]]
 -- 3.6: only functions are declared here. The loadout and crew structures
@@ -1920,6 +1921,32 @@ local function release(args)
     return true
 end
 
+--- "undock TUR-084" -> the queue goes, last to first, as the map menu's Delete All
+--- does, and the ship is back on its default order. `release` leaves a DockAndWait
+--- the game gave the ship itself: TUR-084 kept one through two releases (ship10b).
+local function undock_ship(args)
+    local shipcode = args[1]
+    if not shipcode then
+        return refuse("undock needs: undock <SHIP IDCODE>")
+    end
+    local ship = player_ships()[shipcode]
+    if not ship then
+        return refuse("undock: no ship of ours with id code " .. shipcode)
+    end
+    local before = tonumber(C.GetNumOrders(ship))
+    local removed = 0
+    for i = before, 1, -1 do
+        if C.RemoveOrder(ship, i, false, false) then
+            removed = removed + 1
+        end
+    end
+    if removed == 0 then
+        return refuse(string.format("undock: none of the %d orders of %s could go", before, shipcode))
+    end
+    log(string.format("ORDER: %s undocks, %d of %d orders gone", shipcode, removed, before))
+    return true
+end
+
 local HANDLERS = {
     limit = set_limit,
     turrets = set_turrets,
@@ -1934,6 +1961,7 @@ local HANDLERS = {
     plot = extend_plot,
     cancelbuild = cancel_build,
     cancelship = cancel_ship,
+    undock = undock_ship,
     buildship = build_own_ship,
 }
 

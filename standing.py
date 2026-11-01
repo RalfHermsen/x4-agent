@@ -720,6 +720,25 @@ def wings(state: dict, data: dict) -> list[str]:
     return out
 
 
+def undock_fleet(state: dict, data: dict) -> list[str]:
+    """A destroyer the game parked out of its own accord leaves again.
+
+    It stays for good, on a temporary DockAndWait without a timeout, and keeps
+    a raid or a new ship waiting: in ship10b-camp VOK-360 lay at the pier and
+    TUR-084 in the L bay of the wharf for 50 game hours, with a destroyer on order
+    behind it. A Repair order waits on a DockAndWait too, and has two in its queue.
+    """
+    busy = data.get("standing", {}).get("repairing") or {}
+    out = []
+    for ship in state.get("assets", []):
+        if sitrep.ship_type(ship.get("macro")) != "destroyer" or ship.get("connection") != "dock":
+            continue
+        queue = [o.get("order") for o in ship.get("orders") or [] if not o.get("default")]
+        if queue == ["DockAndWait"] and ship.get("code") not in busy:
+            out.append(f"undock {ship['code']}")
+    return out
+
+
 def raids(state: dict, data: dict) -> list[str]:
     """The plan's destroyers go for the Xenon in its `raid_sector`: its
     stations, or with none its ships, by the `raid` verb's priority order.
@@ -806,7 +825,7 @@ def fleet(state: dict, data: dict) -> list[str]:
 
 RULES = (sell_limits, revisit, satellites, ledger, once, patrols, find_builds, hire_builders,
          own_stock, repairs, seminars, scouts, empty_builds, docks, managers, shiptraders,
-         cargo_drones, accounts, wings, raids, fleet, grow)
+         cargo_drones, accounts, undock_fleet, wings, raids, fleet, grow)
 
 
 def commands(state: dict, data: dict, off: set | frozenset = frozenset()) -> list[str]:

@@ -212,6 +212,18 @@ def _raid_ready(state, destroyers=3):
     return state, data
 
 
+def test_a_parked_destroyer_leaves_unless_it_waits_for_a_repair(small_state):
+    state, data = _raid_ready(small_state, destroyers=1)
+    ship = next(a for a in state["assets"] if a["code"] == "DES-000")
+    ship["orders"] = [{"order": "Patrol", "default": True}, {"order": "DockAndWait"}]
+    ship["connection"] = "space"
+    assert standing.undock_fleet(state, data) == []            # in space: on its way in
+    ship["connection"] = "dock"
+    assert standing.undock_fleet(state, data) == ["undock DES-000"]
+    ship["orders"].append({"order": "Repair"})
+    assert standing.undock_fleet(state, data) == []
+
+
 def test_a_raid_goes_when_every_destroyer_stands(small_state):
     state, data = _raid_ready(small_state, destroyers=2)
     assert standing.raids(state, data) == []
