@@ -815,9 +815,12 @@ def raids(state: dict, data: dict) -> list[str]:
             if alive:
                 raid["phase"], raid["since"] = "back", now
                 raid["leader"] = raid["leader"] if raid["leader"] in ours else alive[0]["code"]
-                # A dock order, ahead of what they do: `release` alone leaves a ship under
-                # fire shooting back where it stands (ship12c-camp, WKU-369 lost that way).
-                return [f"dockat {s['code']} {raid['home']} player" for s in alive]
+                # Both: `release` alone leaves a ship under fire shooting back where it stands
+                # (ship12c-camp, WKU-369), and on a dock order 15 reached home and flew back
+                # into the fight for 3,000 game seconds (ship12f-camp). These two brought
+                # all 14 home within 600.
+                return ([f"release {s['code']}" for s in alive]
+                        + [f"assign {s['code']} {raid['home']} defend" for s in alive])
         elif raid["leader"] in ours and now - raid["since"] < RAID_BACK_WAIT:
             sector = (ours[raid["leader"]].get("place") or {}).get("sector")
             if sector != raid["home_sector"]:
@@ -837,7 +840,9 @@ def raids(state: dict, data: dict) -> list[str]:
         if not (sector and wanted and home):
             continue
         xenon = ((state.get("hostiles") or {}).get(sector) or {}).get("xenon", {})
-        if (not xenon and not goal.get("raid_unseen")) or xenon.get("ship_xl", 0) * RAID_PER_XL > wanted:
+        enough = goal.get("raid_from") or wanted
+        # The ships that go, not the whole fleet: they turn back on arrival by this same sum.
+        if (not xenon and not goal.get("raid_unseen")) or xenon.get("ship_xl", 0) * RAID_PER_XL > enough:
             continue
         if now - (held.get("raid_strong") or {}).get(sector, -1e9) < RAID_STRONG_WAIT:
             continue
@@ -848,7 +853,6 @@ def raids(state: dict, data: dict) -> list[str]:
                  and executor.serves(s, state) == (code, "defence") and s["code"] not in busy
                  and (s.get("place") or {}).get("sector") == home_sector
                  and _hull_share(s) >= RAID_GO_FROM]
-        enough = goal.get("raid_from") or wanted
         # The ones left stay home: ship11c-camp had none when 8 XL came to the station.
         if (len(ready) < enough + (goal.get("raid_home") or 0)
                 or strategy.fighters_flying(state) < (goal.get("fighters_per_destroyer") or 0) * enough):
