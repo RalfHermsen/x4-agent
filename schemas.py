@@ -422,6 +422,8 @@ class StationGoal(BaseModel):
                                                     "planned destroyer; a Teladi destroyer docks four")
     raid_sector: str = Field(description="macro of a sector whose Xenon stations the destroyers attack "
                                          "once all of them stand; empty for no raid")
+    raid_unseen: bool = Field(default=False, description="go to raid_sector though we have seen no Xenon "
+                                                         "there; the fleet looks when it arrives")
     raid_from: int = Field(default=0, description="how many destroyers, with their fighters, are enough to "
                                                   "raid while more are on order; 0 for all of them")
 

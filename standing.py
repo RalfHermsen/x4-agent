@@ -343,6 +343,7 @@ def own_stock(state: dict, data: dict) -> list[str]:
 REPAIR_BELOW, REPAIRED_AT = 0.70, 0.95
 RAID_GO_FROM, RAID_BACK_BELOW = 0.90, 0.75     # the fleet's hull, as a share of its whole
 RAID_PER_XL = 6                                # destroyers it takes per Xenon XL in the target sector
+RAID_ASK_AGAIN = 1800                          # game seconds before a raid is told again to attack
 RAID_BACK_WAIT = 3600                          # game seconds before a raid counts as home anyway
 SIZE_GROUPS = {"ship_xs": {"s", "m"}, "ship_s": {"s", "m"}, "ship_m": {"s", "m"},
                "ship_l": {"l", "xl"}, "ship_xl": {"l", "xl"}}
@@ -771,11 +772,23 @@ def raids(state: dict, data: dict) -> list[str]:
         if raid["phase"] == "out":
             if ((ours.get(raid["leader"]) or {}).get("place") or {}).get("sector") == raid["sector"]:
                 raid["arrived"] = True
+                raid.setdefault("arrived_at", now)
             left = ((state.get("hostiles") or {}).get(raid["sector"]) or {}).get("xenon")
             hurt = (len(alive) * 2 < len(raid["ships"])
                     or sum(_hull_share(s) for s in alive) < RAID_BACK_BELOW * max(len(alive), 1))
             done = not left if raid.get("arrived") else now - raid["since"] >= RAID_BACK_WAIT
+            if raid.get("unseen") and raid.get("arrived"):
+                # It went in blind, and a sector is wide: nothing in sight on the
+                # first cycle there says nothing.
+                done = done and now - raid["arrived_at"] >= RAID_BACK_WAIT
             if raid["leader"] in ours and not (hurt or done):
+                # A station came into sight, or the one it attacked is gone and
+                # another stands: the `raid` before this one only found a patrol.
+                queue = [o.get("order") for o in ours[raid["leader"]].get("orders") or [] if not o.get("default")]
+                if (raid.get("arrived") and (left or {}).get("station") and "Attack" not in queue
+                        and now - raid.get("asked", -1e9) >= RAID_ASK_AGAIN):
+                    raid["asked"] = now
+                    return [f"raid {raid['leader']} {raid['sector']}"]
                 return []
             if raid["leader"] in ours:
                 raid["phase"], raid["since"] = "back", now
@@ -798,7 +811,7 @@ def raids(state: dict, data: dict) -> list[str]:
         if not (sector and wanted and home):
             continue
         xenon = ((state.get("hostiles") or {}).get(sector) or {}).get("xenon", {})
-        if not xenon or xenon.get("ship_xl", 0) * RAID_PER_XL > wanted:
+        if (not xenon and not goal.get("raid_unseen")) or xenon.get("ship_xl", 0) * RAID_PER_XL > wanted:
             continue
         busy = held.get("repairing") or {}
         home_sector = (home.get("place") or {}).get("sector")
@@ -812,7 +825,8 @@ def raids(state: dict, data: dict) -> list[str]:
             continue
         leader, *rest = [s["code"] for s in ready]
         held["raid"] = {"sector": sector, "home": code, "home_sector": home_sector, "leader": leader,
-                        "ships": [leader, *rest], "phase": "out", "since": now}
+                        "ships": [leader, *rest], "phase": "out", "since": now,
+                        "unseen": bool(goal.get("raid_unseen"))}
         return [f"command {s} {leader} attack" for s in rest] + [f"raid {leader} {sector}"]
     return []
 

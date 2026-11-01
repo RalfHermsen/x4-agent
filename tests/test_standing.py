@@ -241,6 +241,29 @@ def test_a_raid_goes_when_every_destroyer_stands(small_state):
     assert standing.raids(state, data) == []                      # once
 
 
+def test_an_unseen_sector_is_raided_only_if_the_plan_says_so_and_looked_at_on_arrival(small_state):
+    state, data = _raid_ready(small_state)
+    state["hostiles"] = {}
+    assert standing.raids(state, data) == []
+    data["strategy"]["plan"]["stations"]["KYV-745"]["raid_unseen"] = True
+    assert standing.raids(state, data)[-1] == f"raid DES-000 {XEN_SECTOR}"
+    leader = next(a for a in state["assets"] if a["code"] == "DES-000")
+    leader["place"] = {"sector": XEN_SECTOR}
+    state["meta"]["playtime_s"] = 1000
+    assert standing.raids(state, data) == []                   # arrived, nothing in sight yet: stays
+    state["hostiles"] = {XEN_SECTOR: {"xenon": {"station": 3}}}
+    assert standing.raids(state, data) == [f"raid DES-000 {XEN_SECTOR}"]
+    assert standing.raids(state, data) == []                   # not at once again
+    leader["orders"] = [{"order": "Attack"}]
+    state["meta"]["playtime_s"] += standing.RAID_ASK_AGAIN
+    assert standing.raids(state, data) == []                   # it is on it
+    leader["orders"] = []
+    assert standing.raids(state, data) == [f"raid DES-000 {XEN_SECTOR}"]
+    state["hostiles"] = {}
+    state["meta"]["playtime_s"] += standing.RAID_BACK_WAIT
+    assert standing.raids(state, data) == ["release DES-000"]  # all gone: back
+
+
 def test_no_raid_without_xenon_seen_there(small_state):
     state, data = _raid_ready(small_state)
     state["hostiles"] = {XEN_SECTOR: {"outlaw": {"ship_s": 1}}}

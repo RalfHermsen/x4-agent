@@ -97,6 +97,7 @@ declare [[ bool IsBuilderBusy(UniverseID shipid); ]]
 declare [[ uint32_t CreateDeployToStationOrder(UniverseID controllableid); ]]
 declare [[ bool RemoveAllOrders(UniverseID controllableid); ]]
 declare [[ bool RemoveOrder(UniverseID controllableid, size_t idx, bool playercancelled, bool checkonly); ]]
+declare [[ bool IsObjectKnown(const UniverseID componentid); ]]
 declare [[ bool CanContainerBuildShip(UniverseID containerid, UniverseID shipid); ]]
 declare [[ void SellPlayerShip(UniverseID shipid, UniverseID shipyardid); ]]
 -- 3.6: only functions are declared here. The loadout and crew structures
@@ -1125,15 +1126,25 @@ local function raid(args)
     local count = C.GetNumAllFactionStations("xenon")
     local buffer = ffi.new("UniverseID[?]", math.max(count, 1))
     count = C.GetAllFactionStations(buffer, count, "xenon")
+    -- Only a station the player knows, as on the map, and a factory before a defence
+    -- base: in Scale Plate Green I that is 24 turrets against 74 and 120.
+    local target
     for i = 0, count - 1 do
         local sectorid = station_sector(buffer[i])
-        if sectorid and string.lower(GetComponentData(sectorid, "macro") or "") == sector then
-            CreateOrder(ConvertStringToLuaID(tostring(ship)), "Attack",
-                        { primarytarget = ConvertStringToLuaID(tostring(buffer[i])) }, false, false, true)
-            log(string.format("ORDER: %s attacks %s in %s", shipcode,
-                              ffi.string(C.GetObjectIDCode(buffer[i])), sector))
-            return true
+        if sectorid and string.lower(GetComponentData(sectorid, "macro") or "") == sector
+                and C.IsObjectKnown(buffer[i]) then
+            local macro = GetComponentData(ConvertStringToLuaID(tostring(buffer[i])), "macro") or ""
+            if not target or string.find(macro, "factory", 1, true) then
+                target = buffer[i]
+            end
         end
+    end
+    if target then
+        CreateOrder(ConvertStringToLuaID(tostring(ship)), "Attack",
+                    { primarytarget = ConvertStringToLuaID(tostring(target)) }, false, false, true)
+        log(string.format("ORDER: %s attacks %s in %s", shipcode,
+                          ffi.string(C.GetObjectIDCode(target)), sector))
+        return true
     end
     for _, cluster in ipairs(GetClusters(true)) do
         for _, space in ipairs(GetSectors(cluster)) do
@@ -1798,15 +1809,10 @@ local function build_own_ship(station, args)
     -- half the capacity, split over service and marines, out of the station's
     -- workforce. Without this our destroyers flew with their three officers and
     -- nobody else (ship7g). At the top of the menu's price range, never below it.
-    -- No more than the workforce has spare, the menu's own limit (maxSelect): the
-    -- two orders that asked for more waited in the queue, one 10 and one over 40
-    -- game hours, with every ware in store and the L bay empty (ship9, ship10).
-    local okcrew, hired, spare = pcall(function()
-        local spare = C.GetWorkForceInfo(station, "").available
-        local perrole = math.min(math.floor(0.5 * C.GetPeopleCapacity(0, macro, false) / 2),
-                                 math.floor(spare / 2))
+    local okcrew, hired = pcall(function()
+        local perrole = math.floor(0.5 * C.GetPeopleCapacity(0, macro, false) / 2)
         if perrole < 1 then
-            return 0, spare
+            return 0
         end
         local _, maxprice = GetWareData("crew", "minprice", "maxprice")
         local price = Helper.round(tonumber(C.GetContainerBuildPriceFactor(station)) * maxprice)
@@ -1817,12 +1823,12 @@ local function build_own_ship(station, args)
             crew.added[i - 1].amount = perrole
             crew.added[i - 1].price = price
         end
-        return perrole * 2, spare
+        return perrole * 2
     end)
     if not okcrew then
         return refuse("buildship: could not hire the crew: " .. tostring(hired))
     end
-    parts = parts .. string.format(", crew %d of %d spare", hired, tonumber(spare))
+    parts = parts .. string.format(", crew %d", hired)
     local oktask, task = pcall(C.AddBuildTask6, station, 0, macro, loadout, 0, crew, false, name, info)
     if not oktask then
         return refuse("buildship: AddBuildTask6 failed: " .. tostring(task))
