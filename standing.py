@@ -354,11 +354,16 @@ def repairs(state: dict, data: dict) -> list[str]:
     """4.9: a damaged ship of ours goes to the nearest known shipyard.
 
     The save only writes a hull value when a ship is damaged; the maximum is in
-    the ship's macro. The Repair order pays the shipyard itself and logs it.
+    the ship's macro. The Repair order pays the shipyard itself and logs it. Not to
+    a yard where Xenon stations or capital ships are seen: in ship11-camp the nearest
+    was in Trinity Sanctum III, with 4 XL, and miners and freighters died on the way.
     """
     from purchases import _graph, jumps
     table = gamedata.ships()
-    yards = [k for k in state.get("known_stations", []) if k.get("builds")]
+    hostile = {sector for sector, seen in (state.get("hostiles") or {}).items()
+               if {"station", "ship_xl", "ship_l"} & set(seen.get("xenon") or {})}
+    yards = [k for k in state.get("known_stations", []) if k.get("builds")
+             and (k.get("place") or {}).get("sector") not in hostile]
     busy = data.setdefault("standing", {}).setdefault("repairing", {})
     graph = _graph()
     out = []

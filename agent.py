@@ -326,7 +326,7 @@ def cycle(model: str | None = None, save: Path | None = None, force: bool = Fals
         elif c.startswith("cancelbuild "):
             # Keyed on the station alone: the ware it names changes.
             sent_at[" ".join(c.split()[:2])] = state.get("meta", {}).get("playtime_s", 0.0)
-        elif c.startswith(("buyship ", "buildship ")):
+        elif catalog.holds_purchases(c):
             # One key for every purchase, and for a ship our own wharf builds:
             # the gap is between any two (catalog).
             sent_at["buyship"] = state.get("meta", {}).get("playtime_s", 0.0)

@@ -165,6 +165,13 @@ def _spare(state: dict) -> float:
     return (state.get("player", {}).get("money") or 0) * (1 - RESERVE)
 
 
+def holds_purchases(command: str) -> bool:
+    """A purchase that holds the next for PURCHASE_GAP. A fighter does not, as it
+    is not held itself (strategy.own_build): in ship11-camp one every cycle kept the
+    gap open, and 9 destroyers and 5 miners went unordered with an empty bay."""
+    return command.startswith(("buyship ", "buildship ")) and "_s_fighter_" not in command
+
+
 def _bought_recently(state: dict) -> bool:
     """A ship bought within the last PURCHASE_GAP game seconds, by the purchase
     verb's own logbook line in the save, or by the send itself (agent.py,

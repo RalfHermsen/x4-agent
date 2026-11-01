@@ -404,6 +404,20 @@ def test_a_raid_ends_when_the_station_is_gone_or_the_leader_is(small_state):
     assert standing.raids(state, data) == ["assign DES-001 KYV-745 defend", "assign DES-002 KYV-745 defend"]
 
 
+def test_no_repair_at_a_yard_among_the_xenon(small_state):
+    import gamedata
+    state = copy.deepcopy(small_state)
+    aso = next(a for a in state["assets"] if a["code"] == "ASO-629")
+    aso["hull"] = gamedata.ships()[aso["macro"]]["hull"] * 0.5
+    sector = aso["place"]["sector"]
+    state["known_stations"] = [{"code": "YRD-001", "owner": "paranid", "builds": ["m"],
+                                "place": {"sector": sector}, "offers": []}]
+    state["hostiles"] = {sector: {"xenon": {"ship_xl": 1}}}
+    assert standing.repairs(state, {}) == []
+    state["hostiles"] = {sector: {"xenon": {"ship_s": 3}}}     # a fighter passing is no reason
+    assert standing.repairs(state, {}) == ["repair ASO-629 YRD-001 paranid"]
+
+
 def test_no_repair_where_the_ship_cannot_dock(small_state):
     import gamedata
     state = copy.deepcopy(small_state)
