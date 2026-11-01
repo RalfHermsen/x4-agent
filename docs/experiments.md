@@ -1610,3 +1610,46 @@ ship8 ran 117 cycles in 360 minutes at 5.8 times speed, against 262 cycles and
 5.5 times in ship7e3, with Xenon around in both. So the change did what it was for.
 
 **Next.** ship9-camp: `tasks/plan-shipbuilding-2026-10.md`, Raids.
+
+## 2026-11-01: ship9 to ship9d, the first raids
+
+Four runs on one plan: six destroyers, 24 fighters from our own wharf, raids on
+the Xenon ships in Trinity Sanctum III, one jump from the station. ship9 and
+ship9c were stopped by hand for a fix, ship9b died with the session. Only ship9d
+ran to its end and has a score: +174 M credits, net worth +255 M to 2.18 G,
+20 modules, 34.9 game hours in 360 minutes.
+
+**What did not work first, each found by reading orders and places in the save.**
+The first fighter flew unarmed: the wharf fits only blueprints we hold, so a
+fighter now waits for a weapon and a shield blueprint (7cc51b1). The first raid
+turned back after one cycle: "no Xenon left" was judged on the way, when we
+simply did not see them yet (f3debef). The leader flew alone: five destroyers and
+24 fighters were under it on paper with their old orders, because
+`set_object_commander` changes no orders. `AssignCommander` created from MD does
+(a34b513). A run ending mid-raid left five destroyers under the leader, and the
+next read 1 of 6 (0ed95e7). At a raid's return the five read as gone for one
+cycle, and a seventh destroyer went on order (2f7a279, not yet in ship9d).
+
+**What ship9d shows.** The fleet goes together: one cycle after leaving, all six
+destroyers and all 24 fighters were in the sector. Ten raids, in 28 of the
+run's 114 cycles. In five of them a Xenon XL or M was seen in the sector with the fleet
+there, up to 2 XL at once, and our fighters were attacked there. No destroyer and no
+fighter was lost, and all seven destroyers end undamaged. Eight of our
+freighters were attacked by Xenon, none lost. Trinity Sanctum III held 3 M and
+6 S at the start and 1 M at the end.
+
+**What it does not show: that we killed anything.** Paranid fight in that sector
+too. The save's stats, `xenon_ships_destroyed` among them, are 0 at the start and
+at the end, also with defenders and turrets at work for 490 game hours, so they
+say nothing about our ships. The bridge now reports `KILLED:` lines from
+`event_player_owned_killed_object`.
+
+**Open.** The report showed "xenon 1 STATION" in the sector in five raids, up
+to six cycles long, and neither the start nor the end save holds one, so it came
+and went. Who removed it is unknown. UQL-278 appeared for one cycle with no orders
+and was gone, not bought, built or hired by us and in neither save; cause
+unknown. Six destroyers still have no crew. The XL bay needs a module entry and
+a `wharf_xl` rule, not yet there.
+
+**Next.** ship10-camp: destroyers to ten with `raid_from` 6, so raids go on
+while the fleet grows, and kills in the report.
