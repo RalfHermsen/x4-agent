@@ -122,6 +122,7 @@ EXPANSION_MODULES = {
     # asks for "habitation"; Python picks the race (habitation_race below).
     "habitation_arg": ("hab_arg_s_01_macro", None),
     "habitation_tel": ("hab_tel_s_01_macro", None),
+    "habitation_tel_l": ("hab_tel_l_01_macro", None),
     "habitation_par": ("hab_par_s_01_macro", None),
     "habitation_spl": ("hab_spl_s_01_macro", None),
     "habitation_ter": ("hab_ter_s_01_macro", None),

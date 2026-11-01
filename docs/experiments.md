@@ -1653,3 +1653,42 @@ a `wharf_xl` rule, not yet there.
 
 **Next.** ship10-camp: destroyers to ten with `raid_from` 6, so raids go on
 while the fleet grows, and kills in the report.
+
+## 2026-11-01: ship10 to ship10d, what held the destroyers
+
+Destroyers went from 7 towards 10 with `raid_from` 6, so raids went on. The first
+order with crew had waited 6 hours in the queue and the second never began: every
+ware in store, the game saying nothing was missing. I read the crew as the cause,
+limited it to what the workforce had spare (0), cancelled the order and placed one
+without crew. ship10b then ran 29 game hours with that order in the queue too, so
+the crew was not it. VFM-670, the first ordered with crew, has its 24 people. The
+limit went out again.
+
+**The cause.** A destroyer of ours lay in the wharf's L bay. `buildmodule_gen_ships_l`
+has a dock (`dockingbay_gen_l_inv`), and the save nests a docked ship in it: TUR-084
+was there at the end of ship9d and of ship10 and through all of ship10b, on a
+temporary `DockAndWait` without a timeout. VOK-360 lay the same way at the pier.
+Who gives them that order is unknown; it is not our bridge. `release` does not take
+it (`RemoveAllOrders2` with `onlypriority`) and a new default order waits behind it.
+Removing the queue as the map menu does (`RemoveOrder`, new verb `undock`) does:
+TUR-084 got it at playtime 1941242 and JOD-285 was started by 1941290, 48 seconds
+later, after 36 hours of waiting. A rule now sends `undock` to any destroyer docked
+with only a DockAndWait in its queue. It fires now and then, on other destroyers too.
+
+**Not explained.** The 6 hours of the first crewed order: at the three saves in that
+time the bay was empty. It may have held a ship between saves, or a crewed order may
+wait for its crew. The next crewed orders measure that.
+
+**Also found.** The verb first sat in the station table of the bridge, answered "no
+station of ours" for two hours of game time, and no report showed it: that line and
+a failed `pcall` in the dispatcher went to the logbook without REFUSED. Both are
+refusals now.
+
+**ship10b, the run that has a score** (360 minutes, 34.5 game hours): +180 M credits
+to 1.64 G, net worth +220 M to 2.47 G, 39 modules, fighters to 40. Ten raids. The
+first Xenon kill: MJC-551, a miner, by a fighter. One ship lost, TKN-091. No destroyer
+or station lost.
+
+**The workforce.** KYV-745 houses 500 against the 38,720 its modules can use, 1.3%,
+and wares.xml gives a bonus of 0.34 to 0.53 per ware for full staffing. How output
+scales with staffing is not measured yet. `habitation_tel_l` (1,000 people) is in.

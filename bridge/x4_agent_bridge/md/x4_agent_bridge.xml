@@ -506,6 +506,10 @@
           <set_value name="$agent_ware" exact="ware.module_tel_hab_s_01"/>
           <set_value name="$agent_module" exact="macro.hab_tel_s_01_macro"/>
         </do_if>
+        <do_if value="event.param == 'expand %s habitation_tel_l'.[$agent_station.idcode]">
+          <set_value name="$agent_ware" exact="ware.module_tel_hab_l_01"/>
+          <set_value name="$agent_module" exact="macro.hab_tel_l_01_macro"/>
+        </do_if>
         <do_if value="event.param == 'expand %s habitation_par'.[$agent_station.idcode]">
           <set_value name="$agent_ware" exact="ware.module_par_hab_s_01"/>
           <set_value name="$agent_module" exact="macro.hab_par_s_01_macro"/>

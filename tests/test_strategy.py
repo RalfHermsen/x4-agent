@@ -56,6 +56,8 @@ def test_modules_count_by_what_they_are(small_state):
     assert strategy.built(st, "storage_container") == 1 and strategy.built(st, "storage_solid") == 1
     assert strategy.built(st, "dock") == 1 and strategy.built(st, "habitation_tel") == 1
     assert strategy.built(st, "habitation_arg") == 0
+    st["modules"] = list(st["modules"]) + ["hab_tel_l_01_macro"]
+    assert strategy.built(st, "habitation_tel_l") == 1 and strategy.built(st, "habitation_tel") == 2
 
 
 def test_the_plan_says_what_a_station_is_still_short_of(small_state):
