@@ -371,6 +371,17 @@ def test_a_raid_goes_from_its_number_with_more_on_order(small_state):
     assert standing.raids(state, data)[-1] == f"raid DES-000 {XEN_SECTOR}"
 
 
+def test_a_raid_leaves_its_defenders_at_home(small_state):
+    state, data = _raid_ready(small_state)
+    goal = data["strategy"]["plan"]["stations"]["KYV-745"]
+    goal.update(raid_from=2, raid_home=2)
+    assert standing.raids(state, data) == []                   # 3 stand, 4 wanted
+    state, data = _raid_ready(small_state, destroyers=4)
+    data["strategy"]["plan"]["stations"]["KYV-745"].update(raid_from=2, raid_home=2)
+    assert standing.raids(state, data) == ["command DES-001 DES-000 attack", f"raid DES-000 {XEN_SECTOR}"]
+    assert data["standing"]["raid"]["ships"] == ["DES-000", "DES-001"]
+
+
 def test_a_raid_waits_for_its_fighters(small_state):
     state, data = _raid_ready(small_state)
     data["strategy"]["plan"]["stations"]["KYV-745"]["fighters_per_destroyer"] = 1

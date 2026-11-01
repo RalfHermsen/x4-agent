@@ -845,9 +845,11 @@ def raids(state: dict, data: dict) -> list[str]:
                  and (s.get("place") or {}).get("sector") == home_sector
                  and _hull_share(s) >= RAID_GO_FROM]
         enough = goal.get("raid_from") or wanted
-        if len(ready) < enough or strategy.fighters_flying(state) < (goal.get("fighters_per_destroyer") or 0) * enough:
+        # The ones left stay home: ship11c-camp had none when 8 XL came to the station.
+        if (len(ready) < enough + (goal.get("raid_home") or 0)
+                or strategy.fighters_flying(state) < (goal.get("fighters_per_destroyer") or 0) * enough):
             continue
-        leader, *rest = [s["code"] for s in ready]
+        leader, *rest = [s["code"] for s in ready[:enough]] if goal.get("raid_home") else [s["code"] for s in ready]
         held["raid"] = {"sector": sector, "home": code, "home_sector": home_sector, "leader": leader,
                         "ships": [leader, *rest], "phase": "out", "since": now,
                         "unseen": bool(goal.get("raid_unseen"))}
