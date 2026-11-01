@@ -1492,6 +1492,42 @@ local function cancel_build(station, args)
                                 args.code, ware))
 end
 
+--- "cancelship KYV-745 ship_tel_l_destroyer_01_a_macro" -> our own queued orders
+--- of that ship at that wharf are cancelled, and only those: a wharf's queue also
+--- holds other factions' repairs. What the game says of each goes in the logbook.
+local function cancel_ship(station, args)
+    local macro = args[1]
+    if not macro then
+        return refuse("cancelship needs: cancelship <STATION> <macro>")
+    end
+    local ok, cancelled = pcall(function()
+        local count = 0
+        local n = C.GetNumBuildTasks(station, 0, false, false)
+        if n > 0 then
+            local buf = ffi.new("BuildTaskInfo[?]", n)
+            n = C.GetBuildTasks(buf, n, station, 0, false, false)
+            for i = 0, n - 1 do
+                local task = buf[i]
+                if task.macro ~= nil and task.factionid ~= nil and ffi.string(task.macro) == macro
+                        and ffi.string(task.factionid) == "player" and C.CanCancelConstruction(station, task.id) then
+                    log(string.format("ORDER: %s cancels %s, queue position %d, missing resources %s",
+                                      args.code, macro, tonumber(task.queueposition), tostring(task.ismissingresources)))
+                    C.CancelConstruction(station, task.id)
+                    count = count + 1
+                end
+            end
+        end
+        return count
+    end)
+    if not ok then
+        return refuse("cancelship: the map menu's functions are not available: " .. tostring(cancelled))
+    end
+    if cancelled == 0 then
+        return refuse("cancelship: no queued " .. macro .. " of ours at " .. args.code .. " could be cancelled")
+    end
+    return true
+end
+
 --- "plot GKL-870 3 2000000" -> the station's plot grown to 3 km a side, both
 --- ways along each axis, at the Plan Build menu's price and not above the
 --- given cap: ExtendBuildPlot, the price GetBuildPlotPrice for the new size
@@ -1761,10 +1797,15 @@ local function build_own_ship(station, args)
     -- half the capacity, split over service and marines, out of the station's
     -- workforce. Without this our destroyers flew with their three officers and
     -- nobody else (ship7g). At the top of the menu's price range, never below it.
-    local okcrew, hired = pcall(function()
-        local perrole = math.floor(0.5 * C.GetPeopleCapacity(0, macro, false) / 2)
+    -- No more than the workforce has spare, the menu's own limit (maxSelect): the
+    -- two orders that asked for more waited in the queue, one 10 and one over 40
+    -- game hours, with every ware in store and the L bay empty (ship9, ship10).
+    local okcrew, hired, spare = pcall(function()
+        local spare = C.GetWorkForceInfo(station, "").available
+        local perrole = math.min(math.floor(0.5 * C.GetPeopleCapacity(0, macro, false) / 2),
+                                 math.floor(spare / 2))
         if perrole < 1 then
-            return 0
+            return 0, spare
         end
         local _, maxprice = GetWareData("crew", "minprice", "maxprice")
         local price = Helper.round(tonumber(C.GetContainerBuildPriceFactor(station)) * maxprice)
@@ -1775,12 +1816,12 @@ local function build_own_ship(station, args)
             crew.added[i - 1].amount = perrole
             crew.added[i - 1].price = price
         end
-        return perrole * 2
+        return perrole * 2, spare
     end)
     if not okcrew then
         return refuse("buildship: could not hire the crew: " .. tostring(hired))
     end
-    parts = parts .. string.format(", crew %d", hired)
+    parts = parts .. string.format(", crew %d of %d spare", hired, tonumber(spare))
     local oktask, task = pcall(C.AddBuildTask6, station, 0, macro, loadout, 0, crew, false, name, info)
     if not oktask then
         return refuse("buildship: AddBuildTask6 failed: " .. tostring(task))
@@ -1892,6 +1933,7 @@ local HANDLERS = {
     buildfund = fund_build,
     plot = extend_plot,
     cancelbuild = cancel_build,
+    cancelship = cancel_ship,
     buildship = build_own_ship,
 }
 

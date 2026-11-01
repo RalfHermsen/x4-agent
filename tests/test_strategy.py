@@ -218,6 +218,8 @@ def test_a_wing_of_fighters_comes_from_our_wharf_without_the_hourly_brake(small_
                                      "thruster_gen_s_allround_01_mk1"]
     state["sent_at"] = {"buyship": state["meta"]["playtime_s"]}
     assert strategy.own_build(state, "ship_{race}_s_fighter_02_a_macro", "s", brake=False) is None   # no guns yet
+    late = {"wharf": "KYV-745", "macro": "ship_tel_l_destroyer_01_a_macro", "since": -1e6}
+    state["ships_on_order"] = [late]
     state["player"]["blueprints"] += ["weapon_gen_s_laser_01_mk1", "shield_tel_s_standard_01_mk1"]
     _station(state)["modules"] = list(_station(state)["modules"]) + [executor.EXPANSION_MODULES["wharf"][0]]
     plan = {"strategy": {"plan": dict(PLAN, stations={"KYV-745": {"build": {}, "miners": {}, "traders": 0,

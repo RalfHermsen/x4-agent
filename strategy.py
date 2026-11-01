@@ -168,7 +168,7 @@ def own_build(state: dict, pattern: str, size: str = "m", brake: bool = True) ->
             return None
     if brake and catalog._bought_recently(state):
         return None
-    stuck, coming = catalog._orders(state)
+    stuck, coming = catalog._orders(state, size)
     kind = sitrep.ship_type(pattern.format(race="arg"))
     if kind in coming or (brake and catalog._idle_ship(state, kind)):
         return None

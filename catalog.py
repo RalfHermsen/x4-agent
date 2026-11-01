@@ -177,9 +177,11 @@ def _bought_recently(state: dict) -> bool:
                for t, text in state.get("logbook", []))
 
 
-def _orders(state: dict) -> tuple[set[str], set[str]]:
+def _orders(state: dict, size: str | None = None) -> tuple[set[str], set[str]]:
     """Wharfs where a ship we paid for has waited longer than ORDER_STUCK, and
-    the kinds of ship on order at any other: those are coming.
+    the kinds of ship on order at any other: those are coming. With `size`, only
+    the orders in that size's bay: in ship10-camp one destroyer waiting in the L bay
+    held 16 fighters back from the S/M bay.
 
     A purchase is paid when it is placed and delivered when the wharf has the
     wares to build it. The strategist run of 2026-10-26 saw neither: it bought
@@ -193,7 +195,8 @@ def _orders(state: dict) -> tuple[set[str], set[str]]:
     were bought from Paranid wharfs, and our own arrived to sit idle.
     """
     now = state.get("meta", {}).get("playtime_s", 0.0)
-    orders = state.get("ships_on_order") or []
+    orders = [o for o in state.get("ships_on_order") or []
+              if size is None or ("_l_" in o["macro"]) == (size == "l")]
     ours = {st.get("code") for st in _stations(state)}
     stuck = {o["wharf"] for o in orders
              if now - o["since"] > (OWN_ORDER_STUCK if o["wharf"] in ours else ORDER_STUCK)}
