@@ -788,7 +788,8 @@ def raids(state: dict, data: dict) -> list[str]:
                  and executor.serves(s, state) == (code, "defence") and s["code"] not in busy
                  and (s.get("place") or {}).get("sector") == home_sector
                  and _hull_share(s) >= RAID_GO_FROM]
-        if len(ready) < wanted or strategy.fighters_flying(state) < (goal.get("fighters_per_destroyer") or 0) * wanted:
+        enough = goal.get("raid_from") or wanted
+        if len(ready) < enough or strategy.fighters_flying(state) < (goal.get("fighters_per_destroyer") or 0) * enough:
             continue
         leader, *rest = [s["code"] for s in ready]
         held["raid"] = {"sector": sector, "home": code, "home_sector": home_sector, "leader": leader,

@@ -335,8 +335,9 @@ def game_refusals(data: dict, state: dict) -> list[str]:
         newest = max(newest, when)
         if "REFUSED:" in text:
             lines.append("the game refused: " + text.split("REFUSED:", 1)[1].strip())
-        elif "ATTACKED:" in text or "DESTROYED:" in text:
-            # MD's early warning (4.8): what hit or killed one of ours, by whom.
+        elif "ATTACKED:" in text or "DESTROYED:" in text or "KILLED:" in text:
+            # MD's early warning (4.8): what hit or killed one of ours, by whom,
+            # and what ours killed.
             lines.append("the game reports: " + text.split("] ", 1)[-1].strip())
         elif "RESERVED:" in text:
             # 3.8: the player took a ship back, or handed it to the agent again.

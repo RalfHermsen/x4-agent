@@ -1064,6 +1064,21 @@
     </actions>
   </cue>
 
+  <!-- What ours killed. The stat xenon_ships_destroyed stayed 0 through ship9d-camp,
+       ten raids with Xenon XLs gone from under the fleet, so it says nothing about
+       them. No pipe event: a kill is no reason to plan at once. -->
+  <cue name="Owned_Killed" instantiate="true">
+    <conditions>
+      <event_player_owned_killed_object/>
+      <check_value value="event.param2.isclass.ship or event.param2.isclass.station"/>
+      <check_value value="event.param3 != killmethod.collected and event.param3 != killmethod.removed"/>
+    </conditions>
+    <actions>
+      <write_to_logbook category="general"
+        text="'[x4-agent] KILLED: %s %s (%s) by %s'.[event.param2.idcode, event.param2.macro.id, @event.param2.owner.knownname, @event.param.idcode]"/>
+    </actions>
+  </cue>
+
   <!-- Who every ship of ours works for, written on each load. The save gives
        a subordinate its group number only, and the ORDER lines name the
        commander only for assignments the bridge made: four miners assigned

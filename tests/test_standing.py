@@ -101,6 +101,13 @@ def test_game_events_and_ledger_read_from_the_logbook(small_state):
     assert data["ledger"]["KYV-745"]["wares"] == {"energycells": "40000", "water": "8000"}
 
 
+def test_a_kill_of_ours_is_reported(small_state):
+    state = copy.deepcopy(small_state)
+    state["logbook"] = [[1.0, "[x4-agent] KILLED: XEN-001 ship_xen_s_fighter_01_a_macro (Xenon) by FIG-000"]]
+    assert memory.game_refusals({}, state) == [
+        "the game reports: KILLED: XEN-001 ship_xen_s_fighter_01_a_macro (Xenon) by FIG-000"]
+
+
 def test_a_lost_ship_names_its_killer(small_state):
     state = copy.deepcopy(small_state)
     data = {"fleet": {"ASO-629": "container freighter", "TJL-171": "scout"}}
@@ -264,6 +271,15 @@ def test_destroyers_left_under_a_leader_by_an_ended_run_go_back_to_the_station(s
     next(a for a in state["assets"] if a["code"] == "DES-001")["assignment"] = {"group": 2}
     state["assigned_to"] = {"DES-001": "DES-000"}
     assert standing.raids(state, data) == ["assign DES-001 KYV-745 defend"]
+
+
+def test_a_raid_goes_from_its_number_with_more_on_order(small_state):
+    state, data = _raid_ready(small_state, destroyers=2)
+    goal = data["strategy"]["plan"]["stations"]["KYV-745"]
+    goal["destroyers"] = 5
+    assert standing.raids(state, data) == []
+    goal["raid_from"] = 2
+    assert standing.raids(state, data)[-1] == f"raid DES-000 {XEN_SECTOR}"
 
 
 def test_a_raid_waits_for_its_fighters(small_state):
