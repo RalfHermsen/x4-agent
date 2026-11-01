@@ -1668,7 +1668,8 @@ limit went out again.
 has a dock (`dockingbay_gen_l_inv`), and the save nests a docked ship in it: TUR-084
 was there at the end of ship9d and of ship10 and through all of ship10b, on a
 temporary `DockAndWait` without a timeout. VOK-360 lay the same way at the pier.
-Who gives them that order is unknown; it is not our bridge. `release` does not take
+My guess at the source is `sellware` on destroyers (the regex fix in be02cda), not
+proven. `release` does not take
 it (`RemoveAllOrders2` with `onlypriority`) and a new default order waits behind it.
 Removing the queue as the map menu does (`RemoveOrder`, new verb `undock`) does:
 TUR-084 got it at playtime 1941242 and JOD-285 was started by 1941290, 48 seconds
@@ -1692,3 +1693,66 @@ or station lost.
 **The workforce.** KYV-745 houses 500 against the 38,720 its modules can use, 1.3%,
 and wares.xml gives a bonus of 0.34 to 0.53 per ware for full staffing. How output
 scales with staffing is not measured yet. `habitation_tel_l` (1,000 people) is in.
+
+## 2026-11-01: ship10e to ship12g, raids that lost and raids that killed
+
+The raids of ship9 and ship10 flew out and back without a fight worth the name. These runs had
+the fights, and most of what I had built for a fight turned out wrong in the fight.
+
+**What you see from home is not what stands there.** ship11 left for Scale Plate Green I on the
+sight of 1 station, found 4 XL and 90 S, stayed over four game hours and lost all 10 destroyers.
+The rule counted XL only before launch. It now counts them on station as well and turns back at
+one XL per 6 ships, and a dead ship counts as a hull of nothing. ship11c then had no destroyers
+left when 8 XL came to the station, so the plan got `raid_home`: destroyers that stay, with a
+purchase below that number.
+
+**The first station.** ship12: 22 destroyers, 10 sent, 24 fighters, arrival at playtime 2012700.
+I first reported no damage, from the turret count and the station's top-level `attacktime`. Both
+lag. Per module there was a fight: `<hull>` on each damaged part, `state="wreck"`, an `attacktime`
+per module. The rule recalled the fleet at 75% and I sent 5 back by hand. JCQ-635 (120 turrets)
+fell at 2028606. 5 of 10 destroyers lost, and the Xenon were rebuilding in that sector within hours.
+
+**`release` is not a retreat.** It removes queued orders; a ship under fire then gets a response
+Attack and stays. ship12c sent 4 Paranid destroyers to patrol Trinity Sanctum III when the wharf
+there was under attack. BRN-748 fell, WKU-369 fell after its release, FKS-219 and NOV-273 came out
+on a dock order. NOV-273 was then released at home and fell in Trinity Sanctum III 1,100 game
+seconds later: the save has it on an Attack against a Xenon solid miner, with `pursuedistance`
+40000, through the gate. Its fighter flew with it, so it was not drawn back by a wing left behind,
+as I first said. A defender chases past the gate, and nothing stops that yet.
+
+**A dock order is not a retreat either.** ship12f retreated on `dockat` for all 15 (2ab467c). They
+reached home at 2102863, were back in the fight by 2103603 and stayed 2,300 game seconds, until
+the rule's wait ran out; VOK-360 fell there. Why they went back is unknown. `release` with `assign
+defend` then brought 14 home within 600 game seconds, and did so again for the 14 of ship12g, from
+2111067, with 3 XL in the sector. That is the retreat now (bf350d8). Two samples.
+
+**The reserve rule bought what it did not need.** 14 destroyers firing back at one Xenon M at home
+read as gone, because a non-default Attack counted as away, and a Paranid destroyer was bought
+for 25.7 M. Ships in the home sector count now, whatever they are doing (40a045c).
+
+**A brake on the wrong number.** The launch gate counted XL against the whole fleet, and the fleet
+turns back on arrival by the ships that went: with 15 going it would leave at 5 XL and turn round
+at once. It counts the ships that go now (bf350d8).
+
+**Drone components.** KYV-745's stock went 258, 183, 117, 0 and the 29th destroyer stopped, with
+`dronecomponents` missing. No known station has any for sale: the two that list a sell offer stand
+at 0, both starving at their buy price. The module's blueprint was bought from Argon for about 9 M
+at reputation 0.02, and its licence is the intermediate one; the module is in the plan. The
+weaponcomponents blueprint needs 0.1 with Argon, so that module stays 0/1.
+
+**The factory.** ship12e: 16 destroyers with `raid_home` 12 left at 2090000. LYB-042, the factory
+that had been killing our fighters, fell at 2094070, about 3,100 game seconds after they arrived.
+One destroyer lost, the other 15 at 94% hull. Then the fleet went home by itself: a killed station
+stays on the faction's list as a wreck and a factory goes first, so `raid` sent it to the wreck and
+the order ended at once. `raid` skips wrecks now (01b93b8, `IsComponentWrecked` from menu_map).
+
+**The defence bases.** ship12f and ship12g sent 15 each against SDN-839 (69 turrets) and GUV-415
+(76). Neither shows one damaged part at the end. ship12f stood in the sector from 2098294 to the
+retreat at 2102077 and killed 36 Xenon fighters and a corvette for 8 fighters; with the time spent
+after the failed retreat it lost VOK-360. ship12g lost KMN-517 to GUV-415 and turned back after
+under 2,000 game seconds at 3 XL. That the swarm of S ships takes all the fire is my guess, not
+measured. Against these bases, 15 destroyers kill ships and do not touch the station.
+
+**Score.** Not a scored run: restarts for fixes, and the game hours went to fleet building. At
+2112729: 28 destroyers, 84 fighters, 2 Xenon stations killed, 12 of 12 defence discs, home not
+attacked by a fleet. Whether home holds against one is still not measured.
