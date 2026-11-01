@@ -98,6 +98,7 @@ declare [[ uint32_t CreateDeployToStationOrder(UniverseID controllableid); ]]
 declare [[ bool RemoveAllOrders(UniverseID controllableid); ]]
 declare [[ bool RemoveOrder(UniverseID controllableid, size_t idx, bool playercancelled, bool checkonly); ]]
 declare [[ bool IsObjectKnown(const UniverseID componentid); ]]
+declare [[ bool IsComponentWrecked(UniverseID componentid); ]]
 declare [[ bool CanContainerBuildShip(UniverseID containerid, UniverseID shipid); ]]
 declare [[ void SellPlayerShip(UniverseID shipid, UniverseID shipyardid); ]]
 -- 3.6: only functions are declared here. The loadout and crew structures
@@ -1129,12 +1130,13 @@ local function raid(args)
     local buffer = ffi.new("UniverseID[?]", math.max(count, 1))
     count = C.GetAllFactionStations(buffer, count, "xenon")
     -- Only a station the player knows, as on the map, and a factory before a defence
-    -- base: in Scale Plate Green I that is 24 turrets against 74 and 120.
+    -- base: in Scale Plate Green I that is 24 turrets against 74 and 120. Not a wreck: it
+    -- stays on the list, and ship12e-camp's raid was sent back to the factory it had just killed.
     local target
     for i = 0, count - 1 do
         local sectorid = station_sector(buffer[i])
         if sectorid and string.lower(GetComponentData(sectorid, "macro") or "") == sector
-                and C.IsObjectKnown(buffer[i]) then
+                and C.IsObjectKnown(buffer[i]) and not C.IsComponentWrecked(buffer[i]) then
             local macro = GetComponentData(ConvertStringToLuaID(tostring(buffer[i])), "macro") or ""
             if not target or string.find(macro, "factory", 1, true) then
                 target = buffer[i]
