@@ -749,9 +749,8 @@ def test_a_scout_placing_a_satellite_is_left_alone(small_state):
 def test_the_plans_scouts_are_bought_without_the_wait(small_state):
     state, data = _scouts_spreading(small_state)
     data["strategy"]["plan"]["stations"]["START"]["scouts"] = 4
-    place = {"sector": "cluster_14_sector001_macro"}
+    place = dict(_station(state)["place"])
     state["known_stations"] = [{"code": "YRD-001", "owner": "argon", "builds": ["m"], "place": place}]
-    state["player"]["occupied_ship"] = "SCA-001"
     assert standing.scouts(state, data)[-1].startswith("buyship YRD-001 argon")
     state["ships_on_order"] = [{"macro": "ship_arg_s_scout_01_a_macro", "wharf": "YRD-001", "since": 5000}]
     assert standing.scouts(state, data)[-1].startswith("buyship YRD-001 argon")
