@@ -787,12 +787,20 @@ def shelter(state: dict, data: dict) -> list[str]:
     flown from the station to zone003 by themselves and fell there, while 19 game
     hours by the station passed without a loss in ship12h-camp. A `dockat` does not
     move a ship with the player at its controls: ship12i-camp stacked four of them.
-    The first call also clears the queue, which held an old order for a far wharf."""
+    The first call also clears the queue, which held an old order for a far wharf.
+
+    With no station of ours yet, a wharf we know in its sector does: start1's ship sat in
+    the open in Argon Prime and three Xenon S came for it."""
     import strategy
     occupied = state.get("player", {}).get("occupied_ship")
     ship = next((a for a in state.get("assets", []) if a.get("code") == occupied), None)
     home = next(iter(strategy.goals(data)), None)
     station = next((a for a in state.get("assets", []) if a.get("code") == home), None)
+    faction = "player"
+    if not station and ship:
+        station = next((k for k in state.get("known_stations", []) if k.get("builds")
+                        and (k.get("place") or {}).get("sector") == (ship.get("place") or {}).get("sector")), None)
+        home, faction = (station.get("code"), station.get("owner")) if station else (home, faction)
     if not ship or not station or ship.get("connection") == "dock":
         return []
     now = state["meta"]["playtime_s"]
@@ -802,7 +810,7 @@ def shelter(state: dict, data: dict) -> list[str]:
     if not first and (not away or now - mark["shelter"] < SHELTER_AGAIN):
         return []
     mark["shelter"] = now
-    return ([f"undock {occupied}"] if first else []) + [f"autopilot {home} player"]
+    return ([f"undock {occupied}"] if first else []) + [f"autopilot {home} {faction}"]
 
 
 def wings(state: dict, data: dict) -> list[str]:

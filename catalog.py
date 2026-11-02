@@ -265,7 +265,10 @@ def _buy_options(state: dict, roles: tuple[tuple[str, str], ...], size: str = "m
                                   and sitrep.ship_type(pattern.format(race="arg")) not in coming))
     if not roles:
         return []
-    home = next((a for a in _stations(state) if a.get("modules")), None)
+    # With no station yet, as at the start of a new game, near the player's ship.
+    occupied = (state.get("player") or {}).get("occupied_ship")
+    home = (next((a for a in _stations(state) if a.get("modules")), None)
+            or next((a for a in state.get("assets", []) if a.get("code") == occupied), None))
     if not home:
         return []
     graph, ships = _graph(), gamedata.ships()

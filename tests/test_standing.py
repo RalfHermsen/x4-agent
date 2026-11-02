@@ -692,6 +692,21 @@ def test_a_plan_buys_the_first_scouts(small_state):
     assert commands[0].endswith(f" {standing.SCOUT_SATELLITES}")
 
 
+def test_with_no_station_the_first_scout_comes_from_a_wharf_near_the_player(small_state):
+    import copy
+    state = copy.deepcopy(small_state)
+    state["player"]["money"] = 50_000_000
+    place = dict(_station(state)["place"])
+    _add_ship(state, "OUR-001", "ship_gen_m_corvette_01_macro", owner="player")
+    state["assets"] = [a for a in state["assets"] if a["code"] == "OUR-001"]
+    state["assets"][0]["place"] = place
+    state["player"]["occupied_ship"] = "OUR-001"
+    state["known_stations"] = [{"code": "YRD-001", "owner": "argon", "builds": ["m"], "place": dict(place)}]
+    data = {"strategy": {"plan": {"stations": {"START": {"scouts": 5}}}}}
+    assert standing.scouts(state, data)[0].startswith("buyship YRD-001 argon ship_arg_s_scout_01_a_macro")
+    assert standing.shelter(state, data)[-1] == "autopilot YRD-001 argon"
+
+
 def test_an_idle_scout_is_sent_exploring(small_state):
     import copy
     state = copy.deepcopy(small_state)
