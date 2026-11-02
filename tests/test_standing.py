@@ -517,6 +517,15 @@ def test_a_scout_on_its_errand_is_not_sent_again(small_state):
     assert standing.watch(state, data) == []
 
 
+def test_a_guard_going_home_has_its_patrol_taken_off():
+    alive = [{"code": "DES-000"}, {"code": "DES-001"}]
+    home = standing._fly_home({"guard": True, "leader": "DES-000", "home": "KYV-745"}, alive)
+    assert home == ["release DES-000", "release DES-001", "undock DES-000",
+                    "assign DES-000 KYV-745 defend", "assign DES-001 KYV-745 defend"]
+    plain = standing._fly_home({"leader": "DES-000", "home": "KYV-745"}, alive)
+    assert not any(c.startswith("undock") for c in plain)
+
+
 def test_a_raid_goes_from_its_number_with_more_on_order(small_state):
     state, data = _raid_ready(small_state, destroyers=2)
     goal = data["strategy"]["plan"]["stations"]["KYV-745"]

@@ -844,6 +844,14 @@ def undock_fleet(state: dict, data: dict) -> list[str]:
     return out
 
 
+def _fly_home(raid: dict, alive: list[dict]) -> list[str]:
+    """A guard's Patrol survives `release`, and `undock` takes it off: TYL-370 stayed alone
+    in Trinity Sanctum III while its 24 flew home (ship13b-camp)."""
+    leader = [f"undock {raid['leader']}"] if raid.get("guard") else []
+    return ([f"release {s['code']}" for s in alive] + leader
+            + [f"assign {s['code']} {raid['home']} defend" for s in alive])
+
+
 def raids(state: dict, data: dict) -> list[str]:
     """The plan's destroyers go for the Xenon in its `raid_sector`: its
     stations, or with none its ships, by the `raid` verb's priority order.
@@ -915,15 +923,13 @@ def raids(state: dict, data: dict) -> list[str]:
                 # (ship12c-camp, WKU-369), and on a dock order 15 reached home and flew back
                 # into the fight for 3,000 game seconds (ship12f-camp). These two brought
                 # all 14 home within 600.
-                return ([f"release {s['code']}" for s in alive]
-                        + [f"assign {s['code']} {raid['home']} defend" for s in alive])
+                return _fly_home(raid, alive)
         elif raid["leader"] in ours and now - raid["since"] < RAID_BACK_WAIT:
             sector = (ours[raid["leader"]].get("place") or {}).get("sector")
             if sector != raid["home_sector"]:
                 return []
         raid["phase"] = "settling"
-        return ([f"release {s['code']}" for s in alive]
-                + [f"assign {s['code']} {raid['home']} defend" for s in alive])
+        return _fly_home(raid, alive)
     for code, goal in strategy.goals(data).items():
         sector, wanted = goal.get("raid_sector"), goal.get("destroyers") or 0
         home = next((a for a in state.get("assets", []) if a.get("code") == code), None)
