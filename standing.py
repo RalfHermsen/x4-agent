@@ -714,16 +714,19 @@ def shelter(state: dict, data: dict) -> list[str]:
     In open space a Xenon can shoot it down, and a player in a spacesuit ends the
     run and makes the save useless as a start: six runs ended that way, the last
     ship12g-camp, where the Falcon floated at home on an old dock order for a wharf
-    a sector away."""
+    a sector away. Once it has lain there it is left alone: a ship that leaves
+    after that is flown by the player, who outranks the agent."""
     import strategy
     occupied = state.get("player", {}).get("occupied_ship")
     ship = next((a for a in state.get("assets", []) if a.get("code") == occupied), None)
     home = next(iter(strategy.goals(data)), None)
-    if not ship or not home or (ship.get("connection") == "dock" and ship.get("docked_at") == home):
+    if not ship or not home:
         return []
-    now = state["meta"]["playtime_s"]
     mark = data.setdefault("standing", {})
-    if now - mark.get("shelter", -SHELTER_AGAIN) < SHELTER_AGAIN:
+    if ship.get("connection") == "dock" and ship.get("docked_at") == home:
+        mark["sheltered"] = True
+    now = state["meta"]["playtime_s"]
+    if mark.get("sheltered") or now - mark.get("shelter", -SHELTER_AGAIN) < SHELTER_AGAIN:
         return []
     mark["shelter"] = now
     return [f"dockat {occupied} {home} player"]
@@ -897,7 +900,7 @@ def fleet(state: dict, data: dict) -> list[str]:
 
 RULES = (sell_limits, revisit, satellites, ledger, once, patrols, find_builds, hire_builders,
          own_stock, repairs, seminars, scouts, empty_builds, docks, managers, shiptraders,
-         cargo_drones, accounts, undock_fleet, shelter, wings, raids, fleet, grow)
+         cargo_drones, accounts, undock_fleet, wings, raids, fleet, grow)
 
 
 def commands(state: dict, data: dict, off: set | frozenset = frozenset()) -> list[str]:

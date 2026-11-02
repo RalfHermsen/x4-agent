@@ -242,7 +242,16 @@ def test_the_players_ship_docks_at_home_and_is_left_there(small_state):
     state["meta"]["playtime_s"] = 5000 + 2 * standing.SHELTER_AGAIN
     ship.update(connection="dock", docked_at="KYV-745")
     assert standing.shelter(state, data) == []
-    ship.update(docked_at="HOW-875")                           # docked elsewhere is not home
+    ship.update(connection="space", docked_at=None)            # left by the player's own hand
+    state["meta"]["playtime_s"] = 5000 + 3 * standing.SHELTER_AGAIN
+    assert standing.shelter(state, data) == []
+
+
+def test_docked_elsewhere_is_not_home(small_state):
+    state, data = _raid_ready(small_state, destroyers=1)
+    state["player"]["occupied_ship"] = "FAL-000"
+    _add_ship(state, "FAL-000", "ship_tel_s_fighter_01_a_macro", connection="dock", docked_at="HOW-875")
+    state["meta"]["playtime_s"] = 5000
     assert standing.shelter(state, data) == ["dockat FAL-000 KYV-745 player"]
 
 
