@@ -185,7 +185,7 @@ def own_build(state: dict, pattern: str, size: str = "m", brake: bool = True) ->
 
 # The most a destroyer bought for the reserve may cost: 23 M at HOW-875 in ship12-camp.
 RESERVE_SHIP_CAP = 40_000_000
-ALLY_AT = 1.0       # a faction's capital ships are for its allies: Argon's L wharf refuses us
+ALLY_AT = 1.0       # a faction's capital ships are for its allies, or for who holds its licence
 
 
 def reserve_purchase(state: dict, data: dict, goal: dict, sector: str | None = None) -> str | None:
@@ -213,10 +213,13 @@ def reserve_purchase(state: dict, data: dict, goal: dict, sector: str | None = N
                  if sitrep.ship_type(o["macro"]) == "destroyer" and o["wharf"] not in stuck)
     if home + coming >= need:
         return None
-    relations = (state.get("player") or {}).get("relations") or {}
+    player = state.get("player") or {}
+    relations = player.get("relations") or {}
+    licensed = {l.get("faction") for l in player.get("licences") or [] if l.get("type") == "capitalship"}
     options = catalog._buy_options(state, (("destroyer", "ship_{race}_l_destroyer_02_a_macro"),), size="l",
                                    gap=False, hold=False, ship_cap=RESERVE_SHIP_CAP)
-    return next((o.command for o in options if relations.get(o.command.split()[2], 0) >= ALLY_AT), None)
+    return next((o.command for o in options
+                 if relations.get(o.command.split()[2], 0) >= ALLY_AT or o.command.split()[2] in licensed), None)
 
 
 def _size(pattern: str) -> str:
