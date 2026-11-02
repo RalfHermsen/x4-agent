@@ -305,3 +305,18 @@ def test_a_plan_file_keeps_its_destroyers_and_refuses_what_it_does_not_know(smal
     path.write_text(json.dumps(dict(PLAN, stations={"KYV-745": dict(goal, cruisers=1)})), encoding="utf-8")
     assert "not used" in strategy.load(data, small_state)[0]
     assert strategy.goals(data)["KYV-745"]["destroyers"] == 3
+
+
+def test_a_licence_lets_the_reserve_buy_without_being_allied():
+    import catalog
+    state = {"player": {"relations": {"argon": 0.1}, "licences": [{"type": "capitalship", "faction": "argon"}]},
+             "assets": []}
+    option = catalog.Option("buy", "buyship EBF-432 argon ship_arg_l_destroyer_02_a_macro x 40000000")
+    original = catalog._buy_options
+    catalog._buy_options = lambda *a, **k: [option]
+    try:
+        assert strategy.reserve_purchase(state, {}, {"raid_home": 1}) == option.command
+        state["player"]["licences"] = []
+        assert strategy.reserve_purchase(state, {}, {"raid_home": 1}) is None
+    finally:
+        catalog._buy_options = original
