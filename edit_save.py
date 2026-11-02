@@ -4,12 +4,14 @@ Deliberately narrow and deliberately non-destructive: it never overwrites the
 source, it writes a new save next to it, so the original stays loadable. Use it
 to set up a situation you want to test rather than playing towards it.
 
-Four edits are supported:
+Six edits are supported:
 
 * a station manager's management skill
 * the player's credits
 * adding blueprints the player owns
 * adding an item to the player's inventory (the SETA item for measured runs)
+* the player's reputation with a faction
+* licences the player holds
 
 Skills in the save run 1 to 15 and the game shows them as 0 to 5 stars, so three
 points make one star (measured across 101,543 skill entries in a late-game save).
@@ -21,6 +23,7 @@ Usage:
     python edit_save.py --blueprint module_gen_prod_energycells_01
     python edit_save.py saves/reference/save_007.xml.gz --inventory inv_timewarp \
         --out baseline_seta --label "baseline with SETA"
+    python edit_save.py --relation argon=0.1 --licence capitalship=argon,paranid
 """
 
 from __future__ import annotations
@@ -171,6 +174,57 @@ def add_inventory(xml: str, wares: list[str]) -> tuple[str, list[str]]:
     return xml[:end] + entries + xml[end:], added
 
 
+def _player_faction(xml: str) -> int:
+    start = xml.find('<faction id="player">')
+    if start < 0:
+        raise LookupError("no player faction found in this save")
+    return start
+
+
+def set_relations(xml: str, values: dict[str, float]) -> str:
+    """Set the player's base reputation with these factions.
+
+    It sits on the player's side: `<relation faction=... relation=.../>` under
+    `<faction id="player">`, boosters after them. What the player earns goes
+    into a booster, so a base value stays where it is put.
+    """
+    start = _player_faction(xml)
+    end = xml.find("</relations>", start)
+    if end < 0:
+        raise LookupError("the player faction has no relations element")
+    block = xml[start:end]
+    for faction, value in values.items():
+        line = f'<relation faction="{faction}" relation="{value}"/>'
+        block, hits = re.subn(rf'<relation faction="{re.escape(faction)}" relation="[^"]*"/>',
+                              line, block)
+        if not hits:
+            booster = block.find("<booster")
+            at = booster if booster >= 0 else len(block)
+            block = block[:at] + line + "\n" + block[at:]
+    return xml[:start] + block + xml[end:]
+
+
+def add_licences(xml: str, wanted: dict[str, list[str]]) -> tuple[str, list[str]]:
+    """Add licences: one `<licence type=... factions="a b c"/>` per type under
+    `<faction id="player">`. Factions already listed are skipped."""
+    start = xml.find("<licences>", _player_faction(xml))
+    end = xml.find("</licences>", start) if start >= 0 else -1
+    if start < 0 or end < 0:
+        raise LookupError("the player faction has no licences element")
+    block, added = xml[start:end], []
+    for kind, factions in wanted.items():
+        found = re.search(rf'<licence type="{re.escape(kind)}" factions="([^"]*)"/>', block)
+        held = found.group(1).split() if found else []
+        new = [f for f in factions if f not in held]
+        if not new:
+            continue
+        added += [f"{kind} {f}" for f in new]
+        line = f'<licence type="{kind}" factions="{" ".join(held + new)}"/>'
+        block = (block[:found.start()] + line + block[found.end():] if found
+                 else block + line + "\n")
+    return xml[:start] + block + xml[end:], added
+
+
 def set_manager_skill(xml: str, station_code: str, value: int) -> tuple[str, str]:
     """Set the management skill of the manager of one station.
 
@@ -217,14 +271,19 @@ def main() -> int:
                              "repeat for more")
     parser.add_argument("--inventory", action="append", metavar="WARE",
                         help="add an inventory item, e.g. inv_timewarp; repeat for more")
+    parser.add_argument("--relation", action="append", metavar="FACTION=VALUE",
+                        help="set reputation, -1 to 1, e.g. argon=0.1; repeat for more")
+    parser.add_argument("--licence", action="append", metavar="TYPE=FACTION,FACTION",
+                        help="add a licence, e.g. capitalship=argon,paranid; repeat for more")
     parser.add_argument("--out", help="name of the new save, without extension")
     parser.add_argument("--label", help="display name shown in the load menu")
     args = parser.parse_args()
 
     if (args.manager_skill is None and args.credits is None
-            and args.add_credits is None and not args.blueprint and not args.inventory):
-        parser.error("nothing to change; give --manager-skill, --credits, "
-                     "--add-credits, --blueprint or --inventory")
+            and args.add_credits is None and not args.blueprint and not args.inventory
+            and not args.relation and not args.licence):
+        parser.error("nothing to change; give --manager-skill, --credits, --add-credits, "
+                     "--blueprint, --inventory, --relation or --licence")
     if args.manager_skill is not None:
         if not args.station:
             parser.error("--manager-skill needs --station")
@@ -259,6 +318,17 @@ def main() -> int:
         xml, added = add_inventory(xml, args.inventory)
         changes.append(f"inventory added: {', '.join(added)}" if added
                        else "inventory: all already held")
+
+    if args.relation:
+        values = {f: float(v) for f, v in (r.split("=") for r in args.relation)}
+        xml = set_relations(xml, values)
+        changes.append(f"reputation: {values}")
+
+    if args.licence:
+        wanted = {k: v.split(",") for k, v in (r.split("=") for r in args.licence)}
+        xml, added = add_licences(xml, wanted)
+        changes.append(f"licences added: {', '.join(added)}" if added
+                       else "licences: all already held")
 
     label = args.label or "; ".join(changes)[:60]
     xml = set_save_name(xml, label)
