@@ -709,27 +709,29 @@ SHELTER_AGAIN = 1800
 
 
 def shelter(state: dict, data: dict) -> list[str]:
-    """The ship the player sits in lies docked at the plan's station.
+    """The ship the player sits in stays by the plan's station, on the game's autopilot.
 
-    In open space a Xenon can shoot it down, and a player in a spacesuit ends the
-    run and makes the save useless as a start: six runs ended that way, the last
-    ship12g-camp, where the Falcon floated at home on an old dock order for a wharf
-    a sector away. Once it has lain there it is left alone: a ship that leaves
-    after that is flown by the player, who outranks the agent."""
+    A player in a spacesuit ends the run and makes the save useless as a start, and
+    seven runs ended that way. The last two, ship12g-camp and ship12i-camp, had
+    flown from the station to zone003 by themselves and fell there, while 19 game
+    hours by the station passed without a loss in ship12h-camp. A `dockat` does not
+    move a ship with the player at its controls: ship12i-camp stacked four of them.
+    The first call also clears the queue, which held an old order for a far wharf."""
     import strategy
     occupied = state.get("player", {}).get("occupied_ship")
     ship = next((a for a in state.get("assets", []) if a.get("code") == occupied), None)
     home = next(iter(strategy.goals(data)), None)
-    if not ship or not home:
+    station = next((a for a in state.get("assets", []) if a.get("code") == home), None)
+    if not ship or not station or ship.get("connection") == "dock":
         return []
-    mark = data.setdefault("standing", {})
-    if ship.get("connection") == "dock" and ship.get("docked_at") == home:
-        mark["sheltered"] = True
     now = state["meta"]["playtime_s"]
-    if mark.get("sheltered") or now - mark.get("shelter", -SHELTER_AGAIN) < SHELTER_AGAIN:
+    mark = data.setdefault("standing", {})
+    first = "shelter" not in mark
+    away = (ship.get("place") or {}).get("zone") != (station.get("place") or {}).get("zone")
+    if not first and (not away or now - mark["shelter"] < SHELTER_AGAIN):
         return []
     mark["shelter"] = now
-    return [f"dockat {occupied} {home} player"]
+    return ([f"undock {occupied}"] if first else []) + [f"autopilot {home} player"]
 
 
 def wings(state: dict, data: dict) -> list[str]:

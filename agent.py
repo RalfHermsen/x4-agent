@@ -169,7 +169,7 @@ def cycle(model: str | None = None, save: Path | None = None, force: bool = Fals
     job_commands += standing.connectors(state, remembered)
     # With them too: the filter below takes every order for the ship the player
     # sits in, and it dropped this one for all of ship12h-camp.
-    job_commands += standing.shelter(state, remembered)
+    job_commands += [] if "shelter" in RULES_OFF else standing.shelter(state, remembered)
     # A strategist's plan, if there is one: the rules read it from memory.
     failures += strategy.load(remembered, state)
     # Or from the strategist model, when one is set and a plan is due (strategist.py).

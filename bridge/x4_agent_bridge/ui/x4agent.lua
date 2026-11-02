@@ -822,6 +822,23 @@ local function faction_station(faction, stationcode)
     return nil
 end
 
+--- "autopilot KYV-745 player" -> the game's own autopilot flies the ship the player
+--- sits in to that station. An order does not move a ship with the player at its
+--- controls. Handed to MD, which has the action.
+local function autopilot(args)
+    local stationcode, faction = args[1], args[2]
+    if not (stationcode and faction) then
+        return refuse("autopilot needs: autopilot <STATION IDCODE> <faction>")
+    end
+    local target = faction_station(faction, stationcode)
+    if not target then
+        return refuse("autopilot: " .. faction .. " has no station " .. stationcode)
+    end
+    pcall(AddUITriggeredEvent, "X4Agent", "autopilot", ConvertStringToLuaID(tostring(target)))
+    log("ORDER: autopilot to " .. stationcode)
+    return true
+end
+
 --- One trade order, as the map menu's buttonConfirmTradeLoop creates it:
 --- params 1 ware, 4 location, 5 amount, 7 price threshold in hundredths of a
 --- credit (the menu multiplies by 100; tasks/lessons.md L2).
@@ -2001,6 +2018,7 @@ local BARE_HANDLERS = {
     offers = list_offers,
     docked = list_docked,
     dockat = dock_at,
+    autopilot = autopilot,
     release = release,
     undock = undock_ship,
     scout = scout_sector,

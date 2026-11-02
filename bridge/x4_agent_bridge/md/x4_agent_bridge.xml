@@ -1328,6 +1328,15 @@
     </actions>
   </cue>
 
+  <!-- The ship the player sits in, to a station on the game's own autopilot. -->
+  <cue name="Agent_Autopilot" instantiate="true">
+    <conditions>
+      <event_ui_triggered screen="'X4Agent'" control="'autopilot'"/>
+    </conditions>
+    <actions>
+      <start_player_autopilot destination="event.param3"/>
+    </actions>
+  </cue>
 </cues>
 
 </mdscript>

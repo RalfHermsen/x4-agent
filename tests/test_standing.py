@@ -229,30 +229,32 @@ def test_a_parked_destroyer_leaves_unless_it_waits_for_a_repair(small_state):
     assert standing.undock_fleet(state, data) == []
 
 
-def test_the_players_ship_docks_at_home_and_is_left_there(small_state):
-    state, data = _raid_ready(small_state, destroyers=1)
+def _falcon(state, zone):
     state["player"]["occupied_ship"] = "FAL-000"
-    ship = _add_ship(state, "FAL-000", "ship_tel_s_fighter_01_a_macro")
+    _station(state)["place"] = {"sector": "S", "zone": "by_the_station"}
+    return _add_ship(state, "FAL-000", "ship_tel_s_fighter_01_a_macro", place={"sector": "S", "zone": zone})
+
+
+def test_the_players_ship_flies_back_to_the_station(small_state):
+    state, data = _raid_ready(small_state, destroyers=1)
+    ship = _falcon(state, "by_the_station")
     state["meta"]["playtime_s"] = 5000
-    assert standing.shelter(state, data) == ["dockat FAL-000 KYV-745 player"]
-    state["meta"]["playtime_s"] = 5000 + standing.SHELTER_AGAIN - 1
-    assert standing.shelter(state, data) == []                 # on its way in
+    # Clears the old queue once, also when it stands close by.
+    assert standing.shelter(state, data) == ["undock FAL-000", "autopilot KYV-745 player"]
     state["meta"]["playtime_s"] = 5000 + standing.SHELTER_AGAIN
-    assert standing.shelter(state, data) == ["dockat FAL-000 KYV-745 player"]
-    state["meta"]["playtime_s"] = 5000 + 2 * standing.SHELTER_AGAIN
-    ship.update(connection="dock", docked_at="KYV-745")
     assert standing.shelter(state, data) == []
-    ship.update(connection="space", docked_at=None)            # left by the player's own hand
-    state["meta"]["playtime_s"] = 5000 + 3 * standing.SHELTER_AGAIN
-    assert standing.shelter(state, data) == []
+    ship["place"] = {"sector": "S", "zone": "by_the_gate"}
+    state["meta"]["playtime_s"] = 5000 + 2 * standing.SHELTER_AGAIN - 1
+    assert standing.shelter(state, data) == ["autopilot KYV-745 player"]
+    state["meta"]["playtime_s"] += standing.SHELTER_AGAIN - 1
+    assert standing.shelter(state, data) == []                 # on its way
 
 
-def test_docked_elsewhere_is_not_home(small_state):
+def test_the_players_ship_docked_is_left_alone(small_state):
     state, data = _raid_ready(small_state, destroyers=1)
-    state["player"]["occupied_ship"] = "FAL-000"
-    _add_ship(state, "FAL-000", "ship_tel_s_fighter_01_a_macro", connection="dock", docked_at="HOW-875")
+    _falcon(state, "by_the_gate").update(connection="dock", docked_at="HOW-875")
     state["meta"]["playtime_s"] = 5000
-    assert standing.shelter(state, data) == ["dockat FAL-000 KYV-745 player"]
+    assert standing.shelter(state, data) == []
 
 
 def test_no_player_ship_no_order(small_state):
