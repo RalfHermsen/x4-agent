@@ -707,6 +707,58 @@ def test_with_no_station_the_first_scout_comes_from_a_wharf_near_the_player(smal
     assert standing.shelter(state, data)[-1] == "autopilot YRD-001 argon"
 
 
+def _scouts_spreading(small_state):
+    import copy
+    state = copy.deepcopy(small_state)
+    state["meta"]["playtime_s"] = 5000
+    state["player"]["money"] = 50_000_000
+    state["assets"] = [a for a in state["assets"] if sitrep.ship_type(a.get("macro")) != "scout"]
+    state["known_stations"], state["all_stations"] = [], []
+    for code in ("SCA-001", "SCB-002"):
+        _add_ship(state, code, "ship_arg_s_scout_01_a_macro", owner="player")
+        next(a for a in state["assets"] if a["code"] == code)["place"] = {"sector": "cluster_14_sector001_macro"}
+    return state, {"strategy": {"plan": {"stations": {"START": {"scouts": 2}}}}}
+
+
+def test_scouts_go_to_different_unknown_sectors(small_state):
+    state, data = _scouts_spreading(small_state)
+    commands = standing.scouts(state, data)
+    targets = [c.split()[2] for c in commands if c.startswith("scout ")]
+    assert len(targets) == 2 and len(set(targets)) == 2
+    assert commands[0] == "release SCA-001"
+    assert standing.scouts(state, data) == []                 # on their way
+
+
+def test_a_scout_gets_a_new_sector_after_its_sweep(small_state):
+    state, data = _scouts_spreading(small_state)
+    standing.scouts(state, data)
+    first = data["standing"]["scout_targets"]["SCA-001"]["sector"]
+    next(a for a in state["assets"] if a["code"] == "SCA-001")["place"] = {"sector": first}
+    state["meta"]["playtime_s"] += standing.SCOUT_SWEEP + 1
+    commands = standing.scouts(state, data)
+    assert commands[0] == "release SCA-001" and commands[1].split()[2] != first
+    assert first in data["standing"]["scouts_visited"]
+
+
+def test_a_scout_placing_a_satellite_is_left_alone(small_state):
+    state, data = _scouts_spreading(small_state)
+    next(a for a in state["assets"] if a["code"] == "SCA-001")["orders"] = [{"order": "DeployObjectAtPosition"}]
+    assert not any("SCA-001" in c for c in standing.scouts(state, data))
+
+
+def test_the_plans_scouts_are_bought_without_the_wait(small_state):
+    state, data = _scouts_spreading(small_state)
+    data["strategy"]["plan"]["stations"]["START"]["scouts"] = 4
+    place = {"sector": "cluster_14_sector001_macro"}
+    state["known_stations"] = [{"code": "YRD-001", "owner": "argon", "builds": ["m"], "place": place}]
+    state["player"]["occupied_ship"] = "SCA-001"
+    assert standing.scouts(state, data)[-1].startswith("buyship YRD-001 argon")
+    state["ships_on_order"] = [{"macro": "ship_arg_s_scout_01_a_macro", "wharf": "YRD-001", "since": 5000}]
+    assert standing.scouts(state, data)[-1].startswith("buyship YRD-001 argon")
+    state["ships_on_order"] *= 2
+    assert not any(c.startswith("buyship") for c in standing.scouts(state, data))
+
+
 def test_an_idle_scout_is_sent_exploring(small_state):
     import copy
     state = copy.deepcopy(small_state)

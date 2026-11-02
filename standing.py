@@ -494,6 +494,49 @@ def seminars(state: dict, data: dict) -> list[str]:
     return out
 
 
+def _spread_scouts(state: dict, data: dict, ours: list[dict], now: float) -> tuple[set, list[str]]:
+    """The scouts that have a sector of their own, and the orders that send them there.
+
+    A sector counts as known once a scout has been in it or we know a station there. A
+    scout placing a satellite is left alone, and gets a new sector SCOUT_SWEEP after
+    the last. The explore mark keeps executor.restart_explorers off a scout on its sweep.
+    """
+    from purchases import _graph, jumps
+    st = data["standing"]
+    targets, visited = st.setdefault("scout_targets", {}), st.setdefault("scouts_visited", [])
+    alive = {s["code"] for s in ours}
+    for code in [c for c in targets if c not in alive]:
+        del targets[code]
+    graph = _graph()
+    known = {s.get("sector") for s in state.get("all_stations") or []}
+    for scout in ours:
+        here = (scout.get("place") or {}).get("sector")
+        if here and here not in visited:
+            visited.append(here)
+    errand = st.get("watch_scouts") or {}
+    out, have = [], set(targets)
+    for scout in ours:
+        code, here = scout["code"], (scout.get("place") or {}).get("sector")
+        mark = targets.get(code)
+        if (errand.get(code) == now or "DeployObjectAtPosition" in [o.get("order") for o in scout.get("orders") or []]
+                or (mark and (here != mark["sector"] or now - mark["at"] < SCOUT_SWEEP)
+                    and now - mark["at"] < SCOUT_GIVE_UP)):
+            have.add(code)
+            continue
+        taken = {m["sector"] for c, m in targets.items() if c != code}
+        free = [s for s in graph if s not in known and s not in visited and s not in taken]
+        if not free:
+            targets.pop(code, None)
+            have.discard(code)
+            continue
+        sector = min(free, key=lambda s: (jumps(graph, here, s), s))
+        targets[code] = {"sector": sector, "at": now}
+        data.setdefault("sent_at", {})[f"explore {code}"] = now
+        have.add(code)
+        out += [f"release {code}", f"scout {code} {sector}"]
+    return have, out
+
+
 def scouts(state: dict, data: dict) -> list[str]:
     """Scouts explore, and a scout lost doing it is replaced at once.
 
@@ -502,7 +545,12 @@ def scouts(state: dict, data: dict) -> list[str]:
     of scouts is kept at the most we have had: one short, one is bought (S, at
     the nearest wharf, outside the game hour between purchases, one at a
     time); a scout with no orders is sent exploring. A plan's `scouts` counts as a
-    most already reached, which is how a new game gets its first ones.
+    most already reached, which is how a new game gets its first ones, without
+    the wait between replacements: one per cycle until the plan's number is there or on order.
+
+    With a plan's `scouts` each goes to its own sector we know nothing of, the nearest
+    to it. The game's own explore sends them all to the same nearest unknown: in start1b
+    four swept one sector side by side. When none is left they explore as before.
     """
     import catalog
     import strategy
@@ -516,10 +564,19 @@ def scouts(state: dict, data: dict) -> list[str]:
     # order sent to it is remembered (agent.py, `sent_at`) and not sent again
     # for a while. QPE-143 was sent one three cycles running.
     sent_at = data.get("sent_at") or {}
-    out = [f"explore {s['code']}" for s in ours
-           if sitrep.role_of(s) == "IDLE" and (s.get("assignment") or {}).get("group") is None
-           and now - sent_at.get(f"explore {s['code']}", -1e9) > SCOUT_DELIVERY]
-    if len(ours) < most and now - st.get("scout_bought_at", -1e9) > SCOUT_DELIVERY:
+    spread, spread_out = _spread_scouts(state, data, ours, now) if planned else (set(), [])
+    out = spread_out + [f"explore {s['code']}" for s in ours
+                        if s["code"] not in spread
+                        and sitrep.role_of(s) == "IDLE" and (s.get("assignment") or {}).get("group") is None
+                        and now - sent_at.get(f"explore {s['code']}", -1e9) > SCOUT_DELIVERY]
+    coming = sum(1 for o in state.get("ships_on_order") or [] if sitrep.ship_type(o.get("macro")) == "scout")
+    if len(ours) + coming < planned:
+        options = catalog._buy_options(state, (("scout", "ship_{race}_s_scout_01_a_macro"),),
+                                       size="m", gap=False, hold=False)
+        if options:
+            st["scout_bought_at"] = now
+            out.append(f"{options[0].command} {SCOUT_SATELLITES}")
+    elif len(ours) < most and now - st.get("scout_bought_at", -1e9) > SCOUT_DELIVERY:
         # A wharf's M build module builds S ships too; the parser marks such a
         # wharf "m" only, so asking for "s" found no wharf and no lost scout
         # was replaced in the catalog runs c3 and c4.
@@ -759,6 +816,8 @@ def docks(state: dict, data: dict) -> list[str]:
 
 # Game seconds a bought scout gets to arrive before another is bought.
 SCOUT_DELIVERY = 1800
+SCOUT_SWEEP = 1200       # game seconds a scout gets to sweep the sector it reached
+SCOUT_GIVE_UP = 7200     # and to reach it, before it is sent to another
 # Game seconds a manager sent from our crews gets to arrive before another is sent.
 MANAGER_TRAVEL = 3600
 # Game seconds before an account top-up is sent again.
