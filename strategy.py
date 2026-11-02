@@ -313,7 +313,8 @@ def fleet(state: dict, data: dict) -> list[str]:
                 waiting = (not own and named - held
                            and any(pattern.format(race=r).removesuffix("_macro") in named for r in races))
                 options = ([] if (own or waiting or _size(pattern) != "m")
-                           else catalog._buy_options(state, ((label, pattern),)))
+                           else catalog._buy_options(state, ((label, pattern),),
+                                                     **({"ship_cap": RESERVE_SHIP_CAP} if role == "defend" else {})))
                 if own or options:
                     out.append(own or options[0].command)
                     bought = True
