@@ -25,6 +25,7 @@ takes one command every two seconds (tasks/lessons.md L9, L11).
 
 from __future__ import annotations
 
+import re
 import collections
 import gamedata
 import sitrep
@@ -500,6 +501,9 @@ def _spread_scouts(state: dict, data: dict, ours: list[dict], now: float) -> tup
     A sector counts as known once a scout has been in it or we know a station there. A
     scout placing a satellite is left alone, and gets a new sector SCOUT_SWEEP after
     the last. The explore mark keeps executor.restart_explorers off a scout on its sweep.
+
+    A sector the game cannot find is done with: the table of sectors holds some no gate
+    reaches, and in start3 three scouts waited on them for two game hours each.
     """
     from purchases import _graph, jumps
     st = data["standing"]
@@ -509,6 +513,13 @@ def _spread_scouts(state: dict, data: dict, ours: list[dict], now: float) -> tup
         del targets[code]
     graph = _graph()
     known = {s.get("sector") for s in state.get("all_stations") or []}
+    for _, text in state.get("logbook") or []:
+        found = re.search(r"found no sector (\S+)", text or "")
+        if found and found.group(1) not in visited:
+            visited.append(found.group(1))
+    for code in [c for c, m in targets.items() if m["sector"] in visited
+                 and m["sector"] != (next(s for s in ours if s["code"] == c).get("place") or {}).get("sector")]:
+        del targets[code]
     for scout in ours:
         here = (scout.get("place") or {}).get("sector")
         if here and here not in visited:

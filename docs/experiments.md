@@ -1888,3 +1888,32 @@ at 1,013 Cr, `antimatterconverters` at 353, `fieldcoils` at 411, `engineparts` a
 
 **Score.** Not scored. Over 22.1 game hours: net worth 2,577 M to 2,609 M, credits 1,682 M to 1,728 M,
 ships 202 to 180, destroyers 41 to 34, fighters 139 to 125, failing 2 to 6.
+
+## 2026-11-02: a new game, from a custom start
+
+**Why.** The old game's fleet could no longer grow, its allies were falling and part of its station
+came from the free modules of October. So a new universe, set up by hand, and no longer comparable with
+the 1.82 M per game hour of the old one.
+
+**The start.** The creative custom start, saved at 13 game seconds, then edited: 1,000 M Cr, 86
+blueprints including the weapon components module, the SETA item, 0.1 with Argon, Terran, Paranid and
+Teladi with their licences, and Argon Prime's 8 stations known so that a wharf could be found. The game
+kept all of it through a load and a save. `edit_save.py` gained reputation, licences and known sectors.
+
+**The map.** Scouts come first. A plan's `scouts` buys them at once, and each goes to its own unknown
+sector, because the game's explore sent four into one sector side by side. `watch_known` gives every
+sector with a known station two satellites. After 13.4 game hours: 361 stations known in 51 sectors, 81
+satellites in 45 sectors, 3 scouts lost and replaced. Xenon so far: 7 XL in three sectors and 3 stations.
+
+**The first station, from nothing.** The old game always started from a plot, so `newplot` is new:
+ReserveBuildPlot and payment at the map menu's price. An 8 km plot in Argon Prime cost about 0.93 M, and
+growing it to 20 km about 13.6 M. The rules then did the rest with no help: a dock, a manager, freighters
+and a budget. After 10.5 game hours: dock, 2 energy cells, refined metals, graphene and hull parts.
+
+**What held it up.** Hired vessels: each build step waited for one, and four came and went. An own
+XL builder from Argon's wharf removed that wait, and a step went from about 6,000 to 4,300 game seconds.
+Bought miners stood idle until a module wanted what they mine, since the plan bought them first; the
+rule was right to leave them. And the user put the player's ship on Explore during a run, which took the
+player out of the seat and SETA with it, so a slow run has that as its first suspect.
+
+**Score.** Over 13.4 game hours: net worth 1,000 M to 952 M, credits to 940 M. Not yet earning.

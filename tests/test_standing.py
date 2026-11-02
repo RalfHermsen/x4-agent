@@ -740,6 +740,16 @@ def test_a_scout_gets_a_new_sector_after_its_sweep(small_state):
     assert first in data["standing"]["scouts_visited"]
 
 
+def test_a_sector_the_game_cannot_find_gets_another_at_once(small_state):
+    state, data = _scouts_spreading(small_state)
+    standing.scouts(state, data)
+    first = data["standing"]["scout_targets"]["SCA-001"]["sector"]
+    state["logbook"] = [(5001, f"[x4-agent] REFUSED: scout: SCA-001 found no sector {first} within 40 jumps")]
+    commands = standing.scouts(state, data)
+    assert commands[0] == "release SCA-001" and commands[1].split()[2] != first
+    assert first in data["standing"]["scouts_visited"]
+
+
 def test_a_scout_placing_a_satellite_is_left_alone(small_state):
     state, data = _scouts_spreading(small_state)
     next(a for a in state["assets"] if a["code"] == "SCA-001")["orders"] = [{"order": "DeployObjectAtPosition"}]
