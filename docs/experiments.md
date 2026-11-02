@@ -1751,8 +1751,52 @@ the order ended at once. `raid` skips wrecks now (01b93b8, `IsComponentWrecked` 
 retreat at 2102077 and killed 36 Xenon fighters and a corvette for 8 fighters; with the time spent
 after the failed retreat it lost VOK-360. ship12g lost KMN-517 to GUV-415 and turned back after
 under 2,000 game seconds at 3 XL. That the swarm of S ships takes all the fire is my guess, not
-measured. Against these bases, 15 destroyers kill ships and do not touch the station.
+measured. Against these bases, 15 destroyers killed ships and had not touched the station
+when these two runs ended. That did not hold: see the next section.
 
 **Score.** Not a scored run: restarts for fixes, and the game hours went to fleet building. At
 2112729: 28 destroyers, 84 fighters, 2 Xenon stations killed, 12 of 12 defence discs, home not
 attacked by a fleet. Whether home holds against one is still not measured.
+
+## 2026-11-02: ship12h to ship12j, the bases fell and the allied sector went with them
+
+**A correction.** The last section says 15 destroyers do not touch the defence bases. They do, given
+time. The ship12h save had 15 destroyers on GUV-415 when the run ended, and ship12j reports it killed
+at about 2232800, in the cycle before its own raid went out. Two runs of under 4,000 game seconds on
+the station showed no damaged part, and I read that as no effect.
+
+**The raid.** ship12j sent 25 of 40 destroyers with 15 at home. Factory YOF-841 fell at about 2238800
+and defence base SDN-839 at about 2241600. All 10 destroyers lost in the run went between 2237741 and
+2241295, so three Xenon stations cost 10 of 25. The retreat took 1,700 game seconds, against 600 twice
+before. Why it took that long is not measured.
+
+**What the raid did not do.** It did not protect the sector it was meant to help. With the fleet home
+the Xenon overran Trinity Sanctum III: wharf SCY-867 fell at about 2271935, RYV-966 at about 2272841
+and wharf HOW-875 at about 2274800. The sector went from 5 M, 6 S and 2 Xenon stations at the end of
+ship12h to 20 M, 82 S, 12 XL and 3 stations at the end of ship12j. Those wharves were the nearest
+source of L and XL ships for us. Whether a guard of 25 would have saved them is not measured, and it
+is what ship13 tests.
+
+**Home held.** A Xenon fleet came at about 2285000 and grew to 7 M, 12 S and 2 XL. By 2287660 one S
+was left. Between saves at 2274970 and 2287849 the home sector has 34 new Xenon wrecks: 2 XL, 9 M and
+23 S. Not one destroyer was lost, 33 stood at home, fighters went from 119 to 110, the station was
+last hit at 2286832. The question the last section left open has one answer now: 33 destroyers with
+12 defence discs hold against that fleet. It says nothing about 15.
+
+**Stock that looked like no stock.** KYV-745's `weaponcomponents` went to 0 and the report said no
+known station sold any. TS III sold them; we had no eye there, and the parser keeps stations only
+for sectors with an asset or an eye. The report now says how many known stations are out of sight.
+The stock of 257 at RYV-966 sat unbought from at least 2236127 and that cause is still not measured.
+
+**The player's ship.** ship12i is useless as a start: the Falcon died, and the player sits in it
+because SETA needs the controls. AI orders do not move a ship with the player at its controls, the
+game's autopilot does (`autopilot STATION faction`, c342442). It held through all of ship12j,
+including the fleet attack at home.
+
+**Score.** Not scored; the game hours went to the fleet. ship12j over 22.45 game hours: credits
+1,856 M to 1,914 M, net worth 2,746 M to 2,805 M, ships 210 to 163, destroyers 40 to 33, fighters 148
+to 109. Three Xenon stations killed, three allied stations lost, 2 XL killed at home.
+
+**What goes into ship13.** From the end of ship12h, before the wharves fell: two satellites per
+allied sector that matters (`watch_sectors`), and `raid_guard`, so a raid stays on patrol in the
+sector after its kill and comes home on strength or on an XL at home (f772f58).
