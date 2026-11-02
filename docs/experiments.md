@@ -1854,7 +1854,7 @@ either way.
 
 **The guard.** 25 under INT-177 left at the start, at 2303900, against 2 XL, 30 M and 78 S. The first
 destroyer fell at about 2352700, so about 48,800 game seconds without a loss, under mostly 1 or 2 XL.
-Xenon ships in the sector went as low as 6 S and no M. Xenon stations went from 3 to 2. It did not keep
+Under the guard the sector's Xenon went as low as 3 M and 17 S. Xenon stations went from 3 to 2. It did not keep
 the Paranid standing: their stations went from 18 to 12 under the guard, so a guard on Patrol does
 not stop every attack on an allied station.
 
