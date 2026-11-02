@@ -412,6 +412,7 @@ def own_stock(state: dict, data: dict) -> list[str]:
 REPAIR_BELOW, REPAIRED_AT = 0.70, 0.95
 RAID_GO_FROM, RAID_BACK_BELOW = 0.90, 0.75     # the fleet's hull, as a share of its whole
 RAID_PER_XL = 6                                # destroyers it takes per Xenon XL in the target sector
+RAID_HOLD_PER_XL = 4                           # the same, for a guard already on its post
 RAID_ASK_AGAIN = 1800                          # game seconds before a raid is told again to attack
 RAID_BACK_WAIT = 3600                          # game seconds before a raid counts as home anyway
 RAID_STRONG_WAIT = 72000                       # game seconds a sector too strong stays off the list
@@ -894,7 +895,12 @@ def raids(state: dict, data: dict) -> list[str]:
                 raid["arrived"] = True
                 raid.setdefault("arrived_at", now)
             left = ((state.get("hostiles") or {}).get(raid["sector"]) or {}).get("xenon")
-            strong = (left or {}).get("ship_xl", 0) * RAID_PER_XL > len(alive)
+            # A guard on its post holds longer than a raid would go. In ship13b-camp 30 stood
+            # 15,000 game seconds under up to 4 XL without a loss, then left at 6. Leaving did not
+            # stop the XL killing (at least 2 of its 5 went after the recall), and wharf SCY-867
+            # fell 5,100 later. A falling hull still brings it home.
+            per_xl = RAID_HOLD_PER_XL if raid.get("guard") and raid.get("arrived") else RAID_PER_XL
+            strong = (left or {}).get("ship_xl", 0) * per_xl > len(alive)
             xl_at_home = (((state.get("hostiles") or {}).get(raid["home_sector"]) or {}).get("xenon") or {}).get("ship_xl")
             if strong:
                 held.setdefault("raid_strong", {})[raid["sector"]] = now

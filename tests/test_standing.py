@@ -426,6 +426,17 @@ def test_a_guard_without_a_patrol_is_given_one(small_state):
     assert standing.raids(state, data) == [f"raid DES-000 {XEN_SECTOR} stay"]
 
 
+def test_a_guard_on_its_post_holds_against_more_than_a_raid_would_go_for(small_state):
+    state, data = _raid_ready(small_state, destroyers=5)
+    _guarding(state, data)
+    state["hostiles"][XEN_SECTOR]["xenon"]["ship_xl"] = 1
+    assert 1 * standing.RAID_PER_XL > 5 >= 1 * standing.RAID_HOLD_PER_XL
+    assert not any(c.startswith("release") for c in standing.raids(state, data))
+    assert data["standing"]["raid"]["phase"] == "out"
+    state["hostiles"][XEN_SECTOR]["xenon"]["ship_xl"] = 2
+    assert "release DES-000" in standing.raids(state, data)
+
+
 def test_a_guard_leaves_when_outgunned_or_with_an_xl_at_home(small_state):
     state, data = _raid_ready(small_state)
     _guarding(state, data)

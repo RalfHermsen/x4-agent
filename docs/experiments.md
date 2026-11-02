@@ -1800,3 +1800,52 @@ to 109. Three Xenon stations killed, three allied stations lost, 2 XL killed at 
 **What goes into ship13.** From the end of ship12h, before the wharves fell: two satellites per
 allied sector that matters (`watch_sectors`), and `raid_guard`, so a raid stays on patrol in the
 sector after its kill and comes home on strength or on an XL at home (f772f58).
+
+## 2026-11-02: ship13 and ship13b, satellites over the allies and a guard that held
+
+**Satellites.** ship13 stopped within minutes: the game refused both scouts with "no satellite
+aboard". My count of 26 and 11 aboard came from a regex over a nested save, and it read the next
+ships' blocks. A ship's deployables sit in `ammunition/available`, the parser reads them now, and a
+scout bought with the default loadout has none. A player's ship does not resupply at another
+faction's wharf (`interrupt.restock.xml`), so they go in the build loadout: `buyship` takes a sixth
+argument, and `watch` buys one stocked scout when a sector is short (d56541f). By the end of ship13b
+all 8 watched sectors have 2. Satellites are what made the guard's reports readable from home.
+
+**The first guard.** 25 went to Trinity Sanctum III at 2232220 and stood until 2240878, about 7,600
+game seconds, with no destroyer lost. New Xenon wrecks in the sector by 2241704: 1 XL, 4 M, 7 S.
+Recalled at 5 XL, and KRB-182 died leaving. The leader stayed behind alone: `release` does not remove
+a guard's Patrol, `undock` does (3bd5005). I sent that by hand, then bought 5 Paranid destroyers at
+HOW-875, which took until about 2276622 to reach 45.
+
+**The second guard.** 30 under DOB-223 left at 2276621 and took no loss for about 15,000 game
+seconds, while the sector's Xenon ran up to 4 XL, 34 M and 79 S. Then one XL, FQG-788, killed five:
+two by the save at 2292375, three more by 2293540. The recall went out at 2292613, when the count read
+too many XL for 30, so at least two of the five fell after it. Against ship12j the wharves lasted
+longer: SCY-867 about 25,800 game seconds, and HOW-875 is 29,000 past its old date and still there.
+Whether that is the guard or the different course of this run, one run does not separate.
+
+**After it left.** SCY-867 fell by 2297728, about 5,100 game seconds later. At the run's end
+HOW-875 stands and is on the attacked list, with 2 XL, 30 M and 77 S in the sector. Paranid stations
+there went from 27 to 18 over the run. The guard could not go back: the launch needs `raid_from` +
+`raid_home`, 45, and 41 were home. 4 more are on order at HOW-875 and none had arrived in about
+5,700 game seconds.
+
+**Home.** 15 destroyers stayed. The home line showed at most 1 M with 10 S, and the raid's losses were
+all in Trinity Sanctum III's fights. Home was not tested by a fleet in this run.
+
+**Weapon components.** KYV-745 stands at 0 with room for 11,870. XKZ-211 sells them at 285 Cr with
+492 in stock, so the eye in TS III did not bring them back. Traders trade on their own and leave no
+command in the log; why they leave this ware is not measured. The ware's module stays blocked at 0.02
+with Argon against 0.1, and fighters stood at 138 of 180 from at least 2288545; that the two are
+connected is likely and not measured.
+
+**Score.** Not scored; the hours went to the fleet. ship13b over 20.59 game hours: credits 1,856 M to
+1,682 M, of which 9 destroyers about 231 M, so about 57 M came in. Net worth 2,746 M to 2,577 M: it
+does not count those purchases back. Destroyers 40 to 41 with 4 on order, fighters 148 to 139, 2 Xenon
+stations killed (YKC-022, GUV-415).
+
+**What goes into ship14.** From the end of ship13b, with HOW-875 still standing. Two changes, one
+question each. `RAID_HOLD_PER_XL` 4 against the launch's 6: a guard on its post stays until XL * 4
+exceeds its number or its hull falls below 75%. What does staying cost against an XL? And
+`raid_from` 25 with `raid_home` 15, so 40 can go: does an early return save HOW-875? Home keeps 15
+either way.
