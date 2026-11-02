@@ -400,6 +400,105 @@ def test_destroyers_left_under_a_leader_by_an_ended_run_go_back_to_the_station(s
     assert standing.raids(state, data) == ["assign DES-001 KYV-745 defend"]
 
 
+def _guarding(state, data):
+    data["strategy"]["plan"]["stations"]["KYV-745"]["raid_guard"] = True
+    assert standing.raids(state, data)[-1] == f"raid DES-000 {XEN_SECTOR} stay"
+    next(a for a in state["assets"] if a["code"] == "DES-000")["place"] = {"sector": XEN_SECTOR}
+    state["meta"]["playtime_s"] = data["standing"]["raid"]["since"] + 1
+
+
+def test_a_guard_stays_when_no_xenon_is_left(small_state):
+    state, data = _raid_ready(small_state)
+    _guarding(state, data)
+    leader = next(a for a in state["assets"] if a["code"] == "DES-000")
+    leader["orders"] = [{"order": "Patrol"}]
+    state["hostiles"] = {}
+    state["meta"]["playtime_s"] += 2 * standing.RAID_BACK_WAIT
+    assert standing.raids(state, data) == []
+    assert data["standing"]["raid"]["phase"] == "out"
+
+
+def test_a_guard_without_a_patrol_is_given_one(small_state):
+    state, data = _raid_ready(small_state)
+    _guarding(state, data)
+    next(a for a in state["assets"] if a["code"] == "DES-000")["orders"] = []
+    state["hostiles"] = {}
+    assert standing.raids(state, data) == [f"raid DES-000 {XEN_SECTOR} stay"]
+
+
+def test_a_guard_leaves_when_outgunned_or_with_an_xl_at_home(small_state):
+    state, data = _raid_ready(small_state)
+    _guarding(state, data)
+    state["hostiles"][XEN_SECTOR]["xenon"]["ship_xl"] = 1
+    assert "release DES-000" in standing.raids(state, data)
+    state, data = _raid_ready(small_state)
+    _guarding(state, data)
+    home = _station(state)["place"]["sector"]
+    state["hostiles"][home] = {"xenon": {"ship_xl": 1}}
+    assert "release DES-000" in standing.raids(state, data)
+
+
+def test_no_raid_leaves_with_an_xl_at_home(small_state):
+    state, data = _raid_ready(small_state)
+    state["hostiles"][_station(state)["place"]["sector"]] = {"xenon": {"ship_xl": 1}}
+    assert standing.raids(state, data) == []
+
+
+def test_a_satellite_in_the_sector_lifts_the_strong_wait(small_state):
+    state, data = _raid_ready(small_state)
+    state["meta"]["playtime_s"] = 5000
+    data["standing"] = {"raid_strong": {XEN_SECTOR: 4000}}
+    assert standing.raids(state, data) == []
+    state["eyes"] = [XEN_SECTOR]
+    assert standing.raids(state, data)[-1] == f"raid DES-000 {XEN_SECTOR}"
+
+
+def _watching(state):
+    state = copy.deepcopy(state)
+    state["meta"]["playtime_s"] = 5000
+    state["player"]["occupied_ship"] = None
+    state["assets"] = [a for a in state["assets"] if a.get("code") != "TJL-171"]
+    state["all_stations"] = [{"code": "AAA-001", "owner": "paranid", "sector": "S", "builds": []},
+                             {"code": "BBB-002", "owner": "paranid", "sector": "S", "builds": []},
+                             {"code": "XEN-003", "owner": "xenon", "sector": "S", "builds": []}]
+    _add_ship(state, "SCO-001", "ship_par_s_scout_01_a_macro", orders=[{"order": "Explore"}])
+    data = {"strategy": {"plan": {"stations": {"KYV-745": {"build": {}, "miners": {}, "traders": 0, "defenders": 0,
+                                                           "destroyers": 0, "raid_sector": "",
+                                                           "watch_sectors": ["S"]}}}}}
+    return state, data
+
+
+def test_a_watched_sector_gets_two_satellites_by_different_stations(small_state):
+    state, data = _watching(small_state)
+    assert standing.watch(state, data) == ["release SCO-001", "satellite SCO-001 AAA-001 paranid"]
+    assert standing.watch(state, data) == []                   # on its way
+    state["meta"]["playtime_s"] += standing.WATCH_AGAIN
+    state["satellites"] = {"S": 1}
+    assert standing.watch(state, data) == ["release SCO-001", "satellite SCO-001 BBB-002 paranid"]
+    state["meta"]["playtime_s"] += standing.WATCH_AGAIN
+    state["satellites"] = {"S": 2}
+    assert standing.watch(state, data) == []
+    state["satellites"] = {"S": 1}                             # one shot down
+    assert standing.watch(state, data)[-1] == "satellite SCO-001 AAA-001 paranid"
+
+
+def test_the_report_tells_who_stands_in_a_watched_sector(small_state):
+    import strategy
+    state, data = _watching(small_state)
+    state["all_stations"][0].update(builds=["l", "xl"], attacked=4990)
+    state["satellites"] = {"S": 1}
+    state["hostiles"] = {"S": {"xenon": {"ship_xl": 2}}}
+    line = next(l for l in strategy.lines(state, data) if l.startswith("watch "))
+    for part in ("satellites 1", "'paranid': 2", "AAA-001 l+xl", "'ship_xl': 2", "attacked lately ['AAA-001']"):
+        assert part in line
+
+
+def test_a_scout_on_its_errand_is_not_sent_again(small_state):
+    state, data = _watching(small_state)
+    next(a for a in state["assets"] if a["code"] == "SCO-001")["orders"] = [{"order": "DeployObjectAtPosition"}]
+    assert standing.watch(state, data) == []
+
+
 def test_a_raid_goes_from_its_number_with_more_on_order(small_state):
     state, data = _raid_ready(small_state, destroyers=2)
     goal = data["strategy"]["plan"]["stations"]["KYV-745"]

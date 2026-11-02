@@ -655,6 +655,7 @@ def parse_save(path: str | os.PathLike) -> dict:
     assets: list[Asset] = []
     market: list[Asset] = []
     eyes: set[str] = set()   # sectors holding a satellite or beacon of ours
+    satellites: dict[str, int] = {}   # how many satellites of ours, per sector
     logbook: list[list] = []
     trades: list[tuple] = []   # (time, ware, buyer id, seller id, price in cents, amount)
     on_order: list[dict] = []   # ships we paid for that their wharf has not delivered
@@ -788,6 +789,8 @@ def parse_save(path: str | os.PathLike) -> dict:
                     for anc in comps:
                         if anc["cls"] == "sector":
                             eyes.add(anc.get("macro"))
+                            if cls == "satellite":
+                                satellites[anc.get("macro")] = satellites.get(anc.get("macro"), 0) + 1
 
             if elem.tag == "faction" and elem.get("id") == "player":
                 # Reputation and licences. The effective standing is the base
@@ -840,6 +843,10 @@ def parse_save(path: str | os.PathLike) -> dict:
         # What was withheld, so the report can say so instead of quietly
         # showing a smaller market than the player has explored.
         "unseen_stations": len(market) - len(visible),
+        # Who stands where, also out of sight, without prices or stock.
+        "all_stations": [{"code": a.code, "owner": a.owner, "sector": a.place.get("sector"), "builds": a.builds,
+                          "attacked": a.attack.get("time")} for a in market],
+        "satellites": satellites,
         "hostiles": hostiles,
         "builders": builders,
         # Sectors where we have eyes: a satellite, beacon or probe of ours.

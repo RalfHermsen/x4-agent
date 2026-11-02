@@ -136,6 +136,47 @@ def ledger(state: dict, data: dict) -> list[str]:
     return [f"ledger {LEDGER_HOURS}"] if count % LEDGER_EVERY == 0 else []
 
 
+WATCH_SATELLITES = 2     # per sector the plan watches; three at most, with one on its way
+WATCH_AGAIN = 3600       # game seconds before a sector short of one gets another scout
+
+
+def watch(state: dict, data: dict) -> list[str]:
+    """The sectors the plan watches keep two satellites, each by another station.
+
+    ship12j-camp had nothing in Trinity Sanctum III when its wharfs fell, so the
+    report said no station sold weaponcomponents while four there did. A lost
+    satellite is replaced. Scouts explore all the time and are never idle, so
+    the first order clears the queue; `scouts` sends them exploring again after.
+    One errand per scout, and the scout that went longest ago goes next.
+    """
+    import strategy
+    wanted = [s for goal in strategy.goals(data).values() for s in goal.get("watch_sectors") or []]
+    held = data.setdefault("standing", {}).setdefault("watch", {})
+    went = data["standing"].setdefault("watch_scouts", {})
+    occupied = state.get("player", {}).get("occupied_ship")
+    free = sorted((s["code"] for s in state.get("assets", [])
+                   if sitrep.ship_type(s.get("macro")) == "scout" and s.get("code") != occupied
+                   and "DeployObjectAtPosition" not in [o.get("order") for o in s.get("orders") or []]),
+                  key=lambda code: went.get(code, -1e9))
+    now = (state.get("meta") or {}).get("playtime_s") or 0
+    out = []
+    for sector in wanted:
+        mark = held.setdefault(sector, {"at": -1e9, "used": []})
+        if (not free or (state.get("satellites") or {}).get(sector, 0) >= WATCH_SATELLITES
+                or now - mark["at"] < WATCH_AGAIN):
+            continue
+        stations = [s for s in state.get("all_stations") or []
+                    if s.get("sector") == sector and s.get("code") and s.get("owner") not in ("xenon", "khaak")]
+        if not stations:
+            continue
+        station = next((s for s in stations if s["code"] not in mark["used"]), stations[0])
+        scout = free.pop(0)
+        mark["at"], went[scout] = now, now
+        mark["used"].append(station["code"])
+        out += [f"release {scout}", f"satellite {scout} {station['code']} {station['owner']}"]
+    return out
+
+
 def once(state: dict, data: dict) -> list[str]:
     """4.10, 4.12, 4.13, 6.5: settings that are set once and then left alone.
 
@@ -800,6 +841,10 @@ def raids(state: dict, data: dict) -> list[str]:
     ship9-camp's first raid turned back after one cycle because the one Xenon S
     a freighter had seen was out of sight. The leader's own orders stay queued
     behind the raid, so `release` flies it home.
+    With `raid_guard` it stays once there: no Xenon left is what it came for, and in
+    ship12j-camp the trip home after each kill brought it back scattered, 10 of 25 lost.
+    Any XL at home calls a raid back and keeps the next one in. A satellite in the sector
+    shows what stands there, so its strong mark no longer needs waiting out.
     `repairs` takes out a single badly damaged ship on the way. One raid at a
     time. tasks/plan-shipbuilding-2026-10.md, Raids.
     """
@@ -824,22 +869,26 @@ def raids(state: dict, data: dict) -> list[str]:
                 raid.setdefault("arrived_at", now)
             left = ((state.get("hostiles") or {}).get(raid["sector"]) or {}).get("xenon")
             strong = (left or {}).get("ship_xl", 0) * RAID_PER_XL > len(alive)
+            xl_at_home = (((state.get("hostiles") or {}).get(raid["home_sector"]) or {}).get("xenon") or {}).get("ship_xl")
             if strong:
                 held.setdefault("raid_strong", {})[raid["sector"]] = now
-            hurt = strong or sum(_hull_share(s) for s in alive) < RAID_BACK_BELOW * len(raid["ships"])
+            hurt = strong or xl_at_home or sum(_hull_share(s) for s in alive) < RAID_BACK_BELOW * len(raid["ships"])
             done = not left if raid.get("arrived") else now - raid["since"] >= RAID_BACK_WAIT
             if raid.get("unseen") and raid.get("arrived"):
                 # It went in blind, and a sector is wide: nothing in sight on the
                 # first cycle there says nothing.
                 done = done and now - raid["arrived_at"] >= RAID_BACK_WAIT
+            if raid.get("guard") and raid.get("arrived"):
+                done = False
             if raid["leader"] in ours and not (hurt or done):
                 # A station came into sight, or the one it attacked is gone and
                 # another stands: the `raid` before this one only found a patrol.
                 queue = [o.get("order") for o in ours[raid["leader"]].get("orders") or [] if not o.get("default")]
-                if (raid.get("arrived") and (left or {}).get("station") and "Attack" not in queue
+                stay = raid.get("guard") and "Patrol" not in queue
+                if (raid.get("arrived") and ((left or {}).get("station") or stay) and "Attack" not in queue
                         and now - raid.get("asked", -1e9) >= RAID_ASK_AGAIN):
                     raid["asked"] = now
-                    return [f"raid {raid['leader']} {raid['sector']}"]
+                    return [f"raid {raid['leader']} {raid['sector']}" + (" stay" if stay else "")]
                 return []
             if alive:
                 raid["phase"], raid["since"] = "back", now
@@ -873,10 +922,13 @@ def raids(state: dict, data: dict) -> list[str]:
         # The ships that go, not the whole fleet: they turn back on arrival by this same sum.
         if (not xenon and not goal.get("raid_unseen")) or xenon.get("ship_xl", 0) * RAID_PER_XL > enough:
             continue
-        if now - (held.get("raid_strong") or {}).get(sector, -1e9) < RAID_STRONG_WAIT:
+        if (now - (held.get("raid_strong") or {}).get(sector, -1e9) < RAID_STRONG_WAIT
+                and sector not in (state.get("eyes") or [])):
             continue
         busy = held.get("repairing") or {}
         home_sector = (home.get("place") or {}).get("sector")
+        if (((state.get("hostiles") or {}).get(home_sector) or {}).get("xenon") or {}).get("ship_xl"):
+            continue
         ready = [s for s in ours.values()
                  if sitrep.ship_type(s.get("macro")) == "destroyer"
                  and executor.serves(s, state) == (code, "defence") and s["code"] not in busy
@@ -889,8 +941,9 @@ def raids(state: dict, data: dict) -> list[str]:
         leader, *rest = [s["code"] for s in ready[:enough]] if goal.get("raid_home") else [s["code"] for s in ready]
         held["raid"] = {"sector": sector, "home": code, "home_sector": home_sector, "leader": leader,
                         "ships": [leader, *rest], "phase": "out", "since": now,
-                        "unseen": bool(goal.get("raid_unseen"))}
-        return [f"command {s} {leader} attack" for s in rest] + [f"raid {leader} {sector}"]
+                        "unseen": bool(goal.get("raid_unseen")), "guard": bool(goal.get("raid_guard"))}
+        return ([f"command {s} {leader} attack" for s in rest]
+                + [f"raid {leader} {sector}" + (" stay" if goal.get("raid_guard") else "")])
     return []
 
 
@@ -900,7 +953,7 @@ def fleet(state: dict, data: dict) -> list[str]:
     return strategy.fleet(state, data)
 
 
-RULES = (sell_limits, revisit, satellites, ledger, once, patrols, find_builds, hire_builders,
+RULES = (sell_limits, revisit, satellites, watch, ledger, once, patrols, find_builds, hire_builders,
          own_stock, repairs, seminars, scouts, empty_builds, docks, managers, shiptraders,
          cargo_drones, accounts, undock_fleet, wings, raids, fleet, grow)
 

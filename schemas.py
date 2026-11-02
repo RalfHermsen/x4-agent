@@ -428,6 +428,10 @@ class StationGoal(BaseModel):
                                                          "there; the fleet looks when it arrives")
     raid_from: int = Field(default=0, description="how many destroyers, with their fighters, are enough to "
                                                   "raid while more are on order; 0 for all of them")
+    raid_guard: bool = Field(default=False, description="the raid stays in raid_sector to guard it, also when "
+                                                        "no Xenon is left, until it is hurt or outgunned")
+    watch_sectors: list[str] = Field(default_factory=list, description="macros of sectors that keep two "
+                                                                       "satellites of ours")
 
 
 class Strategy(BaseModel):

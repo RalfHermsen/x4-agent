@@ -1134,8 +1134,20 @@ end
 --- Subordinates under it in an attack group go with it (`command`).
 --- "raid PSV-645 cluster_18_sector001_macro ships" patrols there whatever stands:
 --- for helping an ally's wharf against the ships that attack it.
+local function sector_by_macro(macro)
+    for _, cluster in ipairs(GetClusters(true)) do
+        for _, space in ipairs(GetSectors(cluster)) do
+            if string.lower(GetComponentData(space, "macro") or "") == macro then
+                return space
+            end
+        end
+    end
+end
+
+--- "raid SHIP SECTOR stay": behind the attack a patrol of that sector, which does not chase
+--- through a gate, so the ship stays when its target is gone. Without a target only the patrol.
 local function raid(args)
-    local shipcode, sector, ships_only = args[1], args[2], args[3] == "ships"
+    local shipcode, sector, ships_only, stay = args[1], args[2], args[3] == "ships", args[3] == "stay"
     local ship = shipcode and player_ships()[shipcode]
     if not ship or not sector then
         return refuse("raid needs a ship of ours and a sector macro: raid <SHIP> <SECTOR>")
@@ -1165,17 +1177,20 @@ local function raid(args)
                     { primarytarget = ConvertStringToLuaID(tostring(target)) }, false, false, true)
         log(string.format("ORDER: %s attacks %s in %s", shipcode,
                           ffi.string(C.GetObjectIDCode(target)), sector))
+        local space = stay and sector_by_macro(sector)
+        if space then
+            CreateOrder(ConvertStringToLuaID(tostring(ship)), "Patrol",
+                        { space = space, pursuetargets = false }, false, false, false)
+            log(string.format("ORDER: %s stays in %s after that", shipcode, sector))
+        end
         return true
     end
-    for _, cluster in ipairs(GetClusters(true)) do
-        for _, space in ipairs(GetSectors(cluster)) do
-            if string.lower(GetComponentData(space, "macro") or "") == sector then
-                CreateOrder(ConvertStringToLuaID(tostring(ship)), "Patrol",
-                            { space = space, pursuetargets = true }, false, false, true)
-                log(string.format("ORDER: %s patrols %s", shipcode, sector))
-                return true
-            end
-        end
+    local space = sector_by_macro(sector)
+    if space then
+        CreateOrder(ConvertStringToLuaID(tostring(ship)), "Patrol",
+                    { space = space, pursuetargets = not stay }, false, false, true)
+        log(string.format("ORDER: %s patrols %s", shipcode, sector))
+        return true
     end
     return refuse("raid: no sector " .. sector .. " on the map")
 end

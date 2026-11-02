@@ -368,4 +368,29 @@ def lines(state: dict, data: dict) -> list[str]:
             parts.append(f"raid on {raid['sector']} {raid['phase']}, led by {raid['leader']}")
         out.append(f"{code}: " + ", ".join(parts)
                    + (f"; the bridge cannot build {', '.join(unknown)}" if unknown else ""))
+        out += _watch_lines(state, goal.get("watch_sectors") or [])
+    return out
+
+
+def _watch_lines(state: dict, sectors: list[str]) -> list[str]:
+    """Per watched sector: our satellites, who stands there, the wharfs, the Xenon, who was hit lately."""
+    import gamedata
+    import sitrep
+    if not sectors:
+        return []
+    names = gamedata.load()
+    now = (state.get("meta") or {}).get("playtime_s") or 0
+    out = []
+    for sector in sectors:
+        stations = [s for s in state.get("all_stations") or [] if s.get("sector") == sector]
+        owners: dict[str, int] = {}
+        for s in stations:
+            owners[s.get("owner")] = owners.get(s.get("owner"), 0) + 1
+        wharfs = [f"{s['code']} {'+'.join(s['builds'])}" for s in stations if s.get("builds")]
+        hit = [s["code"] for s in stations if s.get("attacked") is not None
+               and now - s["attacked"] <= sitrep.RECENT_ATTACK]
+        xenon = ((state.get("hostiles") or {}).get(sector) or {}).get("xenon") or {}
+        out.append(f"watch {gamedata.pretty(sector, names)}: satellites {(state.get('satellites') or {}).get(sector, 0)}, "
+                   f"stations {owners or 'none known'}, wharfs {wharfs or 'none'}, xenon {xenon or 'none seen'}"
+                   + (f", attacked lately {hit}" if hit else ""))
     return out

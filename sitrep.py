@@ -763,8 +763,10 @@ def build(state: dict, goals: list[str] | None = None,
             add(f"{code} needs {short} {ware}; {best[2]} sells it at "
                 f"{best[0]:.0f} Cr (stock {best[1]}).")
         else:
-            add(f"{code} needs {short} {ware}, and NO station we know sells it. "
-                f"A trader cannot fix this; the map has to be explored first.")
+            unseen = state.get("unseen_stations", 0)
+            add(f"{code} needs {short} {ware}, and no station in sight sells it. "
+                + (f"{unseen} known stations are out of sight; a satellite there shows their stock."
+                   if unseen else "A trader cannot fix this; the map has to be explored first."))
     if not idle and not shortages and not failing:
         add("Nothing.")
 
