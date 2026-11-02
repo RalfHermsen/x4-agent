@@ -1849,3 +1849,42 @@ question each. `RAID_HOLD_PER_XL` 4 against the launch's 6: a guard on its post 
 exceeds its number or its hull falls below 75%. What does staying cost against an XL? And
 `raid_from` 25 with `raid_home` 15, so 40 can go: does an early return save HOW-875? Home keeps 15
 either way.
+
+## 2026-11-02: ship14, the guard held longer and the wharf fell anyway
+
+**The guard.** 25 under INT-177 left at the start, at 2303900, against 2 XL, 30 M and 78 S. The first
+destroyer fell at about 2352700, so about 48,800 game seconds without a loss, under mostly 1 or 2 XL.
+Xenon ships in the sector went as low as 6 S and no M. Xenon stations went from 3 to 2. It did not keep
+the Paranid standing: their stations went from 18 to 12 under the guard, so a guard on Patrol does
+not stop every attack on an allied station.
+
+**What ended it.** A wave reached 4 XL at about 2353000. One XL, AEG-473, killed 6 of the 7 destroyers
+lost, about one per 300 game seconds. The rule held the guard at 4 XL, as `RAID_HOLD_PER_XL` meant
+it to, and the hull rule brought it home at 18 left. The guard went home with its leader, so 3bd5005
+works unattended. Staying cost 7 against 5 in ship13b, for a guard three times as long; whether the
+longer stay came from the rule is not separate from the smaller waves before it.
+
+**After it left.** HOW-875 was last listed at 2366532, about 12,000 game seconds later. The 4 destroyers
+ordered there in ship13b were never delivered. The order sat for 68,000 game seconds. Money rose 61 M
+around that time and I have not established why, so what the undelivered orders cost is not known. At
+the end Trinity Sanctum III has 10 XL, 2 L, 39 M, 118 S and 6 Paranid stations, and home is quiet.
+
+**The brake.** This is the finding that matters most for growth. The fleet is 34 destroyers and 125
+fighters with no way to add to them. Our own destroyer and fighter wait on `weaponcomponents` (0 in
+store, the build's `missing` says so), and no known station has real stock: of the 5 that list them
+four stand at 0 and TNM-909 has 313. The module's blueprint needs 0.1 with Argon, we have 0.02. The
+only L wharf known now is Argon's CXY-258, and we hold no Argon capital ship licence. Fighters can still
+be bought at the M wharves.
+
+**Two hand steers that did nothing.** Opening 29,809 `hullparts` for sale: a price rule set my 220
+back to auto within a cycle, and at 151 nobody took them for 29,000 game seconds while WAC-778 pays 299.
+Traders do not move this by themselves. And `haul` on JZQ-086: the ship was a trader, the buy order sat
+behind its trade queue and was never reached in 24,000 game seconds. Hauling needs a ship with no
+other job.
+
+**A market next door.** XPP-596, in our own sector, buys what we hold in stock: `advancedelectronics`
+at 1,013 Cr, `antimatterconverters` at 353, `fieldcoils` at 411, `engineparts` at 181, `hullparts` at
+208. It wants about 10 M Cr of it, and it is not being delivered. Not tried yet.
+
+**Score.** Not scored. Over 22.1 game hours: net worth 2,577 M to 2,609 M, credits 1,682 M to 1,728 M,
+ships 202 to 180, destroyers 41 to 34, fighters 139 to 125, failing 2 to 6.
