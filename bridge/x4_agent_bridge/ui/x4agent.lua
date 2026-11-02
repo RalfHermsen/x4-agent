@@ -1705,12 +1705,45 @@ local function loadout_price(wharf, loadout)
     return math.ceil(total)
 end
 
+--- Satellites in a new ship's loadout, as the ship menu buys them: deployables
+--- ride in the ammo list (menu_ship_configuration.lua) and `loadout_price`
+--- prices them there. Only what the wharf offers and the ship holds. Returns
+--- the new list, which has to stay alive until the build task is placed, and
+--- the number; or nil and why not.
+local function add_satellites(wharf, macro, loadout, wanted)
+    local n = C.GetNumAvailableEquipment(wharf, "")
+    local offered = ffi.new("EquipmentWareInfo[?]", n)
+    n = C.GetAvailableEquipment(offered, n, wharf, "")
+    local sold = false
+    for i = 0, n - 1 do
+        sold = sold or ffi.string(offered[i].macro) == "eq_arg_satellite_01_macro"
+    end
+    if not sold then
+        return nil, "the wharf does not offer satellites"
+    end
+    local count = math.min(wanted, tonumber(C.GetMacroDeployableCapacity(macro)))
+    if count < 1 then
+        return nil, macro .. " holds no deployables"
+    end
+    local size = tonumber(loadout.numammo)
+    local ammo = ffi.new("UILoadoutAmmoData[?]", size + 1)
+    for i = 0, size - 1 do
+        ammo[i] = loadout.ammo[i]
+    end
+    ammo[size].macro = "eq_arg_satellite_01_macro"
+    ammo[size].amount = count
+    ammo[size].optional = false
+    loadout.ammo, loadout.numammo = ammo, size + 1
+    return ammo, count
+end
+
 --- "buyship WRF-001 argon ship_arg_s_scout_01_a_macro x4-agent-scout 300000"
 --- -> build that ship at that wharf, with the game's generated loadout at a
 --- medium level, for at most 300,000 Cr. The engine does not take the money
 --- for a build task (docs/roadmap.md); the ship menu pays with
 --- TransferPlayerMoneyTo and records it with SetBuildTaskTransferredMoney, and
 --- so does this, before the task exists. A task the engine refuses is refunded.
+--- A sixth argument puts that many satellites aboard, at the wharf's price.
 local function buy_ship(args)
     local wharfcode, faction, macro, name, cap = args[1], args[2], args[3], args[4], tonumber(args[5])
     if not (wharfcode and faction and macro and name and cap) then
@@ -1731,6 +1764,14 @@ local function buy_ship(args)
                               C.GenerateShipLoadoutCounts2, "UILoadout2", wharf, 0, macro, 0.5)
     if not ok then
         return refuse("buyship: no loadout for " .. macro .. ": " .. tostring(loadout))
+    end
+    local wanted, satellites, aboard = tonumber(args[6]), nil, 0
+    if wanted then
+        local oksat, list, count = pcall(add_satellites, wharf, macro, loadout, wanted)
+        if not oksat or not list then
+            return refuse("buyship: no satellites in " .. macro .. ": " .. tostring(oksat and count or list))
+        end
+        satellites, aboard = list, count
     end
     -- Everything that can fail happens before any money moves.
     local okprice, partprice = pcall(loadout_price, wharf, loadout)
@@ -1763,8 +1804,9 @@ local function buy_ship(args)
         return refuse(string.format("buyship: %s would not build %s; %d Cr refunded", wharfcode, macro, price))
     end
     C.SetBuildTaskTransferredMoney(task, price)
-    log(string.format("ORDER: bought %s at %s as %s for %d Cr, money %d -> %d, task %s",
-                      macro, wharfcode, name, price, before, GetPlayerMoney(), tostring(task)))
+    log(string.format("ORDER: bought %s at %s as %s for %d Cr, money %d -> %d, task %s, %d satellites, list %s",
+                      macro, wharfcode, name, price, before, GetPlayerMoney(), tostring(task), aboard,
+                      tostring(satellites ~= nil)))
     return true
 end
 

@@ -75,6 +75,7 @@ class Asset:
     attack: dict = field(default_factory=dict)
     software: list[str] = field(default_factory=list)
     account: dict[str, str] = field(default_factory=dict)
+    satellites_aboard: int = 0
     offers: list[Offer] = field(default_factory=list)
     # Prices fixed by hand or by us, which the manager no longer moves: {ware: {buy, sell}}.
     price_overrides: dict[str, dict[str, int]] = field(default_factory=dict)
@@ -506,6 +507,9 @@ def _asset(elem, ancestors: list[dict]) -> Asset:
         attack=_attack(elem, 0.0),
         software=[s.get("wares") for s in elem.iter("software") if s.get("wares")],
         account=dict(elem.find("account").items()) if elem.find("account") is not None else {},
+        # A missing amount is one (lesson L1). Ships docked inside have their own block.
+        satellites_aboard=sum(_int(i.get("amount")) or 1 for i in elem.iterfind("ammunition/available/item")
+                              if i.get("macro") == "eq_arg_satellite_01_macro"),
     )
     if asset.cls == "station":
         asset.links = [c.get("id") for c in elem.iterfind("connections/connection")

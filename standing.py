@@ -123,7 +123,7 @@ def satellites(state: dict, data: dict) -> list[str]:
     occupied = state.get("player", {}).get("occupied_ship")
     for ship in state.get("assets", []):
         if (sitrep.ship_type(ship.get("macro")) == "scout" and sitrep.role_of(ship) == "IDLE"
-                and ship.get("code") != occupied):
+                and ship.get("code") != occupied and ship.get("satellites_aboard")):
             _mark(data, "satellite", best["code"])
             return [f"satellite {ship['code']} {best['code']} {best.get('owner')}"]
     return []
@@ -138,6 +138,7 @@ def ledger(state: dict, data: dict) -> list[str]:
 
 WATCH_SATELLITES = 2     # per sector the plan watches; three at most, with one on its way
 WATCH_AGAIN = 3600       # game seconds before a sector short of one gets another scout
+SCOUT_SATELLITES = 10    # a bought scout's, in its loadout; none comes aboard by itself
 
 
 def watch(state: dict, data: dict) -> list[str]:
@@ -148,32 +149,49 @@ def watch(state: dict, data: dict) -> list[str]:
     satellite is replaced. Scouts explore all the time and are never idle, so
     the first order clears the queue; `scouts` sends them exploring again after.
     One errand per scout, and the scout that went longest ago goes next.
+
+    Only a scout with satellites aboard goes. ship13-camp's two had none and the game
+    refused both, and the game does not resupply a player's ship at another faction's
+    wharf (interrupt.restock.xml). With none aboard in any scout, one is bought with them.
     """
+    import catalog
     import strategy
     wanted = [s for goal in strategy.goals(data).values() for s in goal.get("watch_sectors") or []]
     held = data.setdefault("standing", {}).setdefault("watch", {})
     went = data["standing"].setdefault("watch_scouts", {})
     occupied = state.get("player", {}).get("occupied_ship")
-    free = sorted((s["code"] for s in state.get("assets", [])
-                   if sitrep.ship_type(s.get("macro")) == "scout" and s.get("code") != occupied
-                   and "DeployObjectAtPosition" not in [o.get("order") for o in s.get("orders") or []]),
+    stocked = [s for s in state.get("assets", [])
+               if sitrep.ship_type(s.get("macro")) == "scout" and s.get("code") != occupied
+               and s.get("satellites_aboard")]
+    free = sorted((s["code"] for s in stocked
+                   if "DeployObjectAtPosition" not in [o.get("order") for o in s.get("orders") or []]),
                   key=lambda code: went.get(code, -1e9))
     now = (state.get("meta") or {}).get("playtime_s") or 0
-    out = []
+    out, short = [], False
     for sector in wanted:
         mark = held.setdefault(sector, {"at": -1e9, "used": []})
-        if (not free or (state.get("satellites") or {}).get(sector, 0) >= WATCH_SATELLITES
+        if ((state.get("satellites") or {}).get(sector, 0) >= WATCH_SATELLITES
                 or now - mark["at"] < WATCH_AGAIN):
             continue
         stations = [s for s in state.get("all_stations") or []
                     if s.get("sector") == sector and s.get("code") and s.get("owner") not in ("xenon", "khaak")]
         if not stations:
             continue
+        if not free:
+            short = True
+            continue
         station = next((s for s in stations if s["code"] not in mark["used"]), stations[0])
         scout = free.pop(0)
         mark["at"], went[scout] = now, now
         mark["used"].append(station["code"])
         out += [f"release {scout}", f"satellite {scout} {station['code']} {station['owner']}"]
+    st = data["standing"]
+    if short and not stocked and now - st.get("scout_bought_at", -1e9) > SCOUT_DELIVERY:
+        options = catalog._buy_options(state, (("scout", "ship_{race}_s_scout_01_a_macro"),),
+                                       size="m", gap=False)
+        if options:
+            st["scout_bought_at"] = now
+            out.append(f"{options[0].command} {SCOUT_SATELLITES}")
     return out
 
 
@@ -497,7 +515,7 @@ def scouts(state: dict, data: dict) -> list[str]:
                                        size="m", gap=False)
         if options:
             st["scout_bought_at"] = now
-            out.append(options[0].command)
+            out.append(f"{options[0].command} {SCOUT_SATELLITES}")
     return out
 
 

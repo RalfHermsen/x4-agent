@@ -35,7 +35,7 @@ def test_revisit_sends_one_idle_scout_once(small_state):
     _station(state)["offers"] = [{"ware": "sunriseflowers", "side": "sell", "price": 100,
                                   "amount": 10, "desired": 0}]
     state["known_stations"] = []
-    _add_ship(state, "SCT-001", "ship_tel_s_scout_01_a_macro")
+    _add_ship(state, "SCT-001", "ship_tel_s_scout_01_a_macro", satellites_aboard=1)
     data = {}
     assert standing.revisit(state, data) == ["revisit SCT-001 KYV-745"]
     assert standing.revisit(state, data) == []
@@ -48,7 +48,7 @@ def test_satellite_goes_where_we_have_no_eyes(small_state):
     state["known_stations"] = [{"code": "BUY-001", "owner": "argon", "place": {"sector": "s2"},
                                 "offers": [{"ware": "sunriseflowers", "side": "buy"}]}]
     state["eyes"] = []
-    _add_ship(state, "SCT-001", "ship_tel_s_scout_01_a_macro")
+    _add_ship(state, "SCT-001", "ship_tel_s_scout_01_a_macro", satellites_aboard=1)
     data = {}
     assert standing.satellites(state, data) == ["satellite SCT-001 BUY-001 argon"]
     state["eyes"] = ["s2"]
@@ -461,7 +461,7 @@ def _watching(state):
     state["all_stations"] = [{"code": "AAA-001", "owner": "paranid", "sector": "S", "builds": []},
                              {"code": "BBB-002", "owner": "paranid", "sector": "S", "builds": []},
                              {"code": "XEN-003", "owner": "xenon", "sector": "S", "builds": []}]
-    _add_ship(state, "SCO-001", "ship_par_s_scout_01_a_macro", orders=[{"order": "Explore"}])
+    _add_ship(state, "SCO-001", "ship_par_s_scout_01_a_macro", orders=[{"order": "Explore"}], satellites_aboard=5)
     data = {"strategy": {"plan": {"stations": {"KYV-745": {"build": {}, "miners": {}, "traders": 0, "defenders": 0,
                                                            "destroyers": 0, "raid_sector": "",
                                                            "watch_sectors": ["S"]}}}}}
@@ -491,6 +491,24 @@ def test_the_report_tells_who_stands_in_a_watched_sector(small_state):
     line = next(l for l in strategy.lines(state, data) if l.startswith("watch "))
     for part in ("satellites 1", "'paranid': 2", "AAA-001 l+xl", "'ship_xl': 2", "attacked lately ['AAA-001']"):
         assert part in line
+
+
+def test_a_scout_without_satellites_buys_one_that_has_them(small_state):
+    state, data = _watching(small_state)
+    next(a for a in state["assets"] if a["code"] == "SCO-001")["satellites_aboard"] = 0
+    state["market"] = state.get("market") or []
+    import catalog
+    option = catalog.Option("buy", "buyship YRD-001 paranid ship_par_s_scout_01_a_macro scout 3000000")
+    original = catalog._buy_options
+    catalog._buy_options = lambda *a, **k: [option]
+    try:
+        assert standing.watch(state, data) == [f"{option.command} {standing.SCOUT_SATELLITES}"]
+        assert standing.watch(state, data) == []               # on order, not a second one
+        state["meta"]["playtime_s"] += standing.SCOUT_DELIVERY + 1
+        next(a for a in state["assets"] if a["code"] == "SCO-001")["satellites_aboard"] = 3
+        assert standing.watch(state, data)[-1] == "satellite SCO-001 AAA-001 paranid"
+    finally:
+        catalog._buy_options = original
 
 
 def test_a_scout_on_its_errand_is_not_sent_again(small_state):
