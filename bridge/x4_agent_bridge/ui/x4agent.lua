@@ -134,6 +134,7 @@ declare [[ float GetPlayerGlobalLoadoutLevel(void); ]]
 declare [[ void SetAllTurretModes(UniverseID defensibleid, const char* mode); ]]
 declare [[ typedef struct { float x; float y; float z; float yaw; float pitch; float roll; } UIPosRot; ]]
 declare [[ UIPosRot GetObjectPositionInSector(UniverseID objectid); ]]
+declare [[ UniverseID ReserveBuildPlot(UniverseID sectorid, const char* factionid, const char* set, UIPosRot location, float x, float y, float z); ]]
 declare [[ bool IsOrderLoopable(const char* orderdefid); ]]
 declare [[ uint32_t GetOrderLoopSkillLimit(); ]]
 declare [[ bool EnableOrder(UniverseID controllableid, size_t idx); ]]
@@ -1629,6 +1630,46 @@ local function extend_plot(station, args)
     return true
 end
 
+--- "newplot RTV-678 8 5000000 30000 0 0" -> a new plot of 8 km a side, in the sector
+--- of that ship of ours, that far in metres from it, at the map menu's price and not
+--- above the cap: ReserveBuildPlot, then the price paid to the sector's control
+--- station and PayBuildPlotSize (menu_map.lua, buttonBuyPlot). The menu asks its map
+--- whether the place is free, which takes a map on screen; here the caller chooses
+--- a place away from what stands, and the game refuses what it will not build on.
+local function new_plot(args)
+    local shipcode = args[1]
+    local km, cap = tonumber(args[2]), tonumber(args[3])
+    local dx, dy, dz = tonumber(args[4]), tonumber(args[5]), tonumber(args[6])
+    local ship = shipcode and player_ships()[shipcode]
+    if not (ship and km and cap and dx and dy and dz) or km < 1 or km > 20 then
+        return refuse("newplot needs: newplot <OUR SHIP> <km a side, 1 to 20> <max price> <dx> <dy> <dz>")
+    end
+    local sector = C.GetContextByClass(ship, "sector", false)
+    if not sector or sector == 0 then
+        return refuse("newplot: " .. shipcode .. " is in no sector")
+    end
+    local place = C.GetObjectPositionInSector(ship)
+    place.x, place.y, place.z = place.x + dx, place.y + dy, place.z + dz
+    local size = km * 1000
+    local price = tonumber(C.GetBuildPlotPrice(sector, place, size, size, size, "player"))
+    if price > cap or price > GetPlayerMoney() then
+        return refuse(string.format("newplot: %d km costs %d Cr, cap %d, we have %d",
+                                    km, price, cap, GetPlayerMoney()))
+    end
+    local station = C.ReserveBuildPlot(sector, "player", "factory", place, size, size, size)
+    if station == 0 then
+        return refuse("newplot: the game would not reserve that place")
+    end
+    local control = C.GetSectorControlStation(sector)
+    if price > 0 and control ~= 0 then
+        TransferPlayerMoneyTo(price, ConvertStringTo64Bit(tostring(control)))
+    end
+    C.PayBuildPlotSize(station, { x = size, y = size, z = size }, C.GetBuildPlotCenterOffset(station))
+    log(string.format("ORDER: new plot of %d km as %s, %d Cr paid, money %d",
+                      km, ffi.string(C.GetObjectIDCode(station)), price, GetPlayerMoney()))
+    return true
+end
+
 --- "sellship ASO-629 WRF-001 argon" -> sell a ship of ours at that shipyard,
 --- for what the game says it is worth there. The map menu's sell dialog:
 --- the ship must be sellable and the yard able to build it; the value is
@@ -2095,6 +2136,7 @@ local BARE_HANDLERS = {
     deploy = deploy_builder,
     panel = panel,
     sellship = sell_ship,
+    newplot = new_plot,
     buyship = buy_ship,
     savegame = save_agent_slot,
     signals = list_signals,
