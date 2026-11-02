@@ -25,6 +25,7 @@ takes one command every two seconds (tasks/lessons.md L9, L11).
 
 from __future__ import annotations
 
+import collections
 import gamedata
 import sitrep
 
@@ -153,10 +154,17 @@ def watch(state: dict, data: dict) -> list[str]:
     Only a scout with satellites aboard goes. ship13-camp's two had none and the game
     refused both, and the game does not resupply a player's ship at another faction's
     wharf (interrupt.restock.xml). With none aboard in any scout, one is bought with them.
+
+    `watch_known` adds every sector where we know a station that is not Xenon or Kha'ak,
+    the ones with most stations first: what the scouts find gets eyes.
     """
     import catalog
     import strategy
     wanted = [s for goal in strategy.goals(data).values() for s in goal.get("watch_sectors") or []]
+    if any(goal.get("watch_known") for goal in strategy.goals(data).values()):
+        counts = collections.Counter(s.get("sector") for s in state.get("all_stations") or []
+                                     if s.get("sector") and s.get("owner") not in ("xenon", "khaak"))
+        wanted += [s for s in sorted(counts, key=counts.get, reverse=True) if s not in wanted]
     held = data.setdefault("standing", {}).setdefault("watch", {})
     went = data["standing"].setdefault("watch_scouts", {})
     occupied = state.get("player", {}).get("occupied_ship")
@@ -493,12 +501,15 @@ def scouts(state: dict, data: dict) -> list[str]:
     exploring; when one is lost, order a new one straight away. So the number
     of scouts is kept at the most we have had: one short, one is bought (S, at
     the nearest wharf, outside the game hour between purchases, one at a
-    time); a scout with no orders is sent exploring.
+    time); a scout with no orders is sent exploring. A plan's `scouts` counts as a
+    most already reached, which is how a new game gets its first ones.
     """
     import catalog
+    import strategy
     ours = [s for s in catalog._ships(state) if sitrep.ship_type(s.get("macro")) == "scout"]
     st = data.setdefault("standing", {})
-    most = max(st.get("scouts_most", 0), len(ours))
+    planned = max((goal.get("scouts") or 0 for goal in strategy.goals(data).values()), default=0)
+    most = max(st.get("scouts_most", 0), len(ours), planned)
     st["scouts_most"] = most
     now = state.get("meta", {}).get("playtime_s") or 0
     # A scout still at the wharf takes no order yet and stays idle; the explore

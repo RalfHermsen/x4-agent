@@ -432,6 +432,9 @@ class StationGoal(BaseModel):
                                                         "no Xenon is left, until it is hurt or outgunned")
     watch_sectors: list[str] = Field(default_factory=list, description="macros of sectors that keep two "
                                                                        "satellites of ours")
+    watch_known: bool = Field(default=False, description="also keep two satellites in every sector where "
+                                                         "we know a station that is not Xenon or Kha'ak")
+    scouts: int = Field(default=0, description="scouts to have; the first are bought toward this")
 
 
 class Strategy(BaseModel):

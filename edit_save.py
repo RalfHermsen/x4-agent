@@ -4,7 +4,7 @@ Deliberately narrow and deliberately non-destructive: it never overwrites the
 source, it writes a new save next to it, so the original stays loadable. Use it
 to set up a situation you want to test rather than playing towards it.
 
-Six edits are supported:
+Seven edits are supported:
 
 * a station manager's management skill
 * the player's credits
@@ -12,6 +12,7 @@ Six edits are supported:
 * adding an item to the player's inventory (the SETA item for measured runs)
 * the player's reputation with a faction
 * licences the player holds
+* the stations of one sector made known to the player
 
 Skills in the save run 1 to 15 and the game shows them as 0 to 5 stars, so three
 points make one star (measured across 101,543 skill entries in a late-game save).
@@ -225,6 +226,21 @@ def add_licences(xml: str, wanted: dict[str, list[str]]) -> tuple[str, list[str]
     return xml[:start] + block + xml[end:], added
 
 
+def know_stations(xml: str, sector_macro: str) -> tuple[str, int]:
+    """Mark the stations of one sector known, as if the player had flown past them.
+
+    A station the player knows carries `knownto="player"` on its component. A sector's
+    stations sit between its own component and the next sector's.
+    """
+    start = xml.find(f'macro="{sector_macro}"')
+    if start < 0:
+        raise LookupError(f"no sector {sector_macro} in this save")
+    end = xml.find('<component class="sector"', start)
+    block, count = re.subn(r'<component class="station"(?![^>]*knownto=)',
+                           '<component class="station" knownto="player"', xml[start:end])
+    return xml[:start] + block + xml[end:], count
+
+
 def set_manager_skill(xml: str, station_code: str, value: int) -> tuple[str, str]:
     """Set the management skill of the manager of one station.
 
@@ -275,15 +291,17 @@ def main() -> int:
                         help="set reputation, -1 to 1, e.g. argon=0.1; repeat for more")
     parser.add_argument("--licence", action="append", metavar="TYPE=FACTION,FACTION",
                         help="add a licence, e.g. capitalship=argon,paranid; repeat for more")
+    parser.add_argument("--know-sector", metavar="MACRO",
+                        help="make this sector's stations known to the player")
     parser.add_argument("--out", help="name of the new save, without extension")
     parser.add_argument("--label", help="display name shown in the load menu")
     args = parser.parse_args()
 
     if (args.manager_skill is None and args.credits is None
             and args.add_credits is None and not args.blueprint and not args.inventory
-            and not args.relation and not args.licence):
+            and not args.relation and not args.licence and not args.know_sector):
         parser.error("nothing to change; give --manager-skill, --credits, --add-credits, "
-                     "--blueprint, --inventory, --relation or --licence")
+                     "--blueprint, --inventory, --relation, --licence or --know-sector")
     if args.manager_skill is not None:
         if not args.station:
             parser.error("--manager-skill needs --station")
@@ -329,6 +347,10 @@ def main() -> int:
         xml, added = add_licences(xml, wanted)
         changes.append(f"licences added: {', '.join(added)}" if added
                        else "licences: all already held")
+
+    if args.know_sector:
+        xml, count = know_stations(xml, args.know_sector)
+        changes.append(f"stations made known in {args.know_sector}: {count}")
 
     label = args.label or "; ".join(changes)[:60]
     xml = set_save_name(xml, label)

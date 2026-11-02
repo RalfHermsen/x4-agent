@@ -18,3 +18,12 @@ def test_a_licence_adds_factions_to_its_type_or_a_new_type():
     assert added == ["generaluseship terran", "capitalship argon"]
     assert '<licence type="generaluseship" factions="argon teladi terran"/>' in xml
     assert '<licence type="capitalship" factions="argon"/>' in xml
+
+
+def test_know_stations_marks_only_that_sector():
+    xml = ('<component class="sector" macro="A"><component class="station" code="X"/>'
+           '<component class="station" knownto="player" code="Y"/>'
+           '<component class="sector" macro="B"><component class="station" code="Z"/>')
+    out, count = edit_save.know_stations(xml, "A")
+    assert count == 1 and 'knownto="player" code="X"' in out
+    assert '<component class="station" code="Z"/>' in out

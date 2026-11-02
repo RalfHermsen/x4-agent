@@ -504,6 +504,16 @@ def test_the_report_tells_who_stands_in_a_watched_sector(small_state):
         assert part in line
 
 
+def test_watch_known_puts_eyes_on_the_sectors_with_most_stations_first(small_state):
+    state, data = _watching(small_state)
+    goal = data["strategy"]["plan"]["stations"]["KYV-745"]
+    goal["watch_sectors"], goal["watch_known"] = [], True
+    state["all_stations"] += [{"code": "CCC-004", "owner": "argon", "sector": "T", "builds": []},
+                              {"code": "XEN-005", "owner": "xenon", "sector": "X", "builds": []}]
+    assert standing.watch(state, data) == ["release SCO-001", "satellite SCO-001 AAA-001 paranid"]
+    assert "X" not in data["standing"]["watch"]
+
+
 def test_a_scout_without_satellites_buys_one_that_has_them(small_state):
     state, data = _watching(small_state)
     next(a for a in state["assets"] if a["code"] == "SCO-001")["satellites_aboard"] = 0
@@ -665,6 +675,21 @@ def test_a_lost_scout_is_replaced_at_once(small_state):
     commands = standing.scouts(state, data)
     assert len(commands) == 1 and commands[0].startswith("buyship YRD-001 argon ship_arg_s_scout_01_a_macro")
     assert standing.scouts(state, data) == []                 # one at a time while it comes
+
+
+def test_a_plan_buys_the_first_scouts(small_state):
+    import copy
+    state = copy.deepcopy(small_state)
+    state["player"]["money"] = 50_000_000
+    home = _station(state)
+    state["known_stations"].append({"code": "YRD-001", "owner": "argon", "builds": ["m"],
+                                    "place": dict(home["place"])})
+    state["assets"] = [a for a in state["assets"]
+                       if sitrep.ship_type(a.get("macro")) != "scout"]
+    data = {"strategy": {"plan": {"stations": {"START": {"scouts": 2}}}}}
+    commands = standing.scouts(state, data)
+    assert len(commands) == 1 and commands[0].startswith("buyship YRD-001 argon ship_arg_s_scout_01_a_macro")
+    assert commands[0].endswith(f" {standing.SCOUT_SATELLITES}")
 
 
 def test_an_idle_scout_is_sent_exploring(small_state):

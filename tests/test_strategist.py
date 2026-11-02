@@ -24,7 +24,8 @@ def test_the_models_additions_become_the_plans_totals_from_what_stands():
     assert plan["stations"]["GKL-870"] == {"build": {"storage_container": 2}, "miners": {"solid": 1}, "traders": 1,
                                                "defenders": 0, "destroyers": 0, "fighters_per_destroyer": 0,
                                                "raid_sector": "", "raid_unseen": False, "raid_from": 0, "raid_home": 0,
-                                               "raid_guard": False, "watch_sectors": []}
+                                               "raid_guard": False, "watch_sectors": [], "watch_known": False,
+                                                   "scouts": 0}
     assert plan["horizon_hours"] == 4 and plan["rationale"].startswith("GKL-870")
 
 
