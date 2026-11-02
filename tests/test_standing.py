@@ -229,6 +229,29 @@ def test_a_parked_destroyer_leaves_unless_it_waits_for_a_repair(small_state):
     assert standing.undock_fleet(state, data) == []
 
 
+def test_the_players_ship_docks_at_home_and_is_left_there(small_state):
+    state, data = _raid_ready(small_state, destroyers=1)
+    state["player"]["occupied_ship"] = "FAL-000"
+    ship = _add_ship(state, "FAL-000", "ship_tel_s_fighter_01_a_macro")
+    state["meta"]["playtime_s"] = 5000
+    assert standing.shelter(state, data) == ["dockat FAL-000 KYV-745 player"]
+    state["meta"]["playtime_s"] = 5000 + standing.SHELTER_AGAIN - 1
+    assert standing.shelter(state, data) == []                 # on its way in
+    state["meta"]["playtime_s"] = 5000 + standing.SHELTER_AGAIN
+    assert standing.shelter(state, data) == ["dockat FAL-000 KYV-745 player"]
+    state["meta"]["playtime_s"] = 5000 + 2 * standing.SHELTER_AGAIN
+    ship.update(connection="dock", docked_at="KYV-745")
+    assert standing.shelter(state, data) == []
+    ship.update(docked_at="HOW-875")                           # docked elsewhere is not home
+    assert standing.shelter(state, data) == ["dockat FAL-000 KYV-745 player"]
+
+
+def test_no_player_ship_no_order(small_state):
+    state, data = _raid_ready(small_state, destroyers=1)
+    state["player"]["occupied_ship"] = None
+    assert standing.shelter(state, data) == []
+
+
 def test_undock_takes_a_ship_not_a_station():
     lua = (Path(__file__).parent.parent / "bridge/x4_agent_bridge/ui/x4agent.lua").read_text(encoding="utf-8")
     bare = lua.split("local BARE_HANDLERS = {", 1)[1].split("}", 1)[0]
