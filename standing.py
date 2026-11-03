@@ -1133,8 +1133,28 @@ def avoid_sectors(state: dict, data: dict) -> list[str]:
     return out
 
 
-RULES = (sell_limits, revisit, satellites, watch, ledger, once, avoid_sectors, patrols, build_method, find_builds,
-         hire_builders, own_stock, repairs, seminars, scouts, empty_builds, docks, managers, shiptraders,
+def civilians_flee(state: dict, data: dict) -> list[str]:
+    """Each scout, freighter and miner of ours answers an attack by fleeing,
+    once per ship; warships keep the game's own answer.
+
+    The player's call (2026-11-03): in start7 to start8b fifteen scouts, eight
+    freighters and four miners were lost. A scout's purpose is fight, as a
+    destroyer's is, so this is set ship by ship, not for a purpose (`respond`).
+    """
+    import executor
+    done = _done(data, "flee")
+    out = []
+    for ship in state.get("assets", []):
+        kind = sitrep.ship_type(ship.get("macro"))
+        civilian = kind == "scout" or kind in executor.FREIGHTERS or executor._miner_kind(ship.get("macro"))
+        if civilian and ship.get("code") and ship["code"] not in done:
+            _mark(data, "flee", ship["code"])
+            out.append(f"shiprespond {ship['code']} attacked flee")
+    return out
+
+
+RULES = (sell_limits, revisit, satellites, watch, ledger, once, avoid_sectors, civilians_flee, patrols, build_method,
+         find_builds, hire_builders, own_stock, repairs, seminars, scouts, empty_builds, docks, managers, shiptraders,
          cargo_drones, accounts, undock_fleet, wings, raids, fleet, grow)
 
 

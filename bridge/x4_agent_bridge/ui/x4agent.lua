@@ -76,6 +76,8 @@ declare [[ uint32_t GetNumAllResponsesToSignal(const char* signalid); ]]
 declare [[ uint32_t GetAllResponsesToSignal(ResponseInfo* result, uint32_t resultlen, const char* signalid); ]]
 declare [[ bool SetDefaultResponseToSignalForFaction2(const char* newresponse, bool ask, const char* signalid, const char* factionid, const char* purposeid); ]]
 declare [[ const char* GetDefaultResponseToSignalForFaction2(const char* signalid, const char* factionid, const char* purposeid); ]]
+declare [[ bool SetDefaultResponseToSignalForControllable(const char* newresponse, bool ask, const char* signalid, UniverseID controllableid); ]]
+declare [[ const char* GetDefaultResponseToSignalForControllable(const char* signalid, UniverseID controllableid); ]]
 
 -- Buying blueprints. Every signature below is copied from the game's own UI
 -- Lua (menu_trader_blueprintsorlicences, menu_docked, menu_playerinfo,
@@ -2177,6 +2179,28 @@ local function undock_ship(args)
     return true
 end
 
+--- "shiprespond QIQ-965 attacked flee" -> one ship's own answer to a signal.
+--
+-- `respond` sets the faction's default by purpose, and a scout's purpose is
+-- fight, the same as a destroyer's. Per ship as the map menu's behaviour tab
+-- does (SetDefaultResponseToSignalForControllable). 'flee' leaves at once;
+-- 'auto' fights back until shields fall (aiscripts/interrupt.attacked.xml).
+local function set_ship_response(args)
+    local shipcode, signal, response = args[1], args[2], args[3]
+    if not (shipcode and signal and response) then
+        return refuse("shiprespond needs: shiprespond <SHIP IDCODE> <signal> <response>")
+    end
+    local ship = player_ships()[shipcode]
+    if not ship then
+        return refuse("shiprespond: no ship of ours with id code " .. shipcode)
+    end
+    C.SetDefaultResponseToSignalForControllable(response, false, signal, ship)
+    local now = C.GetDefaultResponseToSignalForControllable(signal, ship)
+    log(string.format("ORDER: %s answers %s with %s (asked %s)", shipcode, signal,
+                      now ~= nil and ffi.string(now) or "nil", response))
+    return true
+end
+
 local HANDLERS = {
     limit = set_limit,
     turrets = set_turrets,
@@ -2212,6 +2236,7 @@ local BARE_HANDLERS = {
     autopilot = autopilot,
     release = release,
     undock = undock_ship,
+    shiprespond = set_ship_response,
     scout = scout_sector,
     licence = buy_licence,
     command = command_ship,

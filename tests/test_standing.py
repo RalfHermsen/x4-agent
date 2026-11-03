@@ -290,6 +290,30 @@ def test_undock_takes_a_ship_not_a_station():
     assert "undock = undock_ship" in bare
 
 
+def test_scouts_freighters_and_miners_flee_when_attacked_warships_do_not(small_state):
+    import copy
+    state = copy.deepcopy(small_state)
+    aso = next(a for a in state["assets"] if a["code"] == "ASO-629")
+    for code, macro in (("SCO-001", "ship_arg_s_scout_01_a_macro"), ("TRA-001", "ship_arg_m_trans_container_01_a_macro"),
+                        ("MIN-001", "ship_arg_m_miner_liquid_01_a_macro"), ("DES-001", "ship_arg_l_destroyer_02_a_macro"),
+                        ("FRI-001", "ship_arg_m_frigate_01_a_macro")):
+        state["assets"].append(dict(copy.deepcopy(aso), code=code, macro=macro))
+    state["assets"] = [a for a in state["assets"] if a["code"].endswith("-001") and a["code"][:3] in
+                       ("SCO", "TRA", "MIN", "DES", "FRI")]
+    data = {}
+    out = standing.civilians_flee(state, data)
+    assert sorted(c.split()[1] for c in out) == ["MIN-001", "SCO-001", "TRA-001"]
+    assert all(c.endswith(" attacked flee") for c in out)
+    assert standing.civilians_flee(state, data) == []
+
+
+def test_shiprespond_is_a_bare_verb_of_the_bridge():
+    lua = (Path(__file__).parent.parent / "bridge/x4_agent_bridge/ui/x4agent.lua").read_text(encoding="utf-8")
+    bare = lua.split("local BARE_HANDLERS = {", 1)[1].split("}", 1)[0]
+    assert "shiprespond = set_ship_response" in bare
+    assert "SetDefaultResponseToSignalForControllable(const char* newresponse" in lua
+
+
 def test_the_plans_sectors_to_avoid_are_listed_once_each(small_state):
     state, data = _raid_ready(small_state)
     data["strategy"]["plan"]["stations"]["KYV-745"]["avoid_sectors"] = ["cluster_29_sector001_macro"]
