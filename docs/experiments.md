@@ -1917,3 +1917,80 @@ rule was right to leave them. And the user put the player's ship on Explore duri
 player out of the seat and SETA with it, so a slow run has that as its first suspect.
 
 **Score.** Over 13.4 game hours: net worth 1,000 M to 952 M, credits to 940 M. Not yet earning.
+
+## 2026-11-03: start4 to start8c, the chain to advanced electronics and destroyers of our own
+
+Seven runs in a row from the new start. start5, start8 and start8b were stopped by hand to restart
+with fixes.
+
+| Run | Game hours | Result |
+|---|---|---|
+| start4 | 13.4 to 17.2 | plasma conductors, the reputation 0.1 with all four factions held |
+| start5 | 17.2 to 28.6 | 7 destroyers and 4 frigates at home, bought at Argon's wharfs; first disc |
+| start6 | 28.6 to 50.2 | discs 4 of 4, weapon components, the chain to advanced electronics, L bay |
+| start7 | 50.2 to 69.8 | default build method; production stood still on a full store; large stores |
+| start8 | 69.8 to 71.1 | the first destroyer from our own bay, once the bay had a ship trader |
+| start8b | 71.1 to 78.6 | traders kept home while the stores have room; destroyers 15 of 16 |
+| start8c | from 78.6 | six destroyers guard Hatikvah's Choice I, ten stay home |
+
+**Ships from a faction.** A capital ship needs the faction's licence, not only an ally's standing:
+`reserve_purchase` now takes either. Ten destroyers were ordered at EBF-432 for about 21 M each, and
+the frigate's cap went to the reserve's 40 M, as one costs 4.5 M at XFW-633. Three destroyers waited
+there on advanced electronics, for about ten game hours.
+
+**Our own vessel was called once.** `find_builds` marked the XL builder when it sent it and never
+cleared the mark, so the first disc waited 8.9 game hours beside an idle vessel. The mark now clears once
+no build waits; from then on every disc and module got the vessel without help. A frigate paid for sat
+at the wharf because destroyers had already filled `defenders`; an idle warship now guards home past the
+plan's number.
+
+**Advanced electronics.** In the known stations the galaxy asked about 339,000 and offered 235, at
+1,450 Cr; turret and weapon components were short too. The plan went on past weapon components to
+silicon wafers, microchips, quantum tubes and advanced electronics, which our graphene and coolant
+already feed. The whole chain stood at 38.3 game hours, with all twelve production lines running. The
+build storage had bid 853 Cr for it against a market at 1,310, yet it was delivered; the bid was not
+what held the discs up.
+
+**An L bay of our own, and the Terran method.** The L Ship Fabrication Bay was built at 40.8 game hours,
+and the first Teladi destroyer ordered from it. It waited 9.3 game hours on metallic microlattice: a
+Terran character makes Terran the global build method, and no module of ours makes that ware. New verb
+`buildmethod` sets a station and its build storage as the map menu's build rule does, and a rule sends
+it once per station. The queued build changed with it, without being cancelled: it now waits on hull
+parts, field coils, shield components, drone components and smart chips.
+
+**Score (start6).** Net worth 719 M to 902 M over 21.5 game hours, but most of that is the modules
+valued at market: at cost it went 711.8 M to 707.6 M, and credits fell 25 M. The station holds 9.4 M in
+its own account, above the 6.4 M the rule set as its top. Ships lost: two scouts, one to a Xenon
+ship and one to the Scale Plate Pact. No station or warship was lost.
+
+**Everything stood still on a full store (start7).** At 59.6 game hours every production module of
+ZLR-942 was idle: the container store at 96%, the solid at 100%, the liquid at 94%, and one trader
+hauling. The player saw it first, in the station's logical overview. With the plan's targets standing,
+the margin ranking had added nine antimatter cell modules in four game hours: it prices the output at
+the best bid we know, 310 Cr, and never saw that nothing took the cells. A margin-driven expansion now
+skips a ware whose store is full. The plan put a large container and a large solid store first and four
+traders; production ran again within one check. A full check of production per module, stores, offers,
+miners and traders now runs every 15 cycles, read from `<production state=...>` in the save.
+
+**Our destroyer waited for a ship trader.** The queued Teladi destroyer sat 27 game hours with every
+ware in store. A wharf's queue is worked by its ship trader, and the rule sent one only to a station
+with the M wharf; ZLR-942 has only the L bay. Sent by hand at 69 game hours, and the rule now counts the
+L bay. NSL-517 left the bay at 70.9 game hours, the next at 71.7, and the bay built on by itself.
+
+**Freighters lost on the way to a buyer.** Eight freighters and four miners were lost in start7 to
+start8b, to Xenon, Kha'ak and the Scale Plate Pact. `focus_fleet` aimed every trader at the biggest
+pile whether or not the store was full, and a focused trader goes wherever pays most: energy cells for
+24 Cr in Silent Witness XI, through Hatikvah's Choice I next door, where a Xenon XL destroyer and
+fighters sat. With room in every store a trader now stays on the station's routine. OQO-648 was lost
+there even so, so the plan went to 16 destroyers, and six guard Hatikvah's Choice I with `raid_guard`
+while ten always stay home. The guard left at 80.1 game hours.
+
+**Scouts held the traders back.** Lost scouts are replaced about once a game hour, and every scout
+purchase set the one-purchase-an-hour gap, so the traders stood at 1 of 4. Scouts now hold no other
+purchase, as fighters and destroyers did not already.
+
+**Antimatter cells.** Nineteen antimatter cell modules stand idle: the station offers 25,000 cells at
+121 Cr, the game's floor, with 310 the best bid we know. A ware we offer at the floor price is no longer
+expanded. The modules are paid for; what sells their output is open.
+
+**Score (start7).** Net worth at cost 707.6 M to 681.0 M over 19.7 game hours, credits down 47.8 M.

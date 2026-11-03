@@ -112,7 +112,7 @@ def test_a_miner_of_another_station_is_not_sent_to_sell(small_state):
 
 def test_with_room_in_every_store_a_focused_trader_goes_back_to_the_station(small_state):
     """start7 and start8: traders sent after the biggest pile flew to Silent
-    Witness XI for 24 Cr energy cells and six were lost, the stores half empty."""
+    Witness XI for 24 Cr energy cells and seven were lost, the stores half empty."""
     state, kyv = _two_stations(small_state)
     kyv["cargo"] = {"siliconwafers": 50000}
     kyv["offers"] = [{"ware": "siliconwafers", "side": "sell", "price": 200, "amount": 50000}]
