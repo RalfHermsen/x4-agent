@@ -390,6 +390,9 @@ def test_a_ware_whose_modules_all_wait_for_room_is_not_expanded(small_state):
     assert "energycells" in dict(catalog.expansion_margins(state))
     station["production"][0]["state"] = "waitingforstorage"
     assert "energycells" not in dict(catalog.expansion_margins(state))
+    station["production"] = [{"ware": "energycells", "short_of": {}, "state": "producing"},
+                             {"ware": "energycells", "short_of": {}, "state": "waitingforresources"}]
+    assert "energycells" not in dict(catalog.expansion_margins(state))      # start8i: field coils
 
 
 def test_a_production_line_carries_its_modules_state():
@@ -414,6 +417,9 @@ def test_a_ware_we_offer_at_the_floor_price_is_not_expanded(small_state):
     station["offers"] = [{"ware": "energycells", "side": "sell", "price": floor + 2, "amount": 1000}]
     assert "energycells" in dict(catalog.expansion_margins(state))
     station["offers"][0]["price"] = floor
+    assert "energycells" not in dict(catalog.expansion_margins(state))
+    table = gamedata.wares()["energycells"]
+    station["offers"][0]["price"] = floor + 0.04 * (table["maxprice"] - floor)     # start8i: 121.6 on 121
     assert "energycells" not in dict(catalog.expansion_margins(state))
 
 

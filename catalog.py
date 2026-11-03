@@ -569,20 +569,35 @@ def _short_supply(state: dict, ware: str, recipe: dict) -> str | None:
 
 
 def _at_floor(state: dict, ware: str, table: dict) -> bool:
-    """A station of ours offers this ware at the game's minimum price."""
-    floor = (table.get(ware) or {}).get("minprice")
-    return bool(floor) and any(o.get("ware") == ware and o.get("side") == "sell"
-                               and (o.get("amount") or 0) > 0 and (o.get("price") or 0) <= floor
-                               for st in _stations(state) for o in st.get("offers") or [])
+    """A station of ours offers this ware at the game's minimum price, or in
+    the bottom twentieth of its range: the offer sits just above the minimum,
+    antimatter cells at 121.6 on 121 and water at 32.45 on 32 in start8i, and
+    an exact floor caught neither."""
+    info = table.get(ware) or {}
+    floor, top = info.get("minprice"), info.get("maxprice")
+    if not floor:
+        return False
+    near = floor + FLOOR_BAND * ((top or floor) - floor)
+    return any(o.get("ware") == ware and o.get("side") == "sell"
+               and (o.get("amount") or 0) > 0 and (o.get("price") or 0) <= near
+               for st in _stations(state) for o in st.get("offers") or [])
+
+
+FLOOR_BAND = 0.05   # share of a ware's price range above its minimum that counts as the floor
 
 
 def _waiting_for_room(state: dict, ware: str) -> bool:
     """Every module of ours that makes this ware waits for storage: its room
     at the station is full, and one more module would wait as well. In start8f
-    seven silicon wafer modules stood so, the wafers at 213 Cr with 461 bid."""
+    seven silicon wafer modules stood so, the wafers at 213 Cr with 461 bid.
+    Or one already waits for its inputs: one more would wait beside it. In
+    start8i six of eight field coil modules did, on our own one plasma
+    conductor and one quantum tube module, which `_short_supply` does not
+    count as it looks only at what we buy."""
     lines = [line for st in _stations(state) for line in st.get("production") or []
              if line.get("ware") == ware]
-    return bool(lines) and all(line.get("state") in ("choosingitem", "waitingforstorage") for line in lines)
+    return bool(lines) and (all(line.get("state") in ("choosingitem", "waitingforstorage") for line in lines)
+                            or any(line.get("state") == "waitingforresources" for line in lines))
 
 
 def expansion_margins(state: dict) -> list[tuple[str, float]]:
