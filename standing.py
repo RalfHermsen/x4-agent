@@ -1100,8 +1100,26 @@ def fleet(state: dict, data: dict) -> list[str]:
     return strategy.fleet(state, data)
 
 
-RULES = (sell_limits, revisit, satellites, watch, ledger, once, patrols, build_method, find_builds, hire_builders,
-         own_stock, repairs, seminars, scouts, empty_builds, docks, managers, shiptraders,
+def avoid_sectors(state: dict, data: dict) -> list[str]:
+    """The plan's `avoid_sectors` join the hostile blacklist, each once.
+
+    Hatikvah's Choice I is no enemy's, so the blacklist by relation let our
+    freighters through: nine traders and four miners died there or beyond it
+    in start7 to start8c, one with six of our destroyers in the sector.
+    """
+    import strategy
+    done = _done(data, "avoidsector")
+    out = []
+    for goal in strategy.goals(data).values():
+        for sector in goal.get("avoid_sectors") or []:
+            if sector not in done:
+                _mark(data, "avoidsector", sector)
+                out.append(f"avoid sector {sector} on")
+    return out
+
+
+RULES = (sell_limits, revisit, satellites, watch, ledger, once, avoid_sectors, patrols, build_method, find_builds,
+         hire_builders, own_stock, repairs, seminars, scouts, empty_builds, docks, managers, shiptraders,
          cargo_drones, accounts, undock_fleet, wings, raids, fleet, grow)
 
 

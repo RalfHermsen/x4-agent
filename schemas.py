@@ -435,6 +435,8 @@ class StationGoal(BaseModel):
     watch_known: bool = Field(default=False, description="also keep two satellites in every sector where "
                                                          "we know a station that is not Xenon or Kha'ak")
     scouts: int = Field(default=0, description="scouts to have; the first are bought toward this")
+    avoid_sectors: list[str] = Field(default_factory=list, description="macros of sectors our traders and "
+                                                                       "miners keep out of, as of a hostile one")
 
 
 class Strategy(BaseModel):

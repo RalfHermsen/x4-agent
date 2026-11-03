@@ -290,6 +290,19 @@ def test_undock_takes_a_ship_not_a_station():
     assert "undock = undock_ship" in bare
 
 
+def test_the_plans_sectors_to_avoid_are_listed_once_each(small_state):
+    state, data = _raid_ready(small_state)
+    data["strategy"]["plan"]["stations"]["KYV-745"]["avoid_sectors"] = ["cluster_29_sector001_macro"]
+    assert standing.avoid_sectors(state, data) == ["avoid sector cluster_29_sector001_macro on"]
+    assert standing.avoid_sectors(state, data) == []
+
+
+def test_avoid_sector_is_a_global_verb_of_the_bridge():
+    lua = (Path(__file__).parent.parent / "bridge/x4_agent_bridge/ui/x4agent.lua").read_text(encoding="utf-8")
+    table = lua.split("local GLOBAL_HANDLERS = {", 1)[1].split("}", 1)[0]
+    assert "sector = set_avoid_sector" in table and "UpdateBlacklist2(BlacklistInfo2 info)" in lua
+
+
 def test_a_guard_leader_left_on_its_post_by_an_earlier_run_is_called_off(small_state):
     """start8c: NQB-447 patrolled Hatikvah's Choice I alone for six game hours."""
     state, data = _raid_ready(small_state)

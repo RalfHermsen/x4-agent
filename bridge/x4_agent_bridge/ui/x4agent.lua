@@ -64,6 +64,7 @@ declare [[ bool GetBlacklistInfo2(BlacklistInfo2* info, BlacklistID id); ]]
 declare [[ BlacklistID CreateBlacklist2(BlacklistInfo2 info); ]]
 declare [[ void SetPlayerBlacklistDefault(BlacklistID id, const char* listtype, const char* defaultgroup, bool value); ]]
 declare [[ bool IsPlayerBlacklistDefault(BlacklistID id, const char* listtype, const char* defaultgroup); ]]
+declare [[ void UpdateBlacklist2(BlacklistInfo2 info); ]]
 
 -- Standing responses: what every ship of ours does when something happens to
 -- it. Fleet-wide, so it covers ships bought later as well.
@@ -461,6 +462,70 @@ local function set_avoid_hostile(args)
             tostring(C.IsPlayerBlacklistDefault(id, "sectortravel", group)))
     end
     log("avoid hostile " .. state .. " -> " .. table.concat(applied, " "))
+    return true
+end
+
+--- "avoid sector cluster_29_sector001_macro on" -> that sector joins the hostile list.
+--
+-- A sector no enemy owns can still be where our freighters die: Hatikvah's
+-- Choice I, next to Argon Prime, with Xenon passing through. The list names
+-- sectors by macro (menu_playerinfo.lua, buttonBlacklistConfirm) beside its
+-- relation, so the one blacklist keeps both. Traders leave a listed sector out
+-- of where they buy and sell (lib.find.sectors.inrange.xml).
+local function set_avoid_sector(args)
+    local macro, state = args[1], args[2]
+    if not macro or (state ~= "on" and state ~= "off") then
+        log("avoid needs: avoid sector <macro> <on|off>")
+        return false
+    end
+    local id = find_blacklist(AVOID_HOSTILE) or create_avoid_hostile()
+    if not id then
+        return false
+    end
+    local counts = C.GetBlacklistInfoCounts(id)
+    local current = ffi.new("BlacklistInfo2")
+    local old_macros = ffi.new("const char*[?]", math.max(counts.nummacros, 1))
+    local old_factions = ffi.new("const char*[?]", math.max(counts.numfactions, 1))
+    current.nummacros, current.macros = counts.nummacros, old_macros
+    current.numfactions, current.factions = counts.numfactions, old_factions
+    if not C.GetBlacklistInfo2(current, id) then
+        log("avoid sector: could not read " .. AVOID_HOSTILE)
+        return false
+    end
+    local wanted = {}
+    for i = 0, current.nummacros - 1 do
+        local m = ffi.string(current.macros[i])
+        if m ~= macro then
+            wanted[#wanted + 1] = m
+        end
+    end
+    if state == "on" then
+        wanted[#wanted + 1] = macro
+    end
+
+    local keep = {}
+    local info = ffi.new("BlacklistInfo2")
+    info.id = id
+    info.type = cstring("sectortravel", keep)
+    info.name = cstring(AVOID_HOSTILE, keep)
+    info.relation = cstring("enemy", keep)
+    info.hazardous = false
+    info.usemacrowhitelist = false
+    local macros = ffi.new("const char*[?]", math.max(#wanted, 1))
+    local factions = ffi.new("const char*[1]")
+    keep[#keep + 1], keep[#keep + 2] = macros, factions
+    for i, m in ipairs(wanted) do
+        macros[i - 1] = cstring(m, keep)
+    end
+    info.nummacros, info.macros = #wanted, macros
+    info.usefactionwhitelist = false
+    info.numfactions, info.factions = 0, factions
+    C.UpdateBlacklist2(info)
+    for _, group in ipairs(BLACKLIST_GROUPS) do
+        C.SetPlayerBlacklistDefault(id, "sectortravel", group, true)
+    end
+    log(string.format("ORDER: avoid sector %s %s -> %d sector(s) listed, civilian=%s", macro, state,
+        tonumber(C.GetBlacklistInfoCounts(id).nummacros), tostring(C.IsPlayerBlacklistDefault(id, "sectortravel", "civilian"))))
     return true
 end
 
@@ -2135,6 +2200,7 @@ local HANDLERS = {
 -- the station lookup rather than after it.
 local GLOBAL_HANDLERS = {
     hostile = set_avoid_hostile,
+    sector = set_avoid_sector,
 }
 
 -- Commands with no subject at all: the verb and its own arguments.
