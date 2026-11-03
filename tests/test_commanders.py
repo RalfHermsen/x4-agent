@@ -122,6 +122,9 @@ def test_with_room_in_every_store_a_focused_trader_goes_back_to_the_station(smal
     state["assigned_to"] = {"TRD-001": "KYV-745"}
     kyv["capacity"] = {"container": 100_000_000}
     assert executor.focus_fleet(state) == ["autotrade TRD-001"]
+    kyv["capacity"] = {"container": 100_000_000, "solid": 1}
+    kyv["cargo"]["ore"] = 10                                # start8d: the solid store full of ore
+    assert executor.focus_fleet(state) == ["autotrade TRD-001"]
     kyv["capacity"] = {"container": 1}
     assert executor.focus_fleet(state) == ["sellware TRD-001 siliconwafers"]
 
