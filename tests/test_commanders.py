@@ -110,6 +110,22 @@ def test_a_miner_of_another_station_is_not_sent_to_sell(small_state):
     assert executor.focus_fleet(state) == ["sellware TRD-001 siliconwafers"]
 
 
+def test_with_room_in_every_store_a_focused_trader_goes_back_to_the_station(small_state):
+    """start7 and start8: traders sent after the biggest pile flew to Silent
+    Witness XI for 24 Cr energy cells and six were lost, the stores half empty."""
+    state, kyv = _two_stations(small_state)
+    kyv["cargo"] = {"siliconwafers": 50000}
+    kyv["offers"] = [{"ware": "siliconwafers", "side": "sell", "price": 200, "amount": 50000}]
+    trader = _ship(state, "TRD-001", "ship_arg_m_trans_container_01_a_macro", 1)
+    trader["orders"] = [{"order": "TradeRoutine_Basic", "default": True}]
+    state["assets"] = [a for a in state["assets"] if a["code"] in ("KYV-745", "GKL-870") or a is trader]
+    state["assigned_to"] = {"TRD-001": "KYV-745"}
+    kyv["capacity"] = {"container": 100_000_000}
+    assert executor.focus_fleet(state) == ["autotrade TRD-001"]
+    kyv["capacity"] = {"container": 1}
+    assert executor.focus_fleet(state) == ["sellware TRD-001 siliconwafers"]
+
+
 def test_a_miner_working_for_one_station_is_not_offered_to_the_other(small_state):
     state, kyv = _two_stations(small_state)
     gkl = next(a for a in state["assets"] if a["code"] == "GKL-870")

@@ -547,6 +547,16 @@ def focus_fleet(state: dict) -> list[str]:
         if not traders:
             continue
 
+        # Both answers are for a full warehouse. With room in every store the
+        # station's own routine is the answer: a focused trader goes wherever
+        # pays most, and in start7 and start8 that was energy cells for 24 Cr
+        # in Silent Witness XI, through a sector with a Xenon destroyer in it.
+        # Six freighters were lost, with the container store at 22 to 71%.
+        if not any(share >= FULL for share in storage_fill(station).values()):
+            out += [f"autotrade {a['code']}" for a in traders
+                    if _default_order(a) == "TradeRoutine_Basic"]
+            continue
+
         blocking, taken = max(room.items(), key=lambda kv: kv[1])
         if taken / total >= CROWDING:
             out += [f"sellware {a['code']} {blocking}" for a in traders]
