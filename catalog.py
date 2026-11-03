@@ -615,12 +615,16 @@ def first_module_ok(ware: str) -> bool:
 def _growth_wares(st: dict, margins: list[str]) -> list[str]:
     """The ranked wares for this station: none until it has a dock and a
     manager (`standing.docks`, then `standing.managers`); then, while it makes
-    nothing yet, only those its first production module can make alone."""
+    nothing yet, only those its first production module can make alone; and
+    none whose store at this station is full. In start7 ZLR-942 got nine
+    antimatter cell modules in four game hours, its container store at 94%
+    and one trader hauling: the margin is the best bid elsewhere, and nothing
+    took the cells there."""
     if not (_has_dock(st) and st.get("manager")):
         return []
     if not any(m.startswith("prod_") for m in st.get("modules") or []):
         return [w for w in margins if first_module_ok(w)]
-    return margins
+    return [w for w in margins if _room(st, w)]
 
 
 def could_grow(state: dict) -> list[Situation]:

@@ -414,6 +414,17 @@ def test_an_empty_station_starts_with_a_ware_it_can_make_alone(small_state, monk
     assert catalog._growth_wares(station, ["microchips", "water"]) == ["microchips", "water"]
 
 
+def test_a_full_store_gets_no_module_that_fills_it(small_state, monkeypatch):
+    state = copy.deepcopy(small_state)
+    station = next(a for a in state["assets"] if a["code"] == "KYV-745")
+    station["modules"] = ["prod_gen_water_macro", "dockarea_arg_m_station_01_lowtech_macro"]
+    fill = {"container": 0.94}
+    monkeypatch.setattr(catalog.executor, "storage_fill", lambda st, table: fill)
+    assert catalog._growth_wares(station, ["antimattercells", "water"]) == []
+    fill["container"] = 0.5
+    assert catalog._growth_wares(station, ["antimattercells", "water"]) == ["antimattercells", "water"]
+
+
 def test_sell_limits_and_repricing_are_off_by_default():
     import agent
     assert agent.rules_off({}) == {"sell_limits", "pricing"}
