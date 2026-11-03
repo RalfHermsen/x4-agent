@@ -1038,6 +1038,13 @@ def raids(state: dict, data: dict) -> list[str]:
                   and executor.serves(s, state)[1] == "attack"]
         if wanted and home and strays:
             return [f"assign {s['code']} {code} defend" for s in strays]
+        # Its leader defends already, and keeps the guard's Patrol until `undock` (`_fly_home`):
+        # NQB-447, leader of a guard start8b left out, patrolled Hatikvah's Choice I alone
+        # for six game hours of start8c.
+        posted = [s for s in ours.values() if sitrep.ship_type(s.get("macro")) == "destroyer"
+                  and "Patrol" in [o.get("order") for o in s.get("orders") or [] if not o.get("default")]]
+        if wanted and home and posted:
+            return [f"undock {s['code']}" for s in posted]
         if not (sector and wanted and home):
             continue
         xenon = ((state.get("hostiles") or {}).get(sector) or {}).get("xenon", {})

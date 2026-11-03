@@ -290,6 +290,16 @@ def test_undock_takes_a_ship_not_a_station():
     assert "undock = undock_ship" in bare
 
 
+def test_a_guard_leader_left_on_its_post_by_an_earlier_run_is_called_off(small_state):
+    """start8c: NQB-447 patrolled Hatikvah's Choice I alone for six game hours."""
+    state, data = _raid_ready(small_state)
+    leader = next(a for a in state["assets"] if a["code"] == "DES-000")
+    leader["orders"] = [{"order": "Patrol"}, {"order": "ProtectStation", "default": True}]
+    assert standing.raids(state, data) == ["undock DES-000"]
+    leader["orders"] = [{"order": "ProtectStation", "default": True}]
+    assert standing.raids(state, data)[-1] == f"raid DES-000 {XEN_SECTOR}"
+
+
 def test_a_raid_goes_when_every_destroyer_stands(small_state):
     state, data = _raid_ready(small_state, destroyers=2)
     assert standing.raids(state, data) == []
