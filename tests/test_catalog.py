@@ -26,6 +26,7 @@ def test_a_fighter_on_order_does_not_hold_the_next_purchase():
     assert not catalog.holds_purchases("buildship KYV-745 ship_tel_l_destroyer_01_a_macro x4-agent-des")
     assert not catalog.holds_purchases("buildship KYV-745 ship_tel_s_fighter_02_a_macro x4-agent-fig")
     assert not catalog.holds_purchases("assign ASO-629 KYV-745 trade")
+    assert not catalog.holds_purchases("buyship XFW-633 argon ship_arg_s_scout_01_a_macro x4-agent-sco 3000000 10")
 
 
 def test_decide_takes_only_options_that_exist():
@@ -133,6 +134,8 @@ def test_a_purchase_in_the_last_game_hour_holds_the_next(small_state):
     assert catalog._buy_options(state, (("container freighter", "ship_{race}_m_trans_container_01_a_macro"),)) == []
     state["logbook"] = [[now - 4000, catalog.BOUGHT + " ship_arg_m_trans_container_01_a_macro at X"]]
     assert not catalog._bought_recently(state)
+    state["logbook"] = [[now - 600, catalog.BOUGHT + " ship_arg_s_scout_01_a_macro at X"]]
+    assert not catalog._bought_recently(state)          # start8b: scouts kept traders at 1 of 4
 
 
 def _with_a_yard_and_money(state):
