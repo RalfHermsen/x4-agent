@@ -1068,13 +1068,30 @@ def raids(state: dict, data: dict) -> list[str]:
     return []
 
 
+def build_method(state: dict, data: dict) -> list[str]:
+    """Each station of ours builds with the default method, once.
+
+    A Terran character makes Terran the global method, and start6's first
+    destroyer from our own bay waited 9.3 game hours on metallic microlattice,
+    a Terran ware none of our modules makes. The save does not say a station's
+    method, so this is sent once per station and the bridge logs what it was.
+    """
+    done = _done(data, "buildmethod")
+    out = []
+    for st in state.get("assets", []):
+        if st.get("cls") == "station" and st.get("code") not in done:
+            _mark(data, "buildmethod", st["code"])
+            out.append(f"buildmethod {st['code']} default")
+    return out
+
+
 def fleet(state: dict, data: dict) -> list[str]:
     """Ships toward a strategist's numbers (strategy.fleet); nothing without a plan."""
     import strategy
     return strategy.fleet(state, data)
 
 
-RULES = (sell_limits, revisit, satellites, watch, ledger, once, patrols, find_builds, hire_builders,
+RULES = (sell_limits, revisit, satellites, watch, ledger, once, patrols, build_method, find_builds, hire_builders,
          own_stock, repairs, seminars, scouts, empty_builds, docks, managers, shiptraders,
          cargo_drones, accounts, undock_fleet, wings, raids, fleet, grow)
 

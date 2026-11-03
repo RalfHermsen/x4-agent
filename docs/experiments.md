@@ -1903,7 +1903,7 @@ kept all of it through a load and a save. `edit_save.py` gained reputation, lice
 **The map.** Scouts come first. A plan's `scouts` buys them at once, and each goes to its own unknown
 sector, because the game's explore sent four into one sector side by side. `watch_known` gives every
 sector with a known station two satellites. After 13.4 game hours: 361 stations known in 51 sectors, 81
-satellites in 45 sectors, 3 scouts lost and replaced. Xenon so far: 7 XL in three sectors and 3 stations.
+satellites in 45 sectors, 3 scouts lost and replaced. Xenon so far: 8 XL in three sectors and 3 stations.
 
 **The first station, from nothing.** The old game always started from a plot, so `newplot` is new:
 ReserveBuildPlot and payment at the map menu's price. An 8 km plot in Argon Prime cost about 0.93 M, and

@@ -109,6 +109,10 @@ declare [[ void SellPlayerShip(UniverseID shipid, UniverseID shipyardid); ]]
 declare [[ int64_t GetBuildWarePrice(UniverseID containerid, const char* warename); ]]
 -- 3.6: copied from menu_ship_configuration.lua.
 declare [[ float GetContainerBuildPriceFactor(UniverseID containerid); ]]
+-- Copied from menu_map.lua: the build rule of a station.
+declare [[ const char* GetContainerBuildMethod(UniverseID containerid); ]]
+declare [[ void SetContainerBuildMethod(UniverseID containerid, const char* buildmethodid); ]]
+declare [[ const char* GetPlayerBuildMethod(void); ]]
 -- Shipbuilding step 4: copied from menu_ship_configuration.lua.
 declare [[ uint32_t GetNumContainerBuilderMacros(UniverseID containerid); ]]
 declare [[ uint32_t GetPeopleCapacity(UniverseID controllableid, const char* macroname, bool includepilot); ]]
@@ -1577,6 +1581,28 @@ local function cancel_ship(station, args)
     return true
 end
 
+--- "buildmethod ZLR-942 default" -> the station and its build storage build
+--- with that production method, as the map menu's build rule dropdown sets it
+--- (menu_map.lua dropdownBuildRule). A Terran character makes Terran the
+--- global method, and start6's own destroyer then waited on metallic
+--- microlattice, a Terran ware no station of ours makes.
+local function set_build_method(station, args)
+    local method = args[1]
+    if not method then
+        return refuse("buildmethod needs: buildmethod <STATION> <method>")
+    end
+    local before = ffi.string(C.GetContainerBuildMethod(station))
+    C.SetContainerBuildMethod(station, method)
+    local bsid = GetComponentData(ConvertStringTo64Bit(tostring(station)), "buildstorage")
+    if bsid and bsid ~= 0 then
+        C.SetContainerBuildMethod(ConvertIDTo64Bit(bsid), method)
+    end
+    log(string.format("ORDER: %s builds with method %s, was '%s', global %s",
+                      args.code, ffi.string(C.GetContainerBuildMethod(station)), before,
+                      ffi.string(C.GetPlayerBuildMethod())))
+    return true
+end
+
 --- "plot GKL-870 3 2000000" -> the station's plot grown to 3 km a side, both
 --- ways along each axis, at the Plan Build menu's price and not above the
 --- given cap: ExtendBuildPlot, the price GetBuildPlotPrice for the new size
@@ -2100,6 +2126,7 @@ local HANDLERS = {
     plot = extend_plot,
     cancelbuild = cancel_build,
     cancelship = cancel_ship,
+    buildmethod = set_build_method,
     buildship = build_own_ship,
 }
 

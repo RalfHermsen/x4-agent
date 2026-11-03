@@ -104,6 +104,12 @@ def test_own_builder_is_called_again_for_the_next_build(small_state):
     assert standing.find_builds(state, data) == ["deploy BLD-001 KYV-745"]
 
 
+def test_each_station_gets_the_default_build_method_once(small_state):
+    data = {}
+    assert standing.build_method(small_state, data) == ["buildmethod KYV-745 default"]
+    assert standing.build_method(small_state, data) == []
+
+
 def test_game_events_and_ledger_read_from_the_logbook(small_state):
     state = copy.deepcopy(small_state)
     t = state["meta"]["playtime_s"]
