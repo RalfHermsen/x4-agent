@@ -365,6 +365,18 @@ def test_a_raid_that_finds_too_many_xl_turns_back_and_stays_away(small_state):
     assert standing.raids(state, data)[-1] == f"raid DES-000 {XEN_SECTOR}"
 
 
+def test_a_raid_that_chases_out_of_its_sector_comes_home(small_state):
+    """start8g: the raid on Hatikvah's Choice I chased Xenon into Tharka's Cascade XV, all seven lost."""
+    state, data = _raid_ready(small_state)
+    assert standing.raids(state, data)[-1] == f"raid DES-000 {XEN_SECTOR}"
+    for ship in state["assets"]:
+        if ship["code"].startswith("DES-"):
+            ship["place"] = {"sector": XEN_SECTOR}
+    assert standing.raids(state, data) == [f"raid DES-000 {XEN_SECTOR}"]  # there: told to attack
+    next(a for a in state["assets"] if a["code"] == "DES-001")["place"] = {"sector": "XENON_CORE"}
+    assert standing.raids(state, data) == _sent_home("DES-000", "DES-001", "DES-002")
+
+
 def test_a_lost_destroyer_counts_as_damage(small_state):
     state, data = _raid_ready(small_state)
     assert standing.raids(state, data)[-1] == f"raid DES-000 {XEN_SECTOR}"

@@ -997,7 +997,22 @@ def raids(state: dict, data: dict) -> list[str]:
             xl_at_home = (((state.get("hostiles") or {}).get(raid["home_sector"]) or {}).get("xenon") or {}).get("ship_xl")
             if strong:
                 held.setdefault("raid_strong", {})[raid["sector"]] = now
-            hurt = strong or xl_at_home or sum(_hull_share(s) for s in alive) < RAID_BACK_BELOW * len(raid["ships"])
+            # Once there, a ship in any other sector is chasing, and what it chases into is not
+            # what we counted: in start8g the raid on Hatikvah's Choice I followed Xenon into
+            # Tharka's Cascade XV, 5 to 7 stations and up to 6 XL, and all seven were lost.
+            # Home and the sectors on the way do not count: a slow ship is still coming.
+            import purchases
+            graph = purchases._graph()
+            route = purchases.jumps(graph, raid["home_sector"], raid["sector"])
+
+            def on_the_way(sector):
+                return (sector in (raid["sector"], raid["home_sector"], None)
+                        or purchases.jumps(graph, raid["home_sector"], sector)
+                        + purchases.jumps(graph, sector, raid["sector"]) == route)
+            strayed = raid.get("arrived") and not all(on_the_way((s.get("place") or {}).get("sector"))
+                                                      for s in alive)
+            hurt = (strong or strayed or xl_at_home
+                    or sum(_hull_share(s) for s in alive) < RAID_BACK_BELOW * len(raid["ships"]))
             done = not left if raid.get("arrived") else now - raid["since"] >= RAID_BACK_WAIT
             if raid.get("unseen") and raid.get("arrived"):
                 # It went in blind, and a sector is wide: nothing in sight on the
