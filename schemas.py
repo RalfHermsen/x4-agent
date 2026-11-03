@@ -437,6 +437,8 @@ class StationGoal(BaseModel):
     scouts: int = Field(default=0, description="scouts to have; the first are bought toward this")
     avoid_sectors: list[str] = Field(default_factory=list, description="macros of sectors our traders and "
                                                                        "miners keep out of, as of a hostile one")
+    free_growth: bool = Field(default=True, description="with every planned target standing, expand by the "
+                                                        "margin ranking; false builds only what the plan names")
 
 
 class Strategy(BaseModel):

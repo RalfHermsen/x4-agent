@@ -637,6 +637,11 @@ def grow(state: dict, data: dict) -> list[str]:
         planned = strategy.next_builds(st, data)
         if planned and catalog._has_dock(st) and st.get("manager"):
             wares = planned
+        elif planned == [] and not strategy.goals(data)[st["code"]].get("free_growth", True):
+            # The plan stands and says build nothing more: in start8i and start8j
+            # the ranking kept adding water, energy cell and field coil modules
+            # past every gate, and credits fell 2.7 M a game hour.
+            wares = []
         else:
             # A station with no modules yet (GKL-870) starts with a ware its
             # first module can make alone (6.3); the bridge finds such

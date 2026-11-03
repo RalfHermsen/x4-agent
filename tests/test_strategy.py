@@ -81,6 +81,21 @@ def test_grow_builds_what_the_plan_asks_before_what_pays(small_state, monkeypatc
     assert standing.grow(state, {}) == ["expand KYV-745 water"]
 
 
+def test_a_plan_without_free_growth_builds_nothing_once_it_stands(small_state, monkeypatch):
+    """start8i and start8j: water, energy cell and field coil modules past every gate."""
+    state = copy.deepcopy(small_state)
+    state["player"]["money"] = 50_000_000
+    _workable(state)
+    monkeypatch.setattr(catalog, "expansion_margins", lambda state: [("water", 9000.0)])
+    monkeypatch.setattr(catalog, "_through_gates",
+                        lambda action, state: f"expand {action['station_id']} {action['ware']}")
+    monkeypatch.setattr(strategy, "next_builds", lambda st, data: [])          # every target stands
+    plan = copy.deepcopy(PLAN)
+    assert standing.grow(state, {"strategy": {"plan": plan}}) == ["expand KYV-745 water"]
+    plan["stations"]["KYV-745"]["free_growth"] = False
+    assert standing.grow(state, {"strategy": {"plan": plan}}) == []
+
+
 def test_a_planned_modules_blueprint_is_bought(small_state, monkeypatch):
     state = copy.deepcopy(small_state)
     state["player"]["blueprints"] = []
