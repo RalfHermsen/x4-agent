@@ -568,6 +568,14 @@ def _short_supply(state: dict, ware: str, recipe: dict) -> str | None:
     return None
 
 
+def _at_floor(state: dict, ware: str, table: dict) -> bool:
+    """A station of ours offers this ware at the game's minimum price."""
+    floor = (table.get(ware) or {}).get("minprice")
+    return bool(floor) and any(o.get("ware") == ware and o.get("side") == "sell"
+                               and (o.get("amount") or 0) > 0 and (o.get("price") or 0) <= floor
+                               for st in _stations(state) for o in st.get("offers") or [])
+
+
 def expansion_margins(state: dict) -> list[tuple[str, float]]:
     """(ware, margin per module per game hour) for each ware the bridge can
     build, best first, at the prices we know (6.2).
@@ -601,6 +609,12 @@ def expansion_margins(state: dict) -> list[tuple[str, float]]:
         # selling what it makes, and one more module adds to the pile. KYV-745
         # held 208,000 energy cells, twenty hours of a module, and offered 79.
         if held.get(ware, 0) >= HELD_HOURS * recipe["amount"] * 3600 / recipe["time"]:
+            continue
+        # Our own offer at the game's floor price: the station holds more than
+        # it sells, whatever others bid. In start8b ZLR-942 offered antimatter
+        # cells at 121, the floor, with 310 the best bid we knew, and the
+        # ranking added modules until 18 stood idle.
+        if _at_floor(state, ware, table):
             continue
         if _short_supply(state, ware, recipe):
             continue

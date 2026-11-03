@@ -378,6 +378,21 @@ def test_a_ware_piling_up_for_ten_module_hours_is_not_expanded(small_state):
     assert "energycells" not in dict(catalog.expansion_margins(state))
 
 
+def test_a_ware_we_offer_at_the_floor_price_is_not_expanded(small_state):
+    """start8b: antimatter cells at 121, the floor, and 18 idle modules."""
+    import gamedata
+    state = copy.deepcopy(small_state)
+    state["known_stations"] = [{"code": "BUY-001", "owner": "argon", "place": {},
+                                "offers": [{"ware": "energycells", "side": "buy", "price": 20, "amount": 10_000_000}]}]
+    station = next(a for a in state["assets"] if a["code"] == "KYV-745")
+    station["cargo"] = {"energycells": 1000}
+    floor = gamedata.wares()["energycells"]["minprice"]
+    station["offers"] = [{"ware": "energycells", "side": "sell", "price": floor + 2, "amount": 1000}]
+    assert "energycells" in dict(catalog.expansion_margins(state))
+    station["offers"][0]["price"] = floor
+    assert "energycells" not in dict(catalog.expansion_margins(state))
+
+
 def test_a_ware_whose_bought_input_the_market_cannot_feed_is_not_expanded(small_state):
     state = copy.deepcopy(small_state)
     state["known_stations"] = [{"code": "SEL-001", "owner": "argon", "place": {},
