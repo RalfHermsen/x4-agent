@@ -297,9 +297,11 @@ def fleet(state: dict, data: dict) -> list[str]:
             have = sum(1 for s in catalog._ships(state)
                        if (executor.serves(s, state) in _working(code, role) or s.get("code") in raiding)
                        and fits(s))
-            if have >= target:
-                continue
             pick = next((s for s in free if fits(s)), None)
+            # Past the plan's number an idle warship still guards home: it was
+            # paid for, and 'defenders' counts destroyers as well.
+            if have >= target and not (pick and role == "defend"):
+                continue
             if pick:
                 command = catalog._through_gates({"type": "assign_ship", "ship_ref": pick["code"],
                                                   "station_id": code, "role": role}, state)
@@ -307,7 +309,7 @@ def fleet(state: dict, data: dict) -> list[str]:
                     out.append(command)
                     free.remove(pick)
                     continue
-            if not bought:
+            if not bought and have < target:
                 # The L bay builds nothing else, so a miner on order does not hold it.
                 own = own_build(state, pattern, _size(pattern), brake=_size(pattern) != "l")
                 waiting = (not own and named - held

@@ -190,6 +190,22 @@ def test_defenders_are_a_free_combat_ship_first_then_a_frigate_of_our_own(small_
     assert "defenders 1/2" in strategy.lines(state, plan)[1]
 
 
+def test_an_idle_warship_past_the_plans_number_still_guards_home(small_state, monkeypatch):
+    """start5: destroyers filled 'defenders', and a paid frigate sat at the wharf."""
+    state = copy.deepcopy(small_state)
+    state["assets"] = [a for a in state["assets"] if a.get("cls") == "station" or a["code"] == "ASO-629"]
+    _ship(state, "NBO-436", "ship_arg_m_frigate_01_a_macro")
+    monkeypatch.setattr(catalog, "_through_gates",
+                        lambda action, state: f"assign {action['ship_ref']} {action['station_id']} {action['role']}")
+    monkeypatch.setattr(catalog, "_buy_options", lambda *a, **k: [catalog.Option("buy", "buyship")])
+    plan = {"strategy": {"plan": dict(PLAN, stations={"KYV-745": {"build": {}, "miners": {}, "traders": 0,
+                                                                  "defenders": 0}})}}
+    assert strategy.fleet(state, plan) == ["assign NBO-436 KYV-745 defend"]
+    # A refused assign does not turn into a purchase past the number.
+    monkeypatch.setattr(catalog, "_through_gates", lambda action, state: None)
+    assert strategy.fleet(state, plan) == []
+
+
 def test_the_report_shows_how_far_each_station_is(small_state):
     state = copy.deepcopy(small_state)
     _station(state)["modules"] = ["prod_gen_hullparts_macro"]

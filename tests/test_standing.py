@@ -89,6 +89,21 @@ def test_own_builder_finds_a_waiting_build(small_state):
     assert standing.find_builds(state, {}) == []
 
 
+def test_own_builder_is_called_again_for_the_next_build(small_state):
+    """start5: the vessel served the chain, then the discs waited 8.9 h beside it."""
+    state = copy.deepcopy(small_state)
+    _add_ship(state, "BLD-001", "ship_arg_xl_builder_01_a_macro", owner="player")
+    bs = next(a for a in state["assets"] if a["code"] == "XQL-000")
+    bs["build"] = {"queued": 1, "in_progress": 0, "builders": [], "processor": {}}
+    data = {}
+    assert standing.find_builds(state, data) == ["deploy BLD-001 KYV-745"]
+    assert standing.find_builds(state, data) == []                    # on its way
+    bs["build"]["builders"] = ["[0x1]"]
+    assert standing.find_builds(state, data) == []                    # served
+    bs["build"]["builders"] = []
+    assert standing.find_builds(state, data) == ["deploy BLD-001 KYV-745"]
+
+
 def test_game_events_and_ledger_read_from_the_logbook(small_state):
     state = copy.deepcopy(small_state)
     t = state["meta"]["playtime_s"]

@@ -271,6 +271,8 @@ def find_builds(state: dict, data: dict) -> list[str]:
                and ((bs.get("build") or {}).get("queued") or (bs.get("build") or {}).get("in_progress"))
                and not _served(bs.get("build") or {})]
     if not waiting:
+        # Every build is served, so the next one that waits may call them again.
+        data.setdefault("standing", {})["findbuilds"] = []
         return []
     sent = _done(data, "findbuilds")
     for ship in state.get("assets", []):
