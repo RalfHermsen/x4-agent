@@ -845,6 +845,16 @@ def test_a_wharf_of_ours_with_no_ship_trader_is_sent_one_once(small_state):
     assert standing.shiptraders(state, {}) == []
 
 
+def test_an_l_bay_alone_gets_a_ship_trader_too(small_state):
+    """start7: ZLR-942 had only the L bay, and our destroyer sat in its queue
+    for 27 game hours with every ware in store."""
+    import copy
+    import executor
+    state = copy.deepcopy(small_state)
+    _station(state)["modules"] = _station(state)["modules"] + [executor.EXPANSION_MODULES["wharf_l"][0]]
+    assert standing.shiptraders(state, {}) == ["shiptrader KYV-745"]
+
+
 def test_a_station_that_keeps_no_cargo_drones_is_told_to_keep_ten(small_state):
     """GKL-870 had no supply order for drones, and the game asked for cargo
     drones there from game hour 77 on; KYV-745 kept 10."""
