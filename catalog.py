@@ -576,6 +576,15 @@ def _at_floor(state: dict, ware: str, table: dict) -> bool:
                                for st in _stations(state) for o in st.get("offers") or [])
 
 
+def _waiting_for_room(state: dict, ware: str) -> bool:
+    """Every module of ours that makes this ware waits for storage: its room
+    at the station is full, and one more module would wait as well. In start8f
+    seven silicon wafer modules stood so, the wafers at 213 Cr with 461 bid."""
+    lines = [line for st in _stations(state) for line in st.get("production") or []
+             if line.get("ware") == ware]
+    return bool(lines) and all(line.get("state") in ("choosingitem", "waitingforstorage") for line in lines)
+
+
 def expansion_margins(state: dict) -> list[tuple[str, float]]:
     """(ware, margin per module per game hour) for each ware the bridge can
     build, best first, at the prices we know (6.2).
@@ -614,7 +623,7 @@ def expansion_margins(state: dict) -> list[tuple[str, float]]:
         # it sells, whatever others bid. In start8b ZLR-942 offered antimatter
         # cells at 121, the floor, with 310 the best bid we knew, and the
         # ranking added modules until 18 stood idle.
-        if _at_floor(state, ware, table):
+        if _at_floor(state, ware, table) or _waiting_for_room(state, ware):
             continue
         if _short_supply(state, ware, recipe):
             continue

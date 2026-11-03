@@ -378,6 +378,30 @@ def test_a_ware_piling_up_for_ten_module_hours_is_not_expanded(small_state):
     assert "energycells" not in dict(catalog.expansion_margins(state))
 
 
+def test_a_ware_whose_modules_all_wait_for_room_is_not_expanded(small_state):
+    """start8f: seven silicon wafer modules, all waiting for storage."""
+    state = copy.deepcopy(small_state)
+    state["known_stations"] = [{"code": "BUY-001", "owner": "argon", "place": {},
+                                "offers": [{"ware": "energycells", "side": "buy", "price": 20, "amount": 10_000_000}]}]
+    station = next(a for a in state["assets"] if a["code"] == "KYV-745")
+    station["cargo"] = {"energycells": 1000}
+    station["production"] = [{"ware": "energycells", "short_of": {}, "state": "producing"},
+                             {"ware": "energycells", "short_of": {}, "state": "choosingitem"}]
+    assert "energycells" in dict(catalog.expansion_margins(state))
+    station["production"][0]["state"] = "waitingforstorage"
+    assert "energycells" not in dict(catalog.expansion_margins(state))
+
+
+def test_a_production_line_carries_its_modules_state():
+    from lxml import etree
+
+    from save_parser import _production
+    elem = etree.fromstring('<component><component class="production"><production state="choosingitem">'
+                            '<queue ware="siliconwafers"/></production></component>'
+                            '<trade><offers><production><trade ware="x"/></production></offers></trade></component>')
+    assert _production(elem) == [{"ware": "siliconwafers", "short_of": {}, "state": "choosingitem"}]
+
+
 def test_a_ware_we_offer_at_the_floor_price_is_not_expanded(small_state):
     """start8b: antimatter cells at 121, the floor, and 18 idle modules."""
     import gamedata

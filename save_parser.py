@@ -340,16 +340,20 @@ def _production(elem) -> list[dict]:
     not mean the station is producing that ware yet. `short_of` maps a ware to
     a game time in seconds, despite the attribute being called amount: of 1,095
     in one save none lay past the game clock and the median was near it. An old
-    one is an old shortage, not a large one.
+    one is an old shortage, not a large one. `state` is the module's own:
+    "choosingitem" and "waitingforstorage" are the station overview's
+    "Modules waiting for storage" (menu_station_overview.lua), the ware's
+    allocated room is full.
     """
     out = []
-    for queue in elem.iter("queue"):
-        ware = queue.get("ware")
+    for production in elem.iter("production"):
+        queue = production.find("queue")
+        ware = queue.get("ware") if queue is not None else None
         if not ware:
             continue
         short = {w.get("ware"): _int(w.get("amount"))
                  for w in queue.findall("shortage/ware") if w.get("ware")}
-        out.append({"ware": ware, "short_of": short})
+        out.append({"ware": ware, "short_of": short, "state": production.get("state")})
     return out
 
 
