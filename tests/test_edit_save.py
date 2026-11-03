@@ -12,6 +12,15 @@ def test_a_relation_is_set_or_added_before_the_boosters():
     assert xml.index('faction="argon"') < xml.index("<booster")
 
 
+def test_a_factions_own_value_toward_the_player_is_set_too():
+    """The new start kept Terran's -0.032 toward the player, -15 in the menu."""
+    terran = ('<faction id="terran">\n<relations>\n<relation faction="argon" relation="0.5"/>\n'
+              '<relation faction="player" relation="-0.032"/>\n</relations>\n</faction>\n')
+    xml = edit_save.set_relations(terran + SMALL_FACTION, {"terran": 0.1})
+    assert "-0.032" not in xml and xml.count('relation="0.1"') == 2
+    assert '<relation faction="argon" relation="0.5"/>' in xml
+
+
 def test_a_licence_adds_factions_to_its_type_or_a_new_type():
     xml, added = edit_save.add_licences(SMALL_FACTION, {"generaluseship": ["argon", "terran"],
                                                         "capitalship": ["argon"]})

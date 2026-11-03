@@ -187,7 +187,10 @@ def set_relations(xml: str, values: dict[str, float]) -> str:
 
     It sits on the player's side: `<relation faction=... relation=.../>` under
     `<faction id="player">`, boosters after them. What the player earns goes
-    into a booster, so a base value stays where it is put.
+    into a booster, so a base value stays where it is put. A faction that
+    holds its own value toward the player gets the same: the game shows the
+    faction's side, and the new start kept Terran's -0.032 (-15 in the menu)
+    beside our 0.1 for a whole day of play.
     """
     start = _player_faction(xml)
     end = xml.find("</relations>", start)
@@ -202,7 +205,18 @@ def set_relations(xml: str, values: dict[str, float]) -> str:
             booster = block.find("<booster")
             at = booster if booster >= 0 else len(block)
             block = block[:at] + line + "\n" + block[at:]
-    return xml[:start] + block + xml[end:]
+    xml = xml[:start] + block + xml[end:]
+    for faction, value in values.items():
+        own = xml.find(f'<faction id="{faction}">')
+        if own < 0:
+            continue
+        stop = xml.find("</relations>", own)
+        if stop < 0:
+            continue
+        theirs = re.sub(r'<relation faction="player" relation="[^"]*"/>',
+                        f'<relation faction="player" relation="{value}"/>', xml[own:stop], count=1)
+        xml = xml[:own] + theirs + xml[stop:]
+    return xml
 
 
 def add_licences(xml: str, wanted: dict[str, list[str]]) -> tuple[str, list[str]]:
