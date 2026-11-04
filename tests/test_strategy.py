@@ -316,6 +316,21 @@ def test_a_wing_of_fighters_comes_from_our_wharf_without_the_hourly_brake(small_
     assert "fighters 0/4" in strategy.lines(state, plan)[1]
 
 
+def test_a_carriers_wing_comes_from_our_wharf_too(small_state):
+    state = copy.deepcopy(small_state)
+    state["player"]["blueprints"] = ["ship_tel_s_fighter_02_a", "engine_tel_s_allround_01_mk1",
+                                     "thruster_gen_s_allround_01_mk1", "weapon_gen_s_laser_01_mk1",
+                                     "shield_tel_s_standard_01_mk1"]
+    _station(state)["modules"] = list(_station(state)["modules"]) + [executor.EXPANSION_MODULES["wharf"][0]]
+    plan = {"strategy": {"plan": dict(PLAN, stations={"KYV-745": {"build": {}, "miners": {}, "traders": 0,
+                                                                  "fighters_per_carrier": 2}})}}
+    assert strategy.fleet(state, plan) == []                                   # no carrier, no wing
+    carrier = copy.deepcopy(next(a for a in state["assets"] if a["code"] == "ASO-629"))
+    state["assets"].append(dict(carrier, code="CAR-000", macro="ship_arg_xl_carrier_01_a_macro"))
+    assert strategy.fleet(state, plan)[-1] == "buildship KYV-745 ship_tel_s_fighter_02_a_macro x4-agent-fig"
+    assert "fighters 0/2" in strategy.lines(state, plan)[1]
+
+
 def test_a_ship_we_order_carries_its_type_in_its_name():
     assert sitrep.ship_name("ship_tel_s_fighter_01_a_macro") == "x4-agent-fig"
     assert sitrep.ship_name("ship_tel_m_trans_container_03_a_macro") == "x4-agent-tra-con"

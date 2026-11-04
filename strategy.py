@@ -323,7 +323,9 @@ def fleet(state: dict, data: dict) -> list[str]:
         # The wing: three guns against the Xenon S the destroyers' big guns
         # miss. Named by `standing.wings` once delivered.
         fighters = sum(1 for s in catalog._ships(state) if sitrep.ship_type(s.get("macro")) == "fighter")
-        wanted = (goal.get("fighters_per_destroyer") or 0) * (goal.get("destroyers") or 0)
+        carriers = sum(1 for s in catalog._ships(state) if sitrep.ship_type(s.get("macro")) == "carrier")
+        wanted = ((goal.get("fighters_per_destroyer") or 0) * (goal.get("destroyers") or 0)
+                  + (goal.get("fighters_per_carrier") or 0) * carriers)
         if not bought and fighters < wanted:
             own = own_build(state, "ship_{race}_s_fighter_02_a_macro", "s", brake=False)
             if own:
@@ -366,9 +368,11 @@ def lines(state: dict, data: dict) -> list[str]:
                        if (executor.serves(s, state) in _working(code, "defend") or s.get("code") in raiding)
                        and sitrep.ship_type(s.get("macro")) == "destroyer")
             parts.append(f"destroyers {have}/{goal['destroyers']}")
-        if goal.get("fighters_per_destroyer"):
+        if goal.get("fighters_per_destroyer") or goal.get("fighters_per_carrier"):
+            carriers = sum(1 for s in catalog._ships(state) if sitrep.ship_type(s.get("macro")) == "carrier")
             parts.append(f"fighters {fighters_flying(state)}/"
-                         f"{goal['fighters_per_destroyer'] * (goal.get('destroyers') or 0)}")
+                         f"{(goal.get('fighters_per_destroyer') or 0) * (goal.get('destroyers') or 0)
+                            + (goal.get('fighters_per_carrier') or 0) * carriers}")
         raid = (data.get("standing") or {}).get("raid")
         if raid:
             parts.append(f"raid on {raid['sector']} {raid['phase']}, led by {raid['leader']}")
