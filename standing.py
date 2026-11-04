@@ -1067,6 +1067,22 @@ def raids(state: dict, data: dict) -> list[str]:
     for code, goal in strategy.goals(data).items():
         sector, wanted = goal.get("raid_sector"), goal.get("destroyers") or 0
         home = next((a for a in state.get("assets", []) if a.get("code") == code), None)
+        # A guard the run before left on its post is taken over, not called home: each run
+        # starts with no raid in memory, and start8n called the guard of six home and left
+        # Hatikvah's Choice I without one for 1.3 game hours.
+        if goal.get("raid_guard") and sector and wanted and home:
+            leader = next((s for s in ours.values() if sitrep.ship_type(s.get("macro")) == "destroyer"
+                           and (s.get("place") or {}).get("sector") == sector
+                           and "Patrol" in [o.get("order") for o in s.get("orders") or [] if not o.get("default")]),
+                          None)
+            if leader:
+                under = [s["code"] for s in ours.values() if sitrep.ship_type(s.get("macro")) == "destroyer"
+                         and executor.serves(s, state) == (leader["code"], "attack")]
+                held["raid"] = {"sector": sector, "home": code, "home_sector": (home.get("place") or {}).get("sector"),
+                                "leader": leader["code"], "ships": [leader["code"], *under], "phase": "out",
+                                "since": now, "arrived": True, "arrived_at": now,
+                                "unseen": bool(goal.get("raid_unseen")), "guard": True}
+                return []
         # A run that ends during a raid leaves its destroyers under the leader,
         # and the next one has no raid in its memory: ship9d-camp read 1 of 6.
         strays = [s for s in ours.values() if sitrep.ship_type(s.get("macro")) == "destroyer"

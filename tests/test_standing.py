@@ -337,6 +337,20 @@ def test_a_guard_leader_left_on_its_post_by_an_earlier_run_is_called_off(small_s
     assert standing.raids(state, data)[-1] == f"raid DES-000 {XEN_SECTOR}"
 
 
+def test_a_guard_left_on_its_post_by_an_earlier_run_is_taken_over(small_state):
+    """start8n called the guard of six home and left Hatikvah's Choice I empty for 1.3 game hours."""
+    state, data = _raid_ready(small_state)
+    data["strategy"]["plan"]["stations"]["KYV-745"]["raid_guard"] = True
+    leader = next(a for a in state["assets"] if a["code"] == "DES-000")
+    leader.update(orders=[{"order": "Patrol"}, {"order": "ProtectStation", "default": True}],
+                  place={"sector": XEN_SECTOR}, assignment={"group": 3, "groups": {2: "attack"}})
+    next(a for a in state["assets"] if a["code"] == "DES-001")["assignment"] = {"group": 2}
+    state["assigned_to"] = {"DES-001": "DES-000"}
+    assert standing.raids(state, data) == []
+    raid = data["standing"]["raid"]
+    assert raid["leader"] == "DES-000" and raid["ships"] == ["DES-000", "DES-001"] and raid["arrived"] and raid["guard"]
+
+
 def test_a_raid_goes_when_every_destroyer_stands(small_state):
     state, data = _raid_ready(small_state, destroyers=2)
     assert standing.raids(state, data) == []
