@@ -331,6 +331,18 @@ def test_a_carriers_wing_comes_from_our_wharf_too(small_state):
     assert "fighters 0/2" in strategy.lines(state, plan)[1]
 
 
+def test_an_idle_fighter_is_left_for_the_wings_when_the_plan_gives_it_a_place(small_state):
+    state = copy.deepcopy(small_state)
+    fighter = copy.deepcopy(next(a for a in state["assets"] if a["code"] == "ASO-629"))
+    state["assets"].append(dict(fighter, code="FIG-000", macro="ship_tel_s_fighter_02_a_macro", assignment={},
+                                orders=[{"order": "Wait", "state": "started", "default": True}]))
+    goal = {"build": {}, "miners": {}, "traders": 0, "defenders": 4}
+    plan = {"strategy": {"plan": dict(PLAN, stations={"KYV-745": goal})}}
+    assert "FIG-000" in " ".join(strategy.fleet(state, plan))           # no wing planned: it guards home
+    goal["fighters_per_carrier"] = 40
+    assert "FIG-000" not in " ".join(strategy.fleet(state, plan))
+
+
 def test_a_ship_we_order_carries_its_type_in_its_name():
     assert sitrep.ship_name("ship_tel_s_fighter_01_a_macro") == "x4-agent-fig"
     assert sitrep.ship_name("ship_tel_m_trans_container_03_a_macro") == "x4-agent-tra-con"

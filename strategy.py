@@ -261,9 +261,13 @@ def fleet(state: dict, data: dict) -> list[str]:
     if not plan:
         return []
     errand = purchases.ships_in_use(data)
+    # A fighter is `standing.wings`' when the plan gives fighters a place: in start8o the
+    # Kestrel bought for the carrier was sent to it and, in the same cycle, to guard home.
+    winged = any((g.get("fighters_per_destroyer") or 0) or (g.get("fighters_per_carrier") or 0)
+                 for g in plan.values())
     free = [s for s in catalog._ships(state)
             if (s.get("assignment") or {}).get("group") is None and s.get("code") not in errand
-            and sitrep.role_of(s) == "IDLE"]
+            and sitrep.role_of(s) == "IDLE" and not (winged and sitrep.ship_type(s.get("macro")) == "fighter")]
     held = set((state.get("player") or {}).get("blueprints") or [])
     named = set(((data.get("strategy") or {}).get("plan") or {}).get("blueprints") or [])
     races = sorted(set(catalog.RACE.values()))
