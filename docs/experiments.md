@@ -1994,3 +1994,73 @@ purchase, as fighters and destroyers did not already.
 expanded. The modules are paid for; what sells their output is open.
 
 **Score (start7).** Net worth at cost 707.6 M to 681.0 M over 19.7 game hours, credits down 47.8 M.
+
+## 2026-11-03/04: start8c to start8k, the guard, the Pact and growth that stopped
+
+Nine runs in a row from the end of start8b. start8c to start8j were stopped by hand to restart with
+fixes; start8d ran one cycle.
+
+| Run | Game hours | Result |
+|---|---|---|
+| start8c | 78.7 to 89.1 | six destroyers guard Hatikvah's Choice I; two lost there |
+| start8d | 89.2 | named sectors avoided; a guard leader left on its post called off |
+| start8e | 89.3 to 90.2 | two destroyers lost to the Xenon defence platform MDR-660; the guard stays home |
+| start8f | 90.3 to 93.6 | a focused trader carries only the wares of a full store |
+| start8g | 93.8 to 110.5 | MDR-660 fell beside a Terran fleet; a second raid lost seven; four docks |
+| start8h | 111.1 to 113.7 | from a save with the Terran relation set on both sides |
+| start8i | 113.9 to 120.9 | scouts, freighters and miners flee when attacked |
+| start8j | 121.0 to 124.9 | the floor price as a band; a module waiting for inputs holds the next |
+| start8k | 125.0 to 147.6 | nothing built beyond the plan; the guard went out at 20 and came home whole |
+
+**The guard and the defence platform.** Six destroyers went to Hatikvah's Choice I with `raid_guard`
+at 80.1 game hours and lost two there in start8c. A guard holds against a Xenon XL at four destroyers
+each, but MDR-660, a Xenon defence platform, is a station and not an XL, and two more fell to it in
+start8e. The plan kept the guard home after that. A guard leader from the earlier run was still alone
+on its Patrol order: `release` leaves a Patrol in place, so a destroyer posted with no raid in memory
+is now undocked and comes home.
+
+**MDR-660 fell beside the Terrans.** At 97 game hours a Terran carrier fleet, Tokyo WMP-072 with about
+79 S, 12 M and 2 L, was clearing Hatikvah's Choice I. Seven of our destroyers joined that fight and the
+platform fell at about 101 game hours without a loss.
+
+**A raid that chased its target lost seven.** The next raid followed the Xenon out of Hatikvah's
+Choice I into Tharka's Cascade XV, where 5 to 7 Xenon stations and up to 6 XL stood, and lost all
+seven destroyers there. Its state still read "settling", which is not home. A raid that has arrived
+now comes home as soon as one of its ships is in a sector off the shortest way between home and the
+target.
+
+**The guard came home from three XL.** With twenty destroyers in start8k six went back to Hatikvah's
+Choice I at 138.6 game hours and held it for about eight game hours without a loss. When a Xenon
+station and three XL stood there, at 12 destroyers needed against six, the guard was called home
+whole, and the sector stays off the list for 20 game hours.
+
+**Freighters and the Scale Plate Pact.** The Pact, neutral to us at -0.003, killed six freighters from
+start8f to start8k, one in start8k's 22.6 game hours. The game's attack and kill events name no sector,
+so where they were caught is not known. The station's traders and miners keep out of Hatikvah's
+Choice I since start8d, and since start8g out of five more: Silent Witness XI and XII, Heretic's End,
+Sacred Relic and Void of Opportunity. Five of the six were lost after that. New verb `avoid sector`
+adds a sector to the game's own blacklist for hostile sectors. Since
+start8i scouts, freighters and miners answer an attack by fleeing (`shiprespond`, 21 ships); warships
+keep their own answer. The freighters carry two shotgun turrets and an M shield.
+
+**The Terran relation.** The faction list showed Terran at -15 while our side stood at 0.1. A relation
+has two sides, and the faction's own entry toward the player was -0.032. `edit_save` now sets both;
+start8h ran from a save edited so, with the player's consent, and the player saw it right in the game.
+
+**Docks.** At 106 game hours 14 of the 16 freighters and miners waited in Argon Prime to dock: the
+station's one dock has a single M bay. Three more docks stood at 110.2 game hours.
+
+**Growth that did not sell.** The margin ranking kept adding modules past what the plan names: 20
+antimatter cell, 13 energy cell, 11 water and 8 silicon wafer modules stand. It skips a ware whose store
+is full or offered at the floor, and the floor never matched: the station asked 121.6 against a floor
+of 121, so the floor is now a band of 5% of the price range. A ware whose lines all wait for storage,
+or any line for inputs, gets no new line. Even so the plan now says `free_growth: false`, and a station
+builds only what the plan names. At 147.6 game hours 20 antimatter cell and 11 water modules stood
+idle with 15,400 cells offered at 121 Cr against a best bid of 310 and 16,100 water at 32 against 81.
+The traders report "No trades found in allowed sectors" at times. What moves the output to the buyers
+we see is still open.
+
+**Score.** 78.7 to 125.0 game hours: modules 75 to 142, their cost up 44.5 M, credits down 88.0 M, net
+worth at cost 654.4 M to 626.8 M. start8k, with nothing added: credits up 24.7 M, the station's account
+up 13.2 M, net worth at cost 626.8 M to 663.7 M over 22.6 game hours. Lost from start8c to start8k:
+eleven destroyers to Xenon, seven freighters (one to Xenon, six to the Pact) and fourteen scouts.
