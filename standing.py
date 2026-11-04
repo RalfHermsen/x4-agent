@@ -1147,6 +1147,38 @@ def raids(state: dict, data: dict) -> list[str]:
     return []
 
 
+def carriers(state: dict, data: dict) -> list[str]:
+    """A carrier with its wing full flies with the guard, under the guard's leader as
+    defence, which keeps it near the leader; an auxiliary goes along as supplyfleet and
+    repairs and rearms them there. A new guard takes them over from the last, which
+    brought them home under its leader. The player asked for both at 182 game hours,
+    for the destroyers on guard in Hatikvah's Choice I."""
+    import catalog
+    import executor
+    import strategy
+    raid = (data.get("standing") or {}).get("raid")
+    if not (raid and raid.get("guard") and raid["phase"] == "out"):
+        return []
+    leader = raid["leader"]
+    per = max((goal.get("fighters_per_carrier") or 0 for goal in strategy.goals(data).values()), default=0)
+    ships = catalog._ships(state)
+    sent = data.setdefault("standing", {}).setdefault("with_guard", {})
+    out = []
+    for ship in ships:
+        kind = sitrep.ship_type(ship.get("macro"))
+        role = {"carrier": "defence", "resupplier": "supplyfleet"}.get(kind)
+        if not role or executor.serves(ship, state) == (leader, role) or sent.get(ship["code"]) == leader:
+            continue
+        if kind == "carrier":
+            wing = sum(1 for s in ships if sitrep.ship_type(s.get("macro")) == "fighter"
+                       and executor.serves(s, state) == (ship["code"], "interception"))
+            if not per or wing < per:
+                continue
+        sent[ship["code"]] = leader
+        out.append(f"command {ship['code']} {leader} {role}")
+    return out
+
+
 def build_method(state: dict, data: dict) -> list[str]:
     """Each station of ours builds with the default method, once.
 
@@ -1210,7 +1242,7 @@ def civilians_flee(state: dict, data: dict) -> list[str]:
 
 RULES = (sell_limits, revisit, satellites, watch, ledger, once, avoid_sectors, civilians_flee, patrols, build_method,
          find_builds, hire_builders, own_stock, repairs, seminars, scouts, empty_builds, docks, managers, shiptraders,
-         cargo_drones, accounts, undock_fleet, wings, raids, fleet, grow)
+         cargo_drones, accounts, undock_fleet, wings, raids, carriers, fleet, grow)
 
 
 def commands(state: dict, data: dict, off: set | frozenset = frozenset()) -> list[str]:

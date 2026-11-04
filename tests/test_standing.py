@@ -569,6 +569,25 @@ def test_a_guard_on_its_post_is_topped_up_from_home_with_the_reserve_kept(small_
     assert not any(c.startswith("command") for c in standing.raids(state, data))
 
 
+def test_a_carrier_with_its_wing_full_and_an_auxiliary_go_with_the_guard(small_state):
+    state, data = _raid_ready(small_state)
+    data["strategy"]["plan"]["stations"]["KYV-745"]["fighters_per_carrier"] = 2
+    assert standing.carriers(state, data) == []                # no guard out
+    _guarding(state, data)
+    _add_ship(state, "CAR-000", "ship_arg_xl_carrier_01_a_macro", cls="ship_xl",
+              assignment={"groups": {5: "interception"}})
+    _add_ship(state, "ATL-000", "ship_arg_xl_resupplier_01_a_macro", cls="ship_xl")
+    _with_fighters(state, 2)
+    next(a for a in state["assets"] if a["code"] == "FIG-000")["assignment"] = {"group": 5}
+    assert standing.carriers(state, data) == ["command ATL-000 DES-000 supplyfleet"]   # wing 1 of 2
+    next(a for a in state["assets"] if a["code"] == "FIG-001")["assignment"] = {"group": 5}
+    assert standing.carriers(state, data) == ["command CAR-000 DES-000 defence"]
+    assert standing.carriers(state, data) == []
+    data["standing"]["raid"]["leader"] = "DES-001"                # the next guard
+    assert standing.carriers(state, data) == ["command CAR-000 DES-001 defence",
+                                              "command ATL-000 DES-001 supplyfleet"]
+
+
 def test_a_guard_leaves_when_outgunned_or_with_an_xl_at_home(small_state):
     state, data = _raid_ready(small_state)
     _guarding(state, data)
