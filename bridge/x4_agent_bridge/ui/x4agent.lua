@@ -1237,18 +1237,21 @@ end
 
 --- "raid SHIP SECTOR stay": behind the attack a patrol of that sector, which does not chase
 --- through a gate, so the ship stays when its target is gone. Without a target only the patrol.
+--- "raid SHIP SECTOR stay scaleplate" (or "go scaleplate" without the stay): the stations of
+--- that faction instead of the Xenon's; in start8p the Scale Plate Pact's in Silent Witness XI.
 local function raid(args)
     local shipcode, sector, ships_only, stay = args[1], args[2], args[3] == "ships", args[3] == "stay"
+    local faction = args[4] or "xenon"
     local ship = shipcode and player_ships()[shipcode]
     if not ship or not sector then
-        return refuse("raid needs a ship of ours and a sector macro: raid <SHIP> <SECTOR>")
+        return refuse("raid needs a ship of ours and a sector macro: raid <SHIP> <SECTOR> [stay|go|ships] [faction]")
     end
     if not C.IsOrderSelectableFor("Attack", ship) then
         return refuse("raid: " .. shipcode .. " cannot take an Attack order")
     end
-    local count = C.GetNumAllFactionStations("xenon")
+    local count = C.GetNumAllFactionStations(faction)
     local buffer = ffi.new("UniverseID[?]", math.max(count, 1))
-    count = C.GetAllFactionStations(buffer, count, "xenon")
+    count = C.GetAllFactionStations(buffer, count, faction)
     -- Only a station the player knows, as on the map, and a factory before a defence
     -- base: in Scale Plate Green I that is 24 turrets against 74 and 120. Not a wreck: it
     -- stays on the list, and ship12e-camp's raid was sent back to the factory it had just killed.

@@ -962,6 +962,26 @@ def undock_fleet(state: dict, data: dict) -> list[str]:
     return out
 
 
+def _enemy(state: dict, sector: str, faction: str) -> dict:
+    """What we have seen of the raid's faction in a sector. The save counts a faction as
+    hostile only at -0.32 or below; the Scale Plate Pact, set to -0.032 for start8p, shows
+    by its stations we know."""
+    import save_parser
+    seen = dict(((state.get("hostiles") or {}).get(sector) or {}).get(faction) or {})
+    if faction not in save_parser.ALWAYS_HOSTILE:
+        known = sum(1 for s in state.get("all_stations") or []
+                    if s.get("sector") == sector and s.get("owner") == faction)
+        if known > seen.get("station", 0):
+            seen["station"] = known
+    return seen
+
+
+def _raid_order(leader: str, sector: str, stay: bool, faction: str) -> str:
+    """`raid`, with a guard's stay and, for a faction other than the Xenon, that faction."""
+    other = faction != "xenon"
+    return f"raid {leader} {sector}" + (" stay" if stay else (" go" if other else "")) + (f" {faction}" if other else "")
+
+
 def _fly_home(raid: dict, alive: list[dict]) -> list[str]:
     """A guard's Patrol survives `release`, and `undock` takes it off: TYL-370 stayed alone
     in Trinity Sanctum III while its 24 flew home (ship13b-camp)."""
@@ -1011,13 +1031,14 @@ def raids(state: dict, data: dict) -> list[str]:
             if ((ours.get(raid["leader"]) or {}).get("place") or {}).get("sector") == raid["sector"]:
                 raid["arrived"] = True
                 raid.setdefault("arrived_at", now)
-            left = ((state.get("hostiles") or {}).get(raid["sector"]) or {}).get("xenon")
+            left = _enemy(state, raid["sector"], raid.get("faction", "xenon"))
+            xl = ((((state.get("hostiles") or {}).get(raid["sector"]) or {}).get("xenon") or {}).get("ship_xl", 0))
             # A guard on its post holds longer than a raid would go. In ship13b-camp 30 stood
             # 15,000 game seconds under up to 4 XL without a loss, then left at 6. Leaving did not
             # stop the XL killing (at least 2 of its 5 went after the recall), and wharf SCY-867
             # fell 5,100 later. A falling hull still brings it home.
             per_xl = RAID_HOLD_PER_XL if raid.get("guard") and raid.get("arrived") else RAID_PER_XL
-            strong = (left or {}).get("ship_xl", 0) * per_xl > len(alive)
+            strong = xl * per_xl > len(alive)
             xl_at_home = (((state.get("hostiles") or {}).get(raid["home_sector"]) or {}).get("xenon") or {}).get("ship_xl")
             if strong:
                 held.setdefault("raid_strong", {})[raid["sector"]] = now
@@ -1067,7 +1088,7 @@ def raids(state: dict, data: dict) -> list[str]:
                 if (raid.get("arrived") and ((left or {}).get("station") or stay) and "Attack" not in queue
                         and now - raid.get("asked", -1e9) >= RAID_ASK_AGAIN):
                     raid["asked"] = now
-                    return [f"raid {raid['leader']} {raid['sector']}" + (" stay" if stay else "")]
+                    return [_raid_order(raid["leader"], raid["sector"], stay, raid.get("faction", "xenon"))]
                 return []
             if alive:
                 raid["phase"], raid["since"] = "back", now
@@ -1089,19 +1110,31 @@ def raids(state: dict, data: dict) -> list[str]:
         # A guard the run before left on its post is taken over, not called home: each run
         # starts with no raid in memory, and start8n called the guard of six home and left
         # Hatikvah's Choice I without one for 1.3 game hours.
+        # One posted on the way to a new raid_sector goes on from where it is: in start8p the
+        # guard of Hatikvah's Choice I was sent on to Silent Witness XI, two jumps further.
+        faction = goal.get("raid_faction") or "xenon"
         if goal.get("raid_guard") and sector and wanted and home:
+            import purchases
+            graph, home_sector = purchases._graph(), (home.get("place") or {}).get("sector")
+            route = purchases.jumps(graph, home_sector, sector)
             leader = next((s for s in ours.values() if sitrep.ship_type(s.get("macro")) == "destroyer"
-                           and (s.get("place") or {}).get("sector") == sector
+                           and (s.get("place") or {}).get("sector") not in (None, home_sector)
+                           and purchases.jumps(graph, home_sector, s["place"]["sector"])
+                           + purchases.jumps(graph, s["place"]["sector"], sector) == route
                            and "Patrol" in [o.get("order") for o in s.get("orders") or [] if not o.get("default")]),
                           None)
             if leader:
                 under = [s["code"] for s in ours.values() if sitrep.ship_type(s.get("macro")) == "destroyer"
                          and executor.serves(s, state) == (leader["code"], "attack")]
-                held["raid"] = {"sector": sector, "home": code, "home_sector": (home.get("place") or {}).get("sector"),
+                there = leader["place"]["sector"] == sector
+                held["raid"] = {"sector": sector, "home": code, "home_sector": home_sector,
                                 "leader": leader["code"], "ships": [leader["code"], *under], "phase": "out",
-                                "since": now, "arrived": True, "arrived_at": now,
-                                "unseen": bool(goal.get("raid_unseen")), "guard": True}
-                return []
+                                "since": now, "arrived": there, "unseen": bool(goal.get("raid_unseen")),
+                                "guard": True, "faction": faction}
+                if there:
+                    held["raid"]["arrived_at"] = now
+                    return []
+                return [f"undock {leader['code']}", _raid_order(leader["code"], sector, True, faction)]
         # A run that ends during a raid leaves its destroyers under the leader,
         # and the next one has no raid in its memory: ship9d-camp read 1 of 6.
         strays = [s for s in ours.values() if sitrep.ship_type(s.get("macro")) == "destroyer"
@@ -1117,10 +1150,11 @@ def raids(state: dict, data: dict) -> list[str]:
             return [f"undock {s['code']}" for s in posted]
         if not (sector and wanted and home):
             continue
-        xenon = ((state.get("hostiles") or {}).get(sector) or {}).get("xenon", {})
+        seen = _enemy(state, sector, faction)
+        xl = (((state.get("hostiles") or {}).get(sector) or {}).get("xenon") or {}).get("ship_xl", 0)
         enough = goal.get("raid_from") or wanted
         # The ships that go, not the whole fleet: they turn back on arrival by this same sum.
-        if (not xenon and not goal.get("raid_unseen")) or xenon.get("ship_xl", 0) * RAID_PER_XL > enough:
+        if (not seen and not goal.get("raid_unseen")) or xl * RAID_PER_XL > enough:
             continue
         if (now - (held.get("raid_strong") or {}).get(sector, -1e9) < RAID_STRONG_WAIT
                 and sector not in (state.get("eyes") or [])):
@@ -1141,9 +1175,10 @@ def raids(state: dict, data: dict) -> list[str]:
         leader, *rest = [s["code"] for s in ready[:enough]] if goal.get("raid_home") else [s["code"] for s in ready]
         held["raid"] = {"sector": sector, "home": code, "home_sector": home_sector, "leader": leader,
                         "ships": [leader, *rest], "phase": "out", "since": now,
-                        "unseen": bool(goal.get("raid_unseen")), "guard": bool(goal.get("raid_guard"))}
+                        "unseen": bool(goal.get("raid_unseen")), "guard": bool(goal.get("raid_guard")),
+                        "faction": faction}
         return ([f"command {s} {leader} attack" for s in rest]
-                + [f"raid {leader} {sector}" + (" stay" if goal.get("raid_guard") else "")])
+                + [_raid_order(leader, sector, bool(goal.get("raid_guard")), faction)])
     return []
 
 

@@ -360,6 +360,41 @@ def test_a_guard_left_on_its_post_by_an_earlier_run_is_taken_over(small_state):
     assert raid["leader"] == "DES-000" and raid["ships"] == ["DES-000", "DES-001"] and raid["arrived"] and raid["guard"]
 
 
+def test_a_raid_on_the_pacts_stations_counts_the_stations_we_know(small_state):
+    """start8p: the Pact at -0.032 is not in the save's hostiles; its stations are known."""
+    state, data = _raid_ready(small_state)
+    goal = data["strategy"]["plan"]["stations"]["KYV-745"]
+    goal["raid_faction"] = "scaleplate"
+    state["hostiles"] = {}
+    assert standing.raids(state, data) == []                    # nothing of theirs known there
+    state["all_stations"] = [{"code": "PAC-001", "owner": "scaleplate", "sector": XEN_SECTOR}]
+    assert standing.raids(state, data)[-1] == f"raid DES-000 {XEN_SECTOR} go scaleplate"
+    state, data = _raid_ready(small_state)
+    data["strategy"]["plan"]["stations"]["KYV-745"].update(raid_faction="scaleplate", raid_guard=True)
+    state["hostiles"] = {}
+    state["all_stations"] = [{"code": "PAC-001", "owner": "scaleplate", "sector": XEN_SECTOR}]
+    assert standing.raids(state, data)[-1] == f"raid DES-000 {XEN_SECTOR} stay scaleplate"
+
+
+def test_a_guard_posted_on_the_way_to_a_new_raid_sector_goes_on_from_there(small_state):
+    """start8p: the guard of Hatikvah's Choice I went on to Silent Witness XI."""
+    import purchases
+    state, data = _raid_ready(small_state)
+    graph, home = purchases._graph(), _station(state)["place"]["sector"]
+    target = next(s for s in sorted(graph) if purchases.jumps(graph, home, s) == 2)
+    data["strategy"]["plan"]["stations"]["KYV-745"].update(raid_guard=True, raid_faction="scaleplate",
+                                                           raid_sector=target)
+    on_the_way = next(n for n in graph[home] if purchases.jumps(graph, n, target) == 1)
+    leader = next(a for a in state["assets"] if a["code"] == "DES-000")
+    leader.update(orders=[{"order": "Patrol"}, {"order": "ProtectStation", "default": True}],
+                  place={"sector": on_the_way}, assignment={"group": 3, "groups": {2: "attack"}})
+    next(a for a in state["assets"] if a["code"] == "DES-001")["assignment"] = {"group": 2}
+    state["assigned_to"] = {"DES-001": "DES-000"}
+    assert standing.raids(state, data) == ["undock DES-000", f"raid DES-000 {target} stay scaleplate"]
+    raid = data["standing"]["raid"]
+    assert raid["ships"] == ["DES-000", "DES-001"] and not raid["arrived"] and raid["faction"] == "scaleplate"
+
+
 def test_a_raid_goes_when_every_destroyer_stands(small_state):
     state, data = _raid_ready(small_state, destroyers=2)
     assert standing.raids(state, data) == []
