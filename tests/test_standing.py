@@ -517,6 +517,20 @@ def test_a_guard_on_its_post_holds_against_more_than_a_raid_would_go_for(small_s
     assert "release DES-000" in standing.raids(state, data)
 
 
+def test_a_guard_on_its_post_is_topped_up_from_home_with_the_reserve_kept(small_state):
+    state, data = _raid_ready(small_state, destroyers=5)
+    goal = data["strategy"]["plan"]["stations"]["KYV-745"]
+    goal.update(destroyers=5, raid_from=2, raid_home=1)
+    _guarding(state, data)
+    assert data["standing"]["raid"]["ships"] == ["DES-000", "DES-001"]
+    assert standing.raids(state, data)[-1] == f"raid DES-000 {XEN_SECTOR} stay"
+    goal["raid_from"] = 4
+    assert standing.raids(state, data) == ["command DES-002 DES-000 attack", "command DES-003 DES-000 attack"]
+    assert data["standing"]["raid"]["ships"][-2:] == ["DES-002", "DES-003"]
+    goal["raid_from"] = 6                                       # DES-004 is the reserve
+    assert not any(c.startswith("command") for c in standing.raids(state, data))
+
+
 def test_a_guard_leaves_when_outgunned_or_with_an_xl_at_home(small_state):
     state, data = _raid_ready(small_state)
     _guarding(state, data)

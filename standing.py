@@ -1026,6 +1026,21 @@ def raids(state: dict, data: dict) -> list[str]:
             if raid.get("guard") and raid.get("arrived"):
                 done = False
             if raid["leader"] in ours and not (hurt or done):
+                # A guard on its post is topped up to the plan's number from the whole ships at
+                # home, the reserve kept: in start8m six held Hatikvah's Choice I with twenty home,
+                # and the player asked for more there.
+                if raid.get("guard") and raid.get("arrived"):
+                    goal = strategy.goals(data).get(raid["home"]) or {}
+                    spare = [s for s in ours.values() if sitrep.ship_type(s.get("macro")) == "destroyer"
+                             and s["code"] not in raid["ships"] and s["code"] not in (held.get("repairing") or {})
+                             and executor.serves(s, state) == (raid["home"], "defence")
+                             and (s.get("place") or {}).get("sector") == raid["home_sector"]
+                             and _hull_share(s) >= RAID_GO_FROM]
+                    short = (goal.get("raid_from") or 0) - len(alive)
+                    extra = spare[:max(0, min(short, len(spare) - (goal.get("raid_home") or 0)))]
+                    if extra:
+                        raid["ships"] += [s["code"] for s in extra]
+                        return [f"command {s['code']} {raid['leader']} attack" for s in extra]
                 # A station came into sight, or the one it attacked is gone and
                 # another stands: the `raid` before this one only found a patrol.
                 queue = [o.get("order") for o in ours[raid["leader"]].get("orders") or [] if not o.get("default")]
