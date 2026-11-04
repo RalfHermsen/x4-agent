@@ -319,7 +319,10 @@ def test_the_bridge_puts_an_auxiliary_under_a_fleet_and_sends_it_for_supplies():
     lua = (root / "ui/x4agent.lua").read_text(encoding="utf-8")
     md = (root / "md/x4_agent_bridge.xml").read_text(encoding="utf-8")
     assert "supplyfleet = true" in lua.split("local ROLE_GROUP = {", 1)[1].split("}", 1)[0]
-    assert "getsupplies = get_supplies" in lua.split("local BARE_HANDLERS = {", 1)[1].split("}", 1)[0]
+    bare = lua.split("local BARE_HANDLERS = {", 1)[1].split("}", 1)[0]
+    assert "getsupplies = get_supplies" in bare and "collect = collect" in bare
+    # `collect` finds its sector by `sector_by_macro`, a local declared before it.
+    assert lua.index("local function sector_by_macro") < lua.index("local function collect(")
     assert "event.param2 == 'command_supplyfleet'" in md and 'exact="assignment.supplyfleet"' in md
 
 

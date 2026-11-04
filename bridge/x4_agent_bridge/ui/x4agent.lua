@@ -1235,6 +1235,30 @@ local function sector_by_macro(macro)
     end
 end
 
+--- "collect TRA-001 cluster_44_sector001_macro" -> the ship collects what floats loose in
+--- that sector, within COLLECT_RADIUS of its centre (aiscripts/order.collect.ship.radius.xml):
+--- wreckage of the Pact's stations in Silent Witness XI, in start8q. The hold takes only what
+--- fits its kind: a scout's 540 m3 holds container wares, no ore.
+local COLLECT_RADIUS = 150000
+local function collect(args)
+    local shipcode, macro = args[1], args[2]
+    local ship = shipcode and player_ships()[shipcode]
+    if not ship or not macro then
+        return refuse("collect needs: collect <SHIP> <SECTOR macro>")
+    end
+    if not C.IsOrderSelectableFor("CollectDropsInRadius", ship) then
+        return refuse("collect: " .. shipcode .. " cannot take a CollectDropsInRadius order")
+    end
+    local space = sector_by_macro(macro)
+    if not space then
+        return refuse("collect: no sector " .. macro)
+    end
+    CreateOrder(ConvertStringToLuaID(tostring(ship)), "CollectDropsInRadius",
+                { destination = { space, { 0, 0, 0 } }, radius = COLLECT_RADIUS }, false, false, false, nil, nil, nil, true)
+    log(string.format("ORDER: %s collects drops in %s", shipcode, macro))
+    return true
+end
+
 --- "raid SHIP SECTOR stay": behind the attack a patrol of that sector, which does not chase
 --- through a gate, so the ship stays when its target is gone. Without a target only the patrol.
 --- "raid SHIP SECTOR stay scaleplate" (or "go scaleplate" without the stay): the stations of
@@ -2267,6 +2291,7 @@ local BARE_HANDLERS = {
     revisit = revisit,
     satellite = deploy_satellite,
     getsupplies = get_supplies,
+    collect = collect,
     resupply = set_resupply,
     ledger = ledger,
     repair = repair,
@@ -2366,7 +2391,7 @@ local function init()
     end
     _G.__X4AGENT_COMMAND_HANDLER = X4Agent.onCommand
     RegisterEvent("X4Agent.Command", X4Agent.onCommand)
-    log("ready (chunk " .. CHUNK .. "), handling: price, tradeware, traderule, avoid hostile, signals, respond, savegame, blueprint, docked, dockat, release, licence, command, haul, loop, limit, turrets, revisit, satellite, getsupplies, resupply, ledger, repair, patrol, findbuilds, hire, deploy, panel, sellship, buyship")
+    log("ready (chunk " .. CHUNK .. "), handling: price, tradeware, traderule, avoid hostile, signals, respond, savegame, blueprint, docked, dockat, release, licence, command, haul, loop, limit, turrets, revisit, satellite, getsupplies, collect, resupply, ledger, repair, patrol, findbuilds, hire, deploy, panel, sellship, buyship")
 end
 
 -- Initialise straight away, and do NOT hand this to Register_OnLoad_Init.
