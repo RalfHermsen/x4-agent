@@ -269,6 +269,16 @@ def test_a_parked_destroyer_leaves_unless_it_waits_for_a_repair(small_state):
     assert standing.undock_fleet(state, data) == []
 
 
+def test_a_frigate_or_fighter_parked_at_our_station_leaves_one_in_its_carrier_stays(small_state):
+    """start8s: five of the route patrol and six of the carrier's fighters lay at ZLR-942."""
+    state, data = _raid_ready(small_state, destroyers=0)
+    parked = [{"order": "DockAndWait"}, {"order": "Escort", "default": True}]
+    _add_ship(state, "FRI-000", "ship_tel_m_frigate_01_a_macro", connection="dock", docked_at="KYV-745", orders=parked)
+    _add_ship(state, "FIG-000", "ship_tel_s_fighter_02_a_macro", connection="dock", docked_at="KYV-745", orders=parked)
+    _add_ship(state, "FIG-001", "ship_tel_s_fighter_02_a_macro", connection="dock", docked_at="CAR-000", orders=parked)
+    assert standing.undock_fleet(state, data) == ["undock FRI-000", "undock FIG-000"]
+
+
 def _falcon(state, zone):
     state["player"]["occupied_ship"] = "FAL-000"
     _station(state)["place"] = {"sector": "S", "zone": "by_the_station"}

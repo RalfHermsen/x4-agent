@@ -987,11 +987,17 @@ def undock_fleet(state: dict, data: dict) -> list[str]:
     a raid or a new ship waiting: in ship10b-camp VOK-360 lay at the pier and
     TUR-084 in the L bay of the wharf for 50 game hours, with a destroyer on order
     behind it. A Repair order waits on a DockAndWait too, and has two in its queue.
+    A frigate or a fighter parked so at a station of ours leaves too: in start8s the route
+    patrol's leader went out alone while its five lay at ZLR-942, and six of the carrier's
+    fighters lay there while it held Silent Witness XI. One in its carrier stays.
     """
     busy = data.get("standing", {}).get("repairing") or {}
+    stations = {a.get("code") for a in state.get("assets", []) if a.get("cls") == "station"}
     out = []
     for ship in state.get("assets", []):
-        if sitrep.ship_type(ship.get("macro")) != "destroyer" or ship.get("connection") != "dock":
+        kind = sitrep.ship_type(ship.get("macro"))
+        if ship.get("connection") != "dock" or not (
+                kind == "destroyer" or (kind in ("frigate", "fighter") and ship.get("docked_at") in stations)):
             continue
         queue = [o.get("order") for o in ship.get("orders") or [] if not o.get("default")]
         if queue == ["DockAndWait"] and ship.get("code") not in busy:
