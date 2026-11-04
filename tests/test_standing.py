@@ -21,6 +21,25 @@ def _add_ship(state, code, macro, **extra):
     return base
 
 
+def test_a_station_with_a_ship_bay_sells_what_it_makes_above_a_keep(small_state):
+    """From 191 game hours ZLR-942's S/M bay held all its field coils, none on offer."""
+    import executor
+    state = copy.deepcopy(small_state)
+    st = _station(state)
+    st["production_queue"] = ["fieldcoils", "hullparts", "water"]
+    st["offers"] = [{"ware": "hullparts", "side": "buy", "price": 150, "amount": 6462, "desired": 6462}]
+    state["player"]["blueprints"] = ["ship_tel_l_destroyer_01_a", "shield_tel_m_standard_01_mk2"]
+    data = {}
+    assert standing.wharf_sales(state, data) == []                    # no bay, nothing held
+    st["modules"] = list(st["modules"]) + [executor.EXPANSION_MODULES["wharf"][0]]
+    out = standing.wharf_sales(state, data)
+    assert "limit KYV-745 hullparts sell 6462" in out                 # its own lines want more
+    assert "tradeware KYV-745 hullparts sell on" in out
+    assert "limit KYV-745 fieldcoils sell 2000" in out                # our mk2 shield takes 32 each
+    assert not any("water" in c for c in out)                         # no ship of ours is built from it
+    assert standing.wharf_sales(state, data) == []                    # once
+
+
 def test_sell_limit_keeps_what_the_station_eats(small_state):
     state = copy.deepcopy(small_state)
     st = _station(state)

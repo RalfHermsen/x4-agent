@@ -70,6 +70,41 @@ def sell_limits(state: dict, data: dict) -> list[str]:
     return out
 
 
+WHARF_KEEP = 2000           # of a ware our wharf builds with, kept before the rest is sold
+
+
+def wharf_sales(state: dict, data: dict) -> list[str]:
+    """A station with a ship bay keeps every ware our ships are built from, all of it: from
+    191 game hours ZLR-942's new S/M bay held its 7,025 field coils, 19,700 hull parts and
+    7,700 advanced electronics, none on offer, and field coils had sold 44.5 M in a day.
+    For each such ware it makes, a sell limit of WHARF_KEEP, or what its own lines want
+    when that is more; the rest goes on sale. Once per run: the limit stays in the save.
+    """
+    import executor
+    table = gamedata.wares()
+    held = (state.get("player") or {}).get("blueprints") or []
+    needed = set()
+    for bp in held:
+        if bp.startswith(("ship_", "engine_", "thruster_", "shield_", "weapon_", "turret_", "missile_")):
+            for recipe in ((table.get(bp) or {}).get("recipes") or {}).values():
+                needed |= set((recipe.get("inputs") or {}).keys())
+    bays = {executor.EXPANSION_MODULES["wharf"][0], executor.EXPANSION_MODULES["wharf_l"][0]}
+    done = _done(data, "wharf_sales")
+    out = []
+    for st in state.get("assets", []):
+        if st.get("cls") != "station" or not st.get("code") or not bays & set(st.get("modules") or []):
+            continue
+        wanted = {o["ware"]: o.get("desired") or 0 for o in st.get("offers") or [] if o.get("side") == "buy"}
+        for ware in sorted(set(st.get("production_queue") or []) & needed):
+            key = f"{st['code']} {ware}"
+            if key in done:
+                continue
+            _mark(data, "wharf_sales", key)
+            out += [f"tradeware {st['code']} {ware} sell on",
+                    f"limit {st['code']} {ware} sell {max(WHARF_KEEP, int(wanted.get(ware, 0)))}"]
+    return out
+
+
 def revisit(state: dict, data: dict) -> list[str]:
     """4.4: an idle scout refreshes offers where our wares have few known buyers.
 
@@ -1361,7 +1396,7 @@ def civilians_flee(state: dict, data: dict) -> list[str]:
     return out
 
 
-RULES = (sell_limits, revisit, satellites, watch, ledger, once, avoid_sectors, civilians_flee, patrols, build_method,
+RULES = (sell_limits, wharf_sales, revisit, satellites, watch, ledger, once, avoid_sectors, civilians_flee, patrols, build_method,
          find_builds, hire_builders, own_stock, repairs, seminars, scouts, empty_builds, docks, managers, shiptraders,
          cargo_drones, accounts, undock_fleet, wings, raids, carriers, route_patrol, fleet, grow)
 

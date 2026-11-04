@@ -1000,6 +1000,9 @@ local function set_limit(station, args)
         if not amount then
             return refuse("limit: amount must be a number or clear, got " .. value)
         end
+        -- 0 is no limit at all to the game: asked 0 for ZLR-942's field coils, it kept all
+        -- 7,025. The station menu's slider puts 1 for 0 (helper.lua), and so does this.
+        amount = math.max(amount, 1)
         if mode == "raise" and before >= amount then
             log(string.format("limit: %s %s limit for %s is %d already, not lowering to %d",
                               args.code, side, ware, before, amount))
