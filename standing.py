@@ -1147,6 +1147,86 @@ def raids(state: dict, data: dict) -> list[str]:
     return []
 
 
+ROUTE_DWELL = 1800          # game seconds the route patrol stays at each stop
+ROUTE_BACK_BELOW = 0.6      # the patrol's hull, as a share of its whole, that sends it home early
+
+
+def route_patrol(state: dict, data: dict) -> list[str]:
+    """The plan's frigates patrol the trade route: out along `route_sectors`, back the
+    same way, and home they wait until `route_frigates` whole ones stand again; `repairs`
+    and `fleet` see to that. The player asked for it at 191 game hours, after the Scale
+    Plate Pact had killed six freighters on the way to the Teladi, most in Black Hole Sun
+    IV, the one way there. At each stop the queue goes (`undock`) and a patrol of that
+    sector comes in its place; the last stop's patrol would stay queued otherwise.
+    """
+    import executor
+    import strategy
+    held = data.setdefault("standing", {})
+    now = (state.get("meta") or {}).get("playtime_s") or 0
+    ours = {s["code"]: s for s in state.get("assets", [])
+            if (s.get("cls") or "").startswith("ship") and s.get("code")}
+    code, goal = next(((c, g) for c, g in strategy.goals(data).items()
+                       if g.get("route_sectors") and g.get("route_frigates")), (None, None))
+    route = held.get("route")
+    if not goal:
+        return []
+    if route:
+        alive = [ours[c] for c in route["ships"] if c in ours]
+        if not alive:
+            held.pop("route")
+            return []
+        if route["leader"] not in ours:
+            route["leader"] = alive[0]["code"]
+            route.pop("arrived_at", None)
+            return ([f"command {s['code']} {route['leader']} attack" for s in alive[1:]]
+                    + [f"undock {route['leader']}", f"raid {route['leader']} {route['stops'][route['stop']]} ships"])
+        hurt = sum(_hull_share(s) for s in alive) < ROUTE_BACK_BELOW * len(route["ships"])
+        here = (ours[route["leader"]].get("place") or {}).get("sector")
+        go = [f"undock {route['leader']}", f"raid {route['leader']} {route['stops'][route['stop']]} ships"]
+        if not hurt and here == route["stops"][route["stop"]]:
+            route.setdefault("arrived_at", now)
+            if now - route["arrived_at"] < ROUTE_DWELL:
+                return []
+            route["stop"] += 1
+            route.pop("arrived_at")
+            route["sent_at"] = now
+            if route["stop"] < len(route["stops"]):
+                return [f"undock {route['leader']}", f"raid {route['leader']} {route['stops'][route['stop']]} ships"]
+        elif not hurt:
+            # Not there after twice a stay: the order is told again.
+            if now - route.get("sent_at", route["since"]) >= 2 * ROUTE_DWELL:
+                route["sent_at"] = now
+                return go
+            return []
+        held.pop("route")
+        return _fly_home({"leader": route["leader"], "home": code, "guard": True}, alive)
+    home = next((a for a in state.get("assets", []) if a.get("code") == code), {})
+    home_sector = (home.get("place") or {}).get("sector")
+    out = list(goal["route_sectors"])
+    stops = out + out[-2::-1]
+    # A patrol the run before left on the route is taken over where it is: each run
+    # starts with no route in memory.
+    leader = next((s for s in ours.values() if sitrep.ship_type(s.get("macro")) == "frigate"
+                   and (s.get("place") or {}).get("sector") in stops
+                   and "Patrol" in [o.get("order") for o in s.get("orders") or [] if not o.get("default")]), None)
+    if leader:
+        under = [s["code"] for s in ours.values() if executor.serves(s, state) == (leader["code"], "attack")]
+        sector = (leader.get("place") or {}).get("sector")
+        held["route"] = {"leader": leader["code"], "ships": [leader["code"], *under], "stops": stops,
+                         "stop": stops.index(sector), "since": now, "sent_at": now}
+        return []
+    ready = [s for s in ours.values() if sitrep.ship_type(s.get("macro")) == "frigate"
+             and executor.serves(s, state) == (code, "defence")
+             and (s.get("place") or {}).get("sector") == home_sector and _hull_share(s) >= RAID_GO_FROM]
+    want = goal["route_frigates"]
+    if len(ready) < want:
+        return []
+    first, *rest = [s["code"] for s in ready[:want]]
+    held["route"] = {"leader": first, "ships": [first, *rest], "stops": stops, "stop": 0, "since": now,
+                     "sent_at": now}
+    return [f"command {s} {first} attack" for s in rest] + [f"raid {first} {stops[0]} ships"]
+
+
 def carriers(state: dict, data: dict) -> list[str]:
     """A carrier with its wing full flies with the guard, under the guard's leader as
     defence, which keeps it near the leader; an auxiliary goes along as supplyfleet and
@@ -1242,7 +1322,7 @@ def civilians_flee(state: dict, data: dict) -> list[str]:
 
 RULES = (sell_limits, revisit, satellites, watch, ledger, once, avoid_sectors, civilians_flee, patrols, build_method,
          find_builds, hire_builders, own_stock, repairs, seminars, scouts, empty_builds, docks, managers, shiptraders,
-         cargo_drones, accounts, undock_fleet, wings, raids, carriers, fleet, grow)
+         cargo_drones, accounts, undock_fleet, wings, raids, carriers, route_patrol, fleet, grow)
 
 
 def commands(state: dict, data: dict, off: set | frozenset = frozenset()) -> list[str]:

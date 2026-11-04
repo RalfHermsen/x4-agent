@@ -588,6 +588,57 @@ def test_a_carrier_with_its_wing_full_and_an_auxiliary_go_with_the_guard(small_s
                                               "command ATL-000 DES-001 supplyfleet"]
 
 
+def _route_ready(state, frigates=2):
+    """KYV-745 with whole frigates defending it and a plan for a route patrol of two stops."""
+    state, data = _raid_ready(state, destroyers=0)
+    home = _station(state)
+    for i in range(frigates):
+        _add_ship(state, f"FRI-00{i}", "ship_tel_m_frigate_01_a_macro", cls="ship_m", assignment={"group": 3},
+                  place=dict(home["place"]), orders=[{"order": "ProtectStation", "default": True}])
+    data["strategy"]["plan"]["stations"]["KYV-745"].update(route_sectors=["S1", "S2"], route_frigates=2)
+    return state, data
+
+
+def test_a_route_patrol_goes_out_stop_by_stop_and_back_home(small_state):
+    """The player asked for it at 191 game hours, against the Scale Plate Pact on the way to the Teladi."""
+    state, data = _route_ready(small_state, frigates=1)
+    assert standing.route_patrol(state, data) == []                    # one of two
+    state, data = _route_ready(small_state)
+    assert standing.route_patrol(state, data) == ["command FRI-001 FRI-000 attack", "raid FRI-000 S1 ships"]
+    route = data["standing"]["route"]
+    assert route["stops"] == ["S1", "S2", "S1"]
+    leader = next(a for a in state["assets"] if a["code"] == "FRI-000")
+    leader["place"] = {"sector": "S1"}
+    now = state["meta"]["playtime_s"] = route["since"] + 10
+    assert standing.route_patrol(state, data) == []                    # arrived, stays a while
+    state["meta"]["playtime_s"] = now + standing.ROUTE_DWELL + 1
+    assert standing.route_patrol(state, data) == ["undock FRI-000", "raid FRI-000 S2 ships"]
+    for stop in ("S2", "S1"):
+        leader["place"] = {"sector": stop}
+        standing.route_patrol(state, data)
+        state["meta"]["playtime_s"] += standing.ROUTE_DWELL + 1
+        out = standing.route_patrol(state, data)
+    assert out == ["release FRI-000", "release FRI-001", "undock FRI-000",
+                   "assign FRI-000 KYV-745 defend", "assign FRI-001 KYV-745 defend"]
+    assert "route" not in data["standing"]
+
+
+def test_a_hurt_route_patrol_comes_home_and_one_left_out_is_taken_over(small_state):
+    state, data = _route_ready(small_state)
+    standing.route_patrol(state, data)
+    next(a for a in state["assets"] if a["code"] == "FRI-001")["hull"] = 0
+    assert standing.route_patrol(state, data)[-1] == "assign FRI-001 KYV-745 defend"
+    # A new run, with the leader patrolling S2 and one under it.
+    state, data = _route_ready(small_state)
+    leader = next(a for a in state["assets"] if a["code"] == "FRI-000")
+    leader.update(place={"sector": "S2"}, orders=[{"order": "Patrol"}, {"order": "ProtectStation", "default": True}],
+                  assignment={"group": 3, "groups": {6: "attack"}})
+    next(a for a in state["assets"] if a["code"] == "FRI-001")["assignment"] = {"group": 6}
+    state["assigned_to"] = {"FRI-001": "FRI-000"}
+    assert standing.route_patrol(state, data) == []
+    assert data["standing"]["route"]["ships"] == ["FRI-000", "FRI-001"] and data["standing"]["route"]["stop"] == 1
+
+
 def test_a_guard_leaves_when_outgunned_or_with_an_xl_at_home(small_state):
     state, data = _raid_ready(small_state)
     _guarding(state, data)

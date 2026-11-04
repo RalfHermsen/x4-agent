@@ -441,6 +441,10 @@ class StationGoal(BaseModel):
                                                                        "miners keep out of, as of a hostile one")
     free_growth: bool = Field(default=True, description="with every planned target standing, expand by the "
                                                         "margin ranking; false builds only what the plan names")
+    route_sectors: list[str] = Field(default_factory=list, description="macros of the sectors a patrol of "
+                                     "frigates visits in turn and then back, from the station's sector")
+    route_frigates: int = Field(default=0, description="frigates in that patrol; it goes when this many whole "
+                                                       "ones stand at home")
 
 
 class Strategy(BaseModel):

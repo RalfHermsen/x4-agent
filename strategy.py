@@ -291,8 +291,13 @@ def fleet(state: dict, data: dict) -> list[str]:
         wants.append(("defend", None, goal.get("destroyers") or 0, "destroyer",
                       "ship_{race}_l_destroyer_01_a_macro",
                       lambda s: sitrep.ship_type(s.get("macro")) == "destroyer"))
-        # A ship out on a raid is under its leader, and still ours to count.
+        # The route patrol's frigates, from our own S/M bay (`standing.route_patrol`).
+        wants.append(("defend", None, goal.get("route_frigates") or 0, "frigate",
+                      "ship_{race}_m_frigate_01_a_macro",
+                      lambda s: sitrep.ship_type(s.get("macro")) == "frigate"))
+        # A ship out on a raid or on the route is under its leader, and still ours to count.
         raiding = set(((data.get("standing") or {}).get("raid") or {}).get("ships") or [])
+        raiding |= set(((data.get("standing") or {}).get("route") or {}).get("ships") or [])
         home = next((a for a in catalog._stations(state) if a.get("code") == code), {})
         reserve = reserve_purchase(state, data, goal, (home.get("place") or {}).get("sector"))
         if reserve:
