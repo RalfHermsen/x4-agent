@@ -2032,7 +2032,9 @@ target.
 **The guard came home from three XL.** With twenty destroyers in start8k six went back to Hatikvah's
 Choice I at 138.6 game hours and held it for about eight game hours without a loss. When a Xenon
 station and three XL stood there, at 12 destroyers needed against six, the guard was called home
-whole, and the sector stays off the list for 20 game hours.
+whole. A sector too strong stays off the list for 20 game hours only where we have no eyes; our
+satellites watch Hatikvah's Choice I, so what they see counts, and start8l sent the guard again at
+149.2 game hours with one XL in sight.
 
 **Freighters and the Scale Plate Pact.** The Pact, neutral to us at -0.003, killed six freighters from
 start8f to start8k, one in start8k's 22.6 game hours. The game's attack and kill events name no sector,
