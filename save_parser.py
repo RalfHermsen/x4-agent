@@ -672,6 +672,7 @@ def parse_save(path: str | os.PathLike) -> dict:
     # Hostile ships and stations the player has seen, per sector: what a
     # threat assessment can honestly know (knownto="player", as for markets).
     hostiles: dict[str, dict[str, dict[str, int]]] = {}
+    storages: list[dict] = []
     # Construction vessels of other factions the player has seen: who could be
     # hired for a build of ours. Whether one is busy only the game knows.
     builders: list[dict] = []
@@ -778,6 +779,13 @@ def parse_save(path: str | os.PathLike) -> dict:
                     if sector:
                         counts = hostiles.setdefault(sector, {}).setdefault(owner, {})
                         counts[cls] = counts.get(cls, 0) + 1
+                # Another faction's build storage outlives its station, and from it the faction
+                # builds again: the Pact's in Silent Witness XI, start8q.
+                if (cls == "buildstorage" and owner and owner != "player" and not wreck
+                        and current["knownto"] == "player"):
+                    storages.append({"code": current["code"], "owner": owner,
+                                     "sector": next((a.get("macro") for a in reversed(comps)
+                                                     if a["cls"] == "sector"), None)})
                 if cls == "station":
                     on_order += _ships_on_order(elem, current["code"])
                 # A ship still in a wharf's bay is in the save with its
@@ -856,6 +864,7 @@ def parse_save(path: str | os.PathLike) -> dict:
                           "attacked": a.attack.get("time")} for a in market],
         "satellites": satellites,
         "hostiles": hostiles,
+        "build_storages": storages,
         "builders": builders,
         # Sectors where we have eyes: a satellite, beacon or probe of ours.
         "eyes": sorted(e for e in eyes if e),

@@ -1279,17 +1279,29 @@ local function raid(args)
     -- Only a station the player knows, as on the map, and a factory before a defence
     -- base: in Scale Plate Green I that is 24 turrets against 74 and 120. Not a wreck: it
     -- stays on the list, and ship12e-camp's raid was sent back to the factory it had just killed.
-    local target
+    local target, storage
     for i = 0, count - 1 do
         local sectorid = station_sector(buffer[i])
         if sectorid and string.lower(GetComponentData(sectorid, "macro") or "") == sector
-                and C.IsObjectKnown(buffer[i]) and not C.IsComponentWrecked(buffer[i]) then
-            local macro = GetComponentData(ConvertStringToLuaID(tostring(buffer[i])), "macro") or ""
-            if not target or string.find(macro, "factory", 1, true) then
-                target = buffer[i]
+                and C.IsObjectKnown(buffer[i]) then
+            if not C.IsComponentWrecked(buffer[i]) then
+                local macro = GetComponentData(ConvertStringToLuaID(tostring(buffer[i])), "macro") or ""
+                if not target or string.find(macro, "factory", 1, true) then
+                    target = buffer[i]
+                end
+            end
+            -- A station's build storage outlives it, and from it the faction builds again: the
+            -- Pact's in Silent Witness XI, start8q. It goes once no station stands.
+            local bsid = GetComponentData(ConvertStringTo64Bit(tostring(buffer[i])), "buildstorage")
+            if not storage and bsid and bsid ~= 0 then
+                local bs = ConvertIDTo64Bit(bsid)
+                if bs and bs ~= 0 and not C.IsComponentWrecked(bs) then
+                    storage = bs
+                end
             end
         end
     end
+    target = target or storage
     if target and not ships_only then
         CreateOrder(ConvertStringToLuaID(tostring(ship)), "Attack",
                     { primarytarget = ConvertStringToLuaID(tostring(target)) }, false, false, true)

@@ -973,6 +973,11 @@ def _enemy(state: dict, sector: str, faction: str) -> dict:
                     if s.get("sector") == sector and s.get("owner") == faction)
         if known > seen.get("station", 0):
             seen["station"] = known
+    # A build storage outlives its station and the faction builds again from it.
+    storages = sum(1 for b in state.get("build_storages") or []
+                   if b.get("sector") == sector and b.get("owner") == faction)
+    if storages:
+        seen["buildstorage"] = storages
     return seen
 
 
@@ -1085,7 +1090,8 @@ def raids(state: dict, data: dict) -> list[str]:
                 # another stands: the `raid` before this one only found a patrol.
                 queue = [o.get("order") for o in ours[raid["leader"]].get("orders") or [] if not o.get("default")]
                 stay = raid.get("guard") and "Patrol" not in queue
-                if (raid.get("arrived") and ((left or {}).get("station") or stay) and "Attack" not in queue
+                if (raid.get("arrived") and ((left or {}).get("station") or (left or {}).get("buildstorage") or stay)
+                        and "Attack" not in queue
                         and now - raid.get("asked", -1e9) >= RAID_ASK_AGAIN):
                     raid["asked"] = now
                     return [_raid_order(raid["leader"], raid["sector"], stay, raid.get("faction", "xenon"))]
