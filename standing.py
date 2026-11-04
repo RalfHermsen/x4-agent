@@ -896,28 +896,47 @@ def wings(state: dict, data: dict) -> list[str]:
     """A free fighter flies under the destroyer with the fewest, as interception:
     it takes small and medium ships, and docks in the destroyer's four S bays.
     Free means idle, also with a commander on paper: ship9c-camp's 24 sat on Wait
-    under theirs, and a run started from a save has no wing in its memory."""
+    under theirs, and a run started from a save has no wing in its memory.
+    A carrier is filled first, to `fighters_per_carrier`: it repairs and rearms
+    the fighters docked in it, and a Colossus docks about 40 S. A fighter that
+    guards a station goes to a carrier with room too, as `fleet` makes every idle
+    warship a guard; and one under a carrier already counts, as the next run has
+    no wing in its memory."""
     import catalog
+    import executor
     import strategy
-    per = max((goal.get("fighters_per_destroyer") or 0 for goal in strategy.goals(data).values()), default=0)
-    if not per:
+    goals = strategy.goals(data).values()
+    per = max((goal.get("fighters_per_destroyer") or 0 for goal in goals), default=0)
+    per_carrier = max((goal.get("fighters_per_carrier") or 0 for goal in goals), default=0)
+    if not (per or per_carrier):
         return []
     ships = catalog._ships(state)
     codes = {s.get("code") for s in ships}
     wing = data.setdefault("standing", {}).setdefault("wing", {})
     for code in [c for c, leader in wing.items() if c not in codes or leader not in codes]:
         del wing[code]
-    load = {s["code"]: 0 for s in ships if sitrep.ship_type(s.get("macro")) == "destroyer"}
+    carriers = [s["code"] for s in ships if sitrep.ship_type(s.get("macro")) == "carrier"]
+    destroyers = [s["code"] for s in ships if sitrep.ship_type(s.get("macro")) == "destroyer"]
+    load = {code: 0 for code in carriers + destroyers}
+    for ship in ships:
+        boss, role = executor.serves(ship, state)
+        if sitrep.ship_type(ship.get("macro")) == "fighter" and role == "interception" and boss in load:
+            wing.setdefault(ship["code"], boss)
     for leader in wing.values():
-        load[leader] += 1
+        load[leader] = load.get(leader, 0) + 1
     out = []
     for ship in ships:
-        if (sitrep.ship_type(ship.get("macro")) != "fighter" or ship.get("code") in wing
-                or (sitrep.role_of(ship) != "IDLE" and sitrep._first_order(ship) != "Patrol")):
+        free = sitrep.role_of(ship) == "IDLE" or sitrep._first_order(ship) == "Patrol"
+        guard = executor.serves(ship, state)[1] == "defence"
+        if sitrep.ship_type(ship.get("macro")) != "fighter" or ship.get("code") in wing or not (free or guard):
             continue
-        leader = min(load, key=load.get, default=None)
-        if leader is None or load[leader] >= per:
-            break
+        leader = next((c for c in carriers if load[c] < per_carrier), None)
+        if leader is None:
+            if not free:
+                continue
+            leader = min(destroyers, key=load.get, default=None)
+            if leader is None or load[leader] >= per:
+                break
         load[leader] += 1
         wing[ship["code"]] = leader
         out.append(f"command {ship['code']} {leader} interception")

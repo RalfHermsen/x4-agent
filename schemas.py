@@ -420,6 +420,8 @@ class StationGoal(BaseModel):
     destroyers: int = Field(description="how many destroyers from our own L bay should defend the station")
     fighters_per_destroyer: int = Field(description="how many fighters from our own wharf fly under each "
                                                     "planned destroyer; a Teladi destroyer docks four")
+    fighters_per_carrier: int = Field(default=0, description="how many fighters fly under each carrier of ours, "
+                                                             "before any go under a destroyer")
     raid_sector: str = Field(description="macro of a sector whose Xenon stations the destroyers attack "
                                          "once all of them stand; empty for no raid")
     raid_home: int = Field(default=0, description="destroyers that stay at the station: a raid goes only "

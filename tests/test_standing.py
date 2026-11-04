@@ -465,6 +465,21 @@ def test_free_fighters_spread_over_the_destroyers_up_to_the_plan(small_state):
     assert standing.wings(state, data) == ["command FIG-002 DES-000 interception"]
 
 
+def test_a_carrier_is_filled_first_also_from_the_fighters_guarding_home(small_state):
+    state, data = _raid_ready(small_state, destroyers=1)
+    data["strategy"]["plan"]["stations"]["KYV-745"].update(fighters_per_destroyer=1, fighters_per_carrier=2)
+    _add_ship(state, "CAR-000", "ship_arg_xl_carrier_01_a_macro", cls="ship_xl",
+              assignment={"groups": {5: "interception"}})
+    _with_fighters(state, 4)
+    # FIG-000 flew under the carrier in the run before; FIG-001 was made a guard of home.
+    next(a for a in state["assets"] if a["code"] == "FIG-000")["assignment"] = {"group": 5}
+    next(a for a in state["assets"] if a["code"] == "FIG-001").update(
+        assignment={"group": 3}, orders=[{"order": "ProtectStation", "default": True}])
+    assert standing.wings(state, data) == ["command FIG-001 CAR-000 interception",
+                                           "command FIG-002 DES-000 interception"]
+    assert standing.wings(state, data) == []                   # carrier and destroyer full
+
+
 def test_fighters_without_a_place_patrol_until_a_destroyer_stands(small_state):
     state, data = _raid_ready(small_state, destroyers=1)
     data["strategy"]["plan"]["stations"]["KYV-745"]["fighters_per_destroyer"] = 1
