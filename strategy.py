@@ -265,8 +265,12 @@ def fleet(state: dict, data: dict) -> list[str]:
     # Kestrel bought for the carrier was sent to it and, in the same cycle, to guard home.
     winged = any((g.get("fighters_per_destroyer") or 0) or (g.get("fighters_per_carrier") or 0)
                  for g in plan.values())
+    # A freighter lent to a build storage this cycle (executor.feed_build_storages runs
+    # first) is not free: in start8t XOV-290 went to ZXX-974's build storage and, the same
+    # cycle, to its trade, and the build waited 30 game hours on turret components.
+    lent = {f["ship"] for each in (data.get("feeders") or {}).values() for f in each}
     free = [s for s in catalog._ships(state)
-            if (s.get("assignment") or {}).get("group") is None and s.get("code") not in errand
+            if (s.get("assignment") or {}).get("group") is None and s.get("code") not in errand | lent
             and sitrep.role_of(s) == "IDLE" and not (winged and sitrep.ship_type(s.get("macro")) == "fighter")]
     held = set((state.get("player") or {}).get("blueprints") or [])
     named = set(((data.get("strategy") or {}).get("plan") or {}).get("blueprints") or [])

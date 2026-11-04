@@ -166,6 +166,20 @@ def test_a_trader_lent_to_the_build_storage_is_not_bought_again(small_state, mon
     assert "traders 1/1" in strategy.lines(state, plan)[1]
 
 
+def test_a_freighter_lent_this_cycle_is_not_made_a_trader_too(small_state, monkeypatch):
+    """start8t: XOV-290 went to ZXX-974's build storage and its trade in one cycle."""
+    state = copy.deepcopy(small_state)
+    _ship(state, "TRA-001", "ship_tel_m_trans_container_01_a_macro")
+    state["assets"] = [a for a in state["assets"] if a.get("cls") == "station" or a["code"] == "TRA-001"]
+    monkeypatch.setattr(catalog, "_through_gates",
+                        lambda action, state: f"assign {action['ship_ref']} {action['station_id']} {action['role']}")
+    monkeypatch.setattr(catalog, "_buy_options", lambda state, roles, **kw: [])
+    plan = {"strategy": {"plan": dict(PLAN, stations={"KYV-745": {"build": {}, "miners": {}, "traders": 2}})}}
+    assert "assign TRA-001 KYV-745 trade" in strategy.fleet(state, plan)
+    plan["feeders"] = {"KYV-745": [{"ship": "TRA-001", "before": None}]}
+    assert "assign TRA-001 KYV-745 trade" not in strategy.fleet(state, plan)
+
+
 def test_fleet_assigns_a_free_ship_before_it_buys_one(small_state, monkeypatch):
     state = copy.deepcopy(small_state)
     state["assets"] = [a for a in state["assets"] if a.get("cls") == "station" or a["code"] == "ASO-629"]
