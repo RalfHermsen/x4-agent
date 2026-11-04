@@ -605,7 +605,9 @@ def scouts(state: dict, data: dict) -> list[str]:
     ours = [s for s in catalog._ships(state) if sitrep.ship_type(s.get("macro")) == "scout"]
     st = data.setdefault("standing", {})
     planned = max((goal.get("scouts") or 0 for goal in strategy.goals(data).values()), default=0)
-    most = max(st.get("scouts_most", 0), len(ours), planned)
+    # A plan's number is the ceiling too: scouts bought to place satellites raised "the most
+    # we have had" to 15 by start8s, with 10 sectors left unknown, and each loss was replaced.
+    most = planned or max(st.get("scouts_most", 0), len(ours))
     st["scouts_most"] = most
     now = state.get("meta", {}).get("playtime_s") or 0
     # A scout still at the wharf takes no order yet and stays idle; the explore

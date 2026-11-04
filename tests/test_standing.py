@@ -955,6 +955,24 @@ def test_a_lost_scout_is_replaced_at_once(small_state):
     assert standing.scouts(state, data) == []                 # one at a time while it comes
 
 
+def test_a_plans_number_of_scouts_is_the_ceiling_too(small_state):
+    """start8s: 15 scouts, the plan's 5, every loss replaced up to the most ever."""
+    import copy
+    state = copy.deepcopy(small_state)
+    state["player"]["money"] = 50_000_000
+    home = _station(state)
+    state["known_stations"].append({"code": "YRD-001", "owner": "argon", "builds": ["m"],
+                                    "place": dict(home["place"])})
+    state["assets"] = [a for a in state["assets"] if sitrep.ship_type(a.get("macro")) != "scout"]
+    for i in range(3):
+        _add_ship(state, f"SCT-00{i}", "ship_arg_s_scout_01_a_macro", owner="player",
+                  orders=[{"order": "Explore", "default": True, "state": "started"}])
+    data = {"strategy": {"plan": {"stations": {"START": {"scouts": 2}}}}, "standing": {"scouts_most": 15}}
+    assert not any(c.startswith("buyship") for c in standing.scouts(state, data))
+    state["assets"] = [a for a in state["assets"] if a.get("code") not in ("SCT-000", "SCT-001")]
+    assert any(c.startswith("buyship") for c in standing.scouts(state, data))    # one left of two
+
+
 def test_a_plan_buys_the_first_scouts(small_state):
     import copy
     state = copy.deepcopy(small_state)
