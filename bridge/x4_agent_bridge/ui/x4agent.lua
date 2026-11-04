@@ -848,19 +848,20 @@ local function dock_at(args)
     return true
 end
 
-local ROLE_GROUP = { attack = true, interception = true, defence = true, assist = true }
+local ROLE_GROUP = { attack = true, interception = true, defence = true, assist = true, supplyfleet = true }
 
 --- "command NBO-436 JFZ-239 interception" -> put a ship of ours under another
 --- ship of ours, in a role. Lua only finds the two ships; MD assigns (see the
---- Agent_Command cues).
+--- Agent_Command cues). `supplyfleet` is the role of an auxiliary: it supplies
+--- the fleet of its commander (aiscripts/order.supply.xml).
 local function command_ship(args)
     local shipcode, commandercode, role = args[1], args[2], args[3]
     if not (shipcode and commandercode and role) then
-        return refuse("command needs: command <SHIP> <COMMANDER SHIP> <attack|interception|defence|assist>")
+        return refuse("command needs: command <SHIP> <COMMANDER SHIP> <attack|interception|defence|assist|supplyfleet>")
     end
     local group = ROLE_GROUP[role]
     if not group then
-        return refuse("command: role must be attack, interception, defence or assist, got " .. role)
+        return refuse("command: role must be attack, interception, defence, assist or supplyfleet, got " .. role)
     end
     local ships = player_ships()
     local ship, commander = ships[shipcode], ships[commandercode]
@@ -1064,6 +1065,24 @@ local function deploy_satellite(args)
         amountstodeploy = 1,
     }, false, false, false, nil, nil, nil, true)
     log(string.format("ORDER: %s deploys a satellite near %s", shipcode, stationcode))
+    return true
+end
+
+--- "getsupplies ATL-001" -> a carrier or auxiliary of ours goes to buy what it
+--- needs to resupply its fleet (aiscripts/order.restock.getsupplies.xml). The
+--- game sends one there by itself only when it is not the player's
+--- (aiscripts/order.supply.xml).
+local function get_supplies(args)
+    local shipcode = args[1]
+    local ship = shipcode and player_ships()[shipcode]
+    if not ship then
+        return refuse("getsupplies needs: getsupplies <SHIP>")
+    end
+    if not C.IsOrderSelectableFor("GetSupplies", ship) then
+        return refuse("getsupplies: " .. shipcode .. " cannot take a GetSupplies order")
+    end
+    CreateOrder(ConvertStringToLuaID(tostring(ship)), "GetSupplies", {}, false, false, false, nil, nil, nil, true)
+    log(string.format("ORDER: %s gets supplies", shipcode))
     return true
 end
 
@@ -2244,6 +2263,7 @@ local BARE_HANDLERS = {
     loop = loop_orders,
     revisit = revisit,
     satellite = deploy_satellite,
+    getsupplies = get_supplies,
     resupply = set_resupply,
     ledger = ledger,
     repair = repair,
@@ -2343,7 +2363,7 @@ local function init()
     end
     _G.__X4AGENT_COMMAND_HANDLER = X4Agent.onCommand
     RegisterEvent("X4Agent.Command", X4Agent.onCommand)
-    log("ready (chunk " .. CHUNK .. "), handling: price, tradeware, traderule, avoid hostile, signals, respond, savegame, blueprint, docked, dockat, release, licence, command, haul, loop, limit, turrets, revisit, satellite, resupply, ledger, repair, patrol, findbuilds, hire, deploy, panel, sellship, buyship")
+    log("ready (chunk " .. CHUNK .. "), handling: price, tradeware, traderule, avoid hostile, signals, respond, savegame, blueprint, docked, dockat, release, licence, command, haul, loop, limit, turrets, revisit, satellite, getsupplies, resupply, ledger, repair, patrol, findbuilds, hire, deploy, panel, sellship, buyship")
 end
 
 -- Initialise straight away, and do NOT hand this to Register_OnLoad_Init.

@@ -1276,7 +1276,7 @@
   <cue name="Agent_Command_Commander" instantiate="true">
     <conditions>
       <event_ui_triggered screen="'X4Agent'"/>
-      <check_value value="event.param2 == 'command_attack' or event.param2 == 'command_interception' or event.param2 == 'command_defence' or event.param2 == 'command_assist'"/>
+      <check_value value="event.param2 == 'command_attack' or event.param2 == 'command_interception' or event.param2 == 'command_defence' or event.param2 == 'command_assist' or event.param2 == 'command_supplyfleet'"/>
     </conditions>
     <actions>
       <set_value name="$ship" exact="Agent_Command_Store.$ship"/>
@@ -1292,6 +1292,9 @@
         </do_elseif>
         <do_elseif value="event.param2 == 'command_defence'">
           <set_value name="$role" exact="assignment.defence"/>
+        </do_elseif>
+        <do_elseif value="event.param2 == 'command_supplyfleet'">
+          <set_value name="$role" exact="assignment.supplyfleet"/>
         </do_elseif>
         <create_order object="$ship" id="'AssignCommander'" immediate="true">
           <param name="commander" value="$commander"/>

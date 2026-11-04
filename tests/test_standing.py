@@ -314,6 +314,15 @@ def test_shiprespond_is_a_bare_verb_of_the_bridge():
     assert "SetDefaultResponseToSignalForControllable(const char* newresponse" in lua
 
 
+def test_the_bridge_puts_an_auxiliary_under_a_fleet_and_sends_it_for_supplies():
+    root = Path(__file__).parent.parent / "bridge/x4_agent_bridge"
+    lua = (root / "ui/x4agent.lua").read_text(encoding="utf-8")
+    md = (root / "md/x4_agent_bridge.xml").read_text(encoding="utf-8")
+    assert "supplyfleet = true" in lua.split("local ROLE_GROUP = {", 1)[1].split("}", 1)[0]
+    assert "getsupplies = get_supplies" in lua.split("local BARE_HANDLERS = {", 1)[1].split("}", 1)[0]
+    assert "event.param2 == 'command_supplyfleet'" in md and 'exact="assignment.supplyfleet"' in md
+
+
 def test_the_plans_sectors_to_avoid_are_listed_once_each(small_state):
     state, data = _raid_ready(small_state)
     data["strategy"]["plan"]["stations"]["KYV-745"]["avoid_sectors"] = ["cluster_29_sector001_macro"]
