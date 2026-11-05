@@ -463,13 +463,18 @@ def test_a_guard_hunts_a_ship_that_attacked_a_freighter_on_its_way_once(small_st
     aso = next(a for a in state["assets"] if a["code"] == "ASO-629")
     state["assets"].append(dict(copy.deepcopy(aso), code="TRA-001", macro="ship_tel_m_trans_container_01_a_macro",
                                 place={"sector": XEN_SECTOR}))
+    state["assets"].append(dict(copy.deepcopy(aso), code="TRA-002", macro="ship_tel_m_trans_container_01_a_macro",
+                                place=dict(_station(state)["place"])))
     data["standing"] = {"raid": {"sector": XEN_SECTOR, "home": "KYV-745", "home_sector": _station(state)["place"]["sector"],
                                  "leader": "DES-000", "ships": ["DES-000", "DES-001", "DES-002"], "phase": "out",
                                  "since": 0, "arrived": True, "guard": True, "faction": "scaleplate"}}
     state["meta"]["playtime_s"] = 1000
     state["logbook"] = [[900.0, "[x4-agent] ATTACKED: TRA-001 by OLD-001 (Scale Plate Pact) [scaleplate]"]]
     assert standing.hunts(state, data) == []                    # before this run: history
+    # Not the Xenon or the Kha'ak, and not at home: start9c's hunters followed Kha'ak off the way.
     state["logbook"] += [[1010.0, "[x4-agent] ATTACKED: TRA-001 by XEN-001 (Xenon) [xenon]"],
+                         [1010.5, "[x4-agent] ATTACKED: TRA-001 by KHA-001 (Kha'ak) [khaak]"],
+                         [1010.7, "[x4-agent] ATTACKED: TRA-002 by PAC-007 (Scale Plate Pact) [scaleplate]"],
                          [1011.0, "[x4-agent] ATTACKED: DES-001 by PAC-008 (Scale Plate Pact) [scaleplate]"],
                          [1012.0, "[x4-agent] ATTACKED: TRA-001 by PAC-009 (Scale Plate Pact) [scaleplate]"]]
     state["meta"]["playtime_s"] = 1020

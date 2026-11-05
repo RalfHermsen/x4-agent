@@ -1243,14 +1243,17 @@ HUNTED_FOR = ("container freighter", "solid miner", "liquid miner", "scout")
 
 def hunts(state: dict, data: dict) -> list[str]:
     """A guard's destroyers go after a ship that attacked one of our freighters, miners or
-    scouts in the guard's sector or on its way there, once per attacker; the Xenon are the
-    raid's own business. The player's plan for 2026-11-05: fleets that keep attacking any
-    enemy from Silent Witness XII. A guard on its Patrol did not: in start8z and start9a the
-    Pact's scout QRJ-271 shot five freighters in Silent Witness XI, and its bombers kept
-    coming into XII. By hand, `hunt` killed each within a cycle or two. The faction is the
-    id MD writes behind the attacker's name.
+    scouts in the guard's sector or the one before it on the way, once per attacker. The
+    player's plan for 2026-11-05: fleets that keep attacking any enemy from Silent Witness
+    XII. A guard on its Patrol did not: in start8z and start9a the Pact's scout QRJ-271 shot
+    five freighters in Silent Witness XI, and its bombers kept coming into XII. By hand,
+    `hunt` killed each within a cycle or two. The faction is the id MD writes behind the
+    attacker's name. Not the Xenon or the Kha'ak, whom the Patrol fights where it stands, and
+    not at home: in start9c hunters followed Kha'ak from Argon Prime into Second Contact II
+    Flashpoint, off the way, and the guard of 30 was called home.
     """
     import purchases
+    import save_parser
     held = data.setdefault("standing", {})
     ours = {s["code"]: s for s in state.get("assets", [])
             if (s.get("cls") or "").startswith("ship") and s.get("code")}
@@ -1269,11 +1272,11 @@ def hunts(state: dict, data: dict) -> list[str]:
     graph = purchases._graph()
     route = purchases.jumps(graph, raid["home_sector"], raid["sector"])
 
-    def on_the_way(sector):
-        return sector is not None and (
-            sector in (raid["sector"], raid["home_sector"])
-            or purchases.jumps(graph, raid["home_sector"], sector) + purchases.jumps(graph, sector, raid["sector"]) == route)
-    now = (state.get("meta") or {}).get("playtime_s") or 0
+    def near(sector):
+        return sector not in (None, raid["home_sector"]) and (sector == raid["sector"] or (
+            purchases.jumps(graph, sector, raid["sector"]) == 1
+            and purchases.jumps(graph, raid["home_sector"], sector) == route - 1))
+    now =(state.get("meta") or {}).get("playtime_s") or 0
     prey = held.setdefault("prey", {})
     for when, text in logbook:
         found = when > seen and re.search(r"(?:ATTACKED|DESTROYED): (\S+) by (\S+) \([^)]*\) \[(\w+)\]", text)
@@ -1281,7 +1284,7 @@ def hunts(state: dict, data: dict) -> list[str]:
             continue
         victim, attacker, faction = found.groups()
         sector, kind = where.get(victim) or (None, None)
-        if faction != "xenon" and kind in HUNTED_FOR and on_the_way(sector):
+        if faction not in save_parser.ALWAYS_HOSTILE and kind in HUNTED_FOR and near(sector):
             prey.setdefault(attacker, {"faction": faction, "since": when})
     for code in [c for c, p in prey.items() if now - p["since"] > HUNT_FOR]:
         del prey[code]
