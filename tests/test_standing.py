@@ -455,6 +455,38 @@ def test_a_guard_goes_on_until_the_build_storages_are_gone_too(small_state):
     assert standing.raids(state, data) == []                    # only the patrol stays
 
 
+def test_a_guard_hunts_a_ship_that_attacked_a_freighter_on_its_way_once(small_state):
+    """start9a: the Pact's scout QRJ-271 shot five freighters in Silent Witness XI past the guard."""
+    state, data = _raid_ready(small_state)
+    for code in ("DES-000", "DES-001", "DES-002"):
+        next(a for a in state["assets"] if a["code"] == code)["place"] = {"sector": XEN_SECTOR}
+    aso = next(a for a in state["assets"] if a["code"] == "ASO-629")
+    state["assets"].append(dict(copy.deepcopy(aso), code="TRA-001", macro="ship_tel_m_trans_container_01_a_macro",
+                                place={"sector": XEN_SECTOR}))
+    data["standing"] = {"raid": {"sector": XEN_SECTOR, "home": "KYV-745", "home_sector": _station(state)["place"]["sector"],
+                                 "leader": "DES-000", "ships": ["DES-000", "DES-001", "DES-002"], "phase": "out",
+                                 "since": 0, "arrived": True, "guard": True, "faction": "scaleplate"}}
+    state["meta"]["playtime_s"] = 1000
+    state["logbook"] = [[900.0, "[x4-agent] ATTACKED: TRA-001 by OLD-001 (Scale Plate Pact) [scaleplate]"]]
+    assert standing.hunts(state, data) == []                    # before this run: history
+    state["logbook"] += [[1010.0, "[x4-agent] ATTACKED: TRA-001 by XEN-001 (Xenon) [xenon]"],
+                         [1011.0, "[x4-agent] ATTACKED: DES-001 by PAC-008 (Scale Plate Pact) [scaleplate]"],
+                         [1012.0, "[x4-agent] ATTACKED: TRA-001 by PAC-009 (Scale Plate Pact) [scaleplate]"]]
+    state["meta"]["playtime_s"] = 1020
+    assert standing.hunts(state, data) == ["hunt DES-001 PAC-009 scaleplate", "hunt DES-002 PAC-009 scaleplate"]
+    assert standing.hunts(state, data) == []                    # once
+    # Shot down, it is gone from the save, and where it was last cycle still counts.
+    state["assets"] = [a for a in state["assets"] if a["code"] != "TRA-001"]
+    state["logbook"].append([1030.0, "[x4-agent] DESTROYED: TRA-001 by PAC-010 (Scale Plate Pact) [scaleplate]"])
+    assert standing.hunts(state, data) == ["hunt DES-001 PAC-010 scaleplate", "hunt DES-002 PAC-010 scaleplate"]
+
+
+def test_the_bridge_names_an_attackers_faction_by_its_id(small_state):
+    md = (Path(__file__).parent.parent / "bridge/x4_agent_bridge/md/x4_agent_bridge.xml").read_text(encoding="utf-8")
+    assert "ATTACKED: %s by %s (%s) [%s]" in md and "@event.param.owner.id]" in md
+    assert "DESTROYED: %s by %s (%s) [%s]" in md and "@event.param2.owner.id]" in md
+
+
 def test_a_guard_that_lost_its_patrol_is_told_again_at_once(small_state):
     """start8y: the Pact's base fell, the queue was empty and the guard flew home."""
     state, data = _raid_ready(small_state)

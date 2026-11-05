@@ -1047,7 +1047,7 @@
       <do_if value="not @Owned_Attack_Store.$last.{event.object} or player.age gt Owned_Attack_Store.$last.{event.object} + 300s">
         <set_value name="Owned_Attack_Store.$last.{event.object}" exact="player.age"/>
         <write_to_logbook category="general"
-          text="'[x4-agent] ATTACKED: %s by %s (%s)'.[event.object.idcode, @event.param.idcode, @event.param.owner.knownname]"/>
+          text="'[x4-agent] ATTACKED: %s by %s (%s) [%s]'.[event.object.idcode, @event.param.idcode, @event.param.owner.knownname, @event.param.owner.id]"/>
         <signal_cue_instantly cue="md.Named_Pipes.Write"
           param="table[$pipe = 'x4_agent', $msg = 'event attacked %s'.[event.object.idcode]]"/>
       </do_if>
@@ -1062,7 +1062,7 @@
     </conditions>
     <actions>
       <write_to_logbook category="general"
-        text="'[x4-agent] DESTROYED: %s by %s (%s)'.[event.param.idcode, @event.param2.idcode, @event.param2.owner.knownname]"/>
+        text="'[x4-agent] DESTROYED: %s by %s (%s) [%s]'.[event.param.idcode, @event.param2.idcode, @event.param2.owner.knownname, @event.param2.owner.id]"/>
       <signal_cue_instantly cue="md.Named_Pipes.Write"
         param="table[$pipe = 'x4_agent', $msg = 'event destroyed %s'.[event.param.idcode]]"/>
     </actions>

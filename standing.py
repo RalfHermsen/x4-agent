@@ -1236,6 +1236,69 @@ def raids(state: dict, data: dict) -> list[str]:
     return []
 
 
+HUNTERS = 6                 # a guard's destroyers sent after one ship that attacked ours
+HUNT_FOR = 7200             # game seconds an attacker stays worth sending them after
+HUNTED_FOR = ("container freighter", "solid miner", "liquid miner", "scout")
+
+
+def hunts(state: dict, data: dict) -> list[str]:
+    """A guard's destroyers go after a ship that attacked one of our freighters, miners or
+    scouts in the guard's sector or on its way there, once per attacker; the Xenon are the
+    raid's own business. The player's plan for 2026-11-05: fleets that keep attacking any
+    enemy from Silent Witness XII. A guard on its Patrol did not: in start8z and start9a the
+    Pact's scout QRJ-271 shot five freighters in Silent Witness XI, and its bombers kept
+    coming into XII. By hand, `hunt` killed each within a cycle or two. The faction is the
+    id MD writes behind the attacker's name.
+    """
+    import purchases
+    held = data.setdefault("standing", {})
+    ours = {s["code"]: s for s in state.get("assets", [])
+            if (s.get("cls") or "").startswith("ship") and s.get("code")}
+    # Where each of ours was last cycle too: a freighter shot down is not in this save.
+    before = held.get("where") or {}
+    held["where"] = {code: [(s.get("place") or {}).get("sector"), sitrep.ship_type(s.get("macro"))]
+                     for code, s in ours.items()}
+    where = {**before, **held["where"]}
+    logbook = state.get("logbook") or []
+    seen = held.get("hunt_seen")
+    held["hunt_seen"] = max([seen or 0.0] + [when for when, _ in logbook])
+    raid = held.get("raid")
+    # The first cycle reads no lines: those were before this run, their attackers long gone.
+    if seen is None or not (raid and raid.get("guard") and raid.get("arrived") and raid.get("phase") == "out"):
+        return []
+    graph = purchases._graph()
+    route = purchases.jumps(graph, raid["home_sector"], raid["sector"])
+
+    def on_the_way(sector):
+        return sector is not None and (
+            sector in (raid["sector"], raid["home_sector"])
+            or purchases.jumps(graph, raid["home_sector"], sector) + purchases.jumps(graph, sector, raid["sector"]) == route)
+    now = (state.get("meta") or {}).get("playtime_s") or 0
+    prey = held.setdefault("prey", {})
+    for when, text in logbook:
+        found = when > seen and re.search(r"(?:ATTACKED|DESTROYED): (\S+) by (\S+) \([^)]*\) \[(\w+)\]", text)
+        if not found:
+            continue
+        victim, attacker, faction = found.groups()
+        sector, kind = where.get(victim) or (None, None)
+        if faction != "xenon" and kind in HUNTED_FOR and on_the_way(sector):
+            prey.setdefault(attacker, {"faction": faction, "since": when})
+    for code in [c for c, p in prey.items() if now - p["since"] > HUNT_FOR]:
+        del prey[code]
+    sent = _done(data, "hunt")
+    for code, p in prey.items():
+        if code in sent:
+            continue
+        hunters = [c for c in raid["ships"] if c in ours and c != raid["leader"]
+                   and (ours[c].get("place") or {}).get("sector") == raid["sector"]
+                   and "Attack" not in [o.get("order") for o in ours[c].get("orders") or [] if not o.get("default")]]
+        if not hunters:
+            return []
+        _mark(data, "hunt", code)
+        return [f"hunt {c} {code} {p['faction']}" for c in hunters[:HUNTERS]]
+    return []
+
+
 ROUTE_DWELL = 1800          # game seconds the route patrol stays at each stop
 ROUTE_BACK_BELOW = 0.6      # the patrol's hull, as a share of its whole, that sends it home early
 
@@ -1422,7 +1485,7 @@ def civilians_flee(state: dict, data: dict) -> list[str]:
 
 RULES = (sell_limits, wharf_sales, revisit, satellites, watch, ledger, once, avoid_sectors, civilians_flee, patrols, build_method,
          find_builds, hire_builders, own_stock, repairs, seminars, scouts, empty_builds, docks, managers, shiptraders,
-         cargo_drones, accounts, undock_fleet, wings, raids, carriers, route_patrol, fleet, grow)
+         cargo_drones, accounts, undock_fleet, wings, raids, hunts, carriers, route_patrol, fleet, grow)
 
 
 def commands(state: dict, data: dict, off: set | frozenset = frozenset()) -> list[str]:
