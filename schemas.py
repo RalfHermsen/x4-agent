@@ -449,6 +449,10 @@ class StationGoal(BaseModel):
                                      "frigates visits in turn and then back, from the station's sector")
     route_frigates: int = Field(default=0, description="frigates in that patrol; it goes when this many whole "
                                                        "ones stand at home")
+    patrol_sectors: dict[str, int] = Field(default_factory=dict, description="sector macro to how many fighters "
+                                                                            "patrol it, each on its own Patrol")
+    escorts_per_trader: int = Field(default=0, description="fighters that fly under each of this station's "
+                                                           "traders, in defence")
 
 
 class Strategy(BaseModel):

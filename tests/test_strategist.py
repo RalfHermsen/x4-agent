@@ -27,7 +27,8 @@ def test_the_models_additions_become_the_plans_totals_from_what_stands():
                                                "raid_sector": "", "raid_unseen": False, "raid_from": 0, "raid_home": 0,
                                                "raid_guard": False, "watch_sectors": [], "watch_known": False,
                                                    "scouts": 0, "avoid_sectors": [], "free_growth": True,
-                                               "route_sectors": [], "route_frigates": 0, "raid_faction": "xenon", "carrier_station": ""}
+                                               "route_sectors": [], "route_frigates": 0, "raid_faction": "xenon", "carrier_station": "",
+                                               "patrol_sectors": {}, "escorts_per_trader": 0}
     assert plan["horizon_hours"] == 4 and plan["rationale"].startswith("GKL-870")
 
 

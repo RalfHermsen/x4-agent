@@ -486,6 +486,62 @@ def test_a_guard_hunts_a_ship_that_attacked_a_freighter_on_its_way_once(small_st
     assert standing.hunts(state, data) == ["hunt DES-001 PAC-010 scaleplate", "hunt DES-002 PAC-010 scaleplate"]
 
 
+def _fighters_ready(small_state, fighters=4):
+    """KYV-745 with one trader of its own and this many free fighters."""
+    state, data = _raid_ready(small_state, destroyers=0)
+    home = _station(state)
+    home["assignment"] = {"groups": {1: "trade"}}
+    aso = next(a for a in state["assets"] if a["code"] == "ASO-629")
+    state["assets"].append(dict(copy.deepcopy(aso), code="TRA-001", macro="ship_tel_m_trans_container_01_a_macro",
+                                assignment={"group": 1}, place=dict(home["place"])))
+    state["assigned_to"] = {"TRA-001": "KYV-745"}
+    state["assets"] += [dict(copy.deepcopy(aso), code=f"FIG-00{i}", cls="ship_s", macro="ship_tel_s_fighter_01_a_macro",
+                             assignment=None, orders=[], place=dict(home["place"])) for i in range(fighters)]
+    goal = data["strategy"]["plan"]["stations"]["KYV-745"]
+    goal.update(patrol_sectors={XEN_SECTOR: 2}, escorts_per_trader=2, traders=1)
+    state["meta"]["playtime_s"] = 1000
+    return state, data
+
+
+def test_free_fighters_patrol_a_sector_first_then_escort_the_traders(small_state):
+    """The player's call at 362 game hours: miners lost to the Kha'ak in Second Contact II
+    Flashpoint, freighters to the Pact."""
+    state, data = _fighters_ready(small_state, fighters=3)
+    assert standing.fighter_posts(state, data) == [f"raid FIG-000 {XEN_SECTOR} stay", f"raid FIG-001 {XEN_SECTOR} stay",
+                                                   "command FIG-002 TRA-001 defence"]
+    assert standing.fighter_posts(state, data) == []            # each once
+    # wings and patrols leave them alone.
+    data["strategy"]["plan"]["stations"]["KYV-745"]["fighters_per_carrier"] = 40
+    assert not any("FIG-" in c for c in standing.wings(state, data))
+    # A patrol whose Patrol went is told again, not at once; the escort, under its trader now, stays.
+    fig = next(a for a in state["assets"] if a["code"] == "FIG-000")
+    fig["orders"] = [{"order": "Patrol"}]
+    next(a for a in state["assets"] if a["code"] == "FIG-002")["assignment"] = {"group": 5}
+    state["meta"]["playtime_s"] += standing.PATROL_AGAIN
+    assert standing.fighter_posts(state, data) == [f"raid FIG-001 {XEN_SECTOR} stay"]
+
+
+def test_a_sector_patrol_is_known_again_from_the_save(small_state):
+    """A run starts with no memory: a free fighter on a Patrol in the sector is its patrol."""
+    state, data = _fighters_ready(small_state, fighters=2)
+    fig = next(a for a in state["assets"] if a["code"] == "FIG-000")
+    fig.update(orders=[{"order": "Patrol"}], place={"sector": XEN_SECTOR})
+    assert standing.fighter_posts(state, data) == [f"raid FIG-001 {XEN_SECTOR} stay"]
+
+
+def test_fleet_builds_fighters_for_the_patrols_and_escorts(small_state):
+    import strategy
+    state, data = _fighters_ready(small_state, fighters=0)
+    calls = []
+    real = strategy.own_build
+    strategy.own_build = lambda state, pattern, size="m", brake=True: calls.append(pattern) or None
+    try:
+        strategy.fleet(state, data)
+    finally:
+        strategy.own_build = real
+    assert "ship_{race}_s_fighter_02_a_macro" in calls
+
+
 def test_the_bridge_names_an_attackers_faction_by_its_id(small_state):
     md = (Path(__file__).parent.parent / "bridge/x4_agent_bridge/md/x4_agent_bridge.xml").read_text(encoding="utf-8")
     assert "ATTACKED: %s by %s (%s) [%s]" in md and "@event.param.owner.id]" in md

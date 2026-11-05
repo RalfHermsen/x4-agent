@@ -282,11 +282,13 @@ def patrols(state: dict, data: dict) -> list[str]:
     if per and strategy.fighters_flying(state) < per * destroyers:
         return []       # there is room under a destroyer (`wings`)
     sent = _done(data, "patrol")
+    held = data.get("standing") or {}
+    posted = set(held.get("sector_patrol") or {}) | set(held.get("escorting") or {})   # `fighter_posts`'
     out = []
     for ship in state.get("assets", []):
         if (sitrep.ship_type(ship.get("macro")) == "fighter" and sitrep.role_of(ship) == "IDLE"
                 and (ship.get("assignment") or {}).get("group") is None
-                and ship.get("code") not in sent):
+                and ship.get("code") not in sent and ship.get("code") not in posted):
             _mark(data, "patrol", ship["code"])
             out.append(f"patrol {ship['code']} {threatened[0]}")
             if not per:
@@ -929,6 +931,77 @@ def shelter(state: dict, data: dict) -> list[str]:
     return ([f"undock {occupied}"] if first else []) + [f"autopilot {home} {faction}"]
 
 
+PATROL_AGAIN = 1800         # game seconds before a sector patrol's fighter is told its Patrol again
+
+
+def fighter_posts(state: dict, data: dict) -> list[str]:
+    """The plan's fighters on their posts. `patrol_sectors` sends free fighters to patrol a
+    sector, each on a Patrol of its own (`raid ... stay`), so they spread over it; one whose
+    Patrol went is told again. `escorts_per_trader` puts free fighters under each of a
+    station's traders, in defence. The player's call at 362 game hours: five miners were lost
+    to the Kha'ak in Second Contact II Flashpoint past two destroyers on Patrol there, and
+    twenty freighters to the Pact over the day. The sector patrols are filled first; `wings`
+    and `patrols` leave these fighters alone. A fighter with no commander on a Patrol in one
+    of the sectors is that sector's, also in a run that starts with no memory.
+    """
+    import catalog
+    import executor
+    import strategy
+    held = data.setdefault("standing", {})
+    now = (state.get("meta") or {}).get("playtime_s") or 0
+    goals = strategy.goals(data)
+    sectors = {s: n for goal in goals.values() for s, n in (goal.get("patrol_sectors") or {}).items()}
+    ships = catalog._ships(state)
+    ours = {s["code"]: s for s in ships}
+    fighters = [s for s in ships if sitrep.ship_type(s.get("macro")) == "fighter"]
+    posts = held.setdefault("sector_patrol", {})
+    asked = held.setdefault("sector_patrol_asked", {})
+    escorting = held.setdefault("escorting", {})
+
+    def queue(ship):
+        return [o.get("order") for o in ship.get("orders") or [] if not o.get("default")]
+    for ship in fighters:
+        sector = (ship.get("place") or {}).get("sector")
+        if (ship.get("assignment") or {}).get("group") is None and sector in sectors and "Patrol" in queue(ship):
+            posts.setdefault(ship["code"], sector)
+    for code in [c for c, s in posts.items() if c not in ours or s not in sectors]:
+        del posts[code]
+    for code in [c for c in asked if c not in posts]:
+        del asked[code]
+    # An escort whose trader is gone, or that is still free a while after it was sent, is free again.
+    for code in [c for c, (trader, since) in escorting.items()
+                 if c not in ours or trader not in ours
+                 or ((ours[c].get("assignment") or {}).get("group") is None and now - since >= PATROL_AGAIN)]:
+        del escorting[code]
+    free = [s["code"] for s in fighters if s["code"] not in posts and s["code"] not in escorting
+            and (s.get("assignment") or {}).get("group") is None and sitrep.role_of(s) == "IDLE"]
+    out = []
+    for sector, n in sectors.items():
+        mine = [c for c, s in posts.items() if s == sector]
+        for code in mine:
+            if "Patrol" not in queue(ours[code]) and now - asked.get(code, -1e9) >= PATROL_AGAIN:
+                asked[code] = now
+                out.append(f"raid {code} {sector} stay")
+        for code in free[:max(0, n - len(mine))]:
+            posts[code], asked[code] = sector, now
+            out.append(f"raid {code} {sector} stay")
+        free = [c for c in free if c not in posts]
+    for station, goal in goals.items():
+        per = goal.get("escorts_per_trader") or 0
+        if not per:
+            continue
+        traders = sorted(s["code"] for s in ships if sitrep.ship_type(s.get("macro")) in executor.FREIGHTERS
+                         and executor.serves(s, state) in strategy._working(station, "trade"))
+        for trader in traders:
+            have = ({s["code"] for s in fighters if executor.serves(s, state) == (trader, "defence")}
+                    | {c for c, (t, _) in escorting.items() if t == trader})
+            for code in free[:max(0, per - len(have))]:
+                escorting[code] = [trader, now]
+                out.append(f"command {code} {trader} defence")
+            free = [c for c in free if c not in escorting]
+    return out
+
+
 def wings(state: dict, data: dict) -> list[str]:
     """A free fighter flies under the destroyer with the fewest, as interception:
     it takes small and medium ships, and docks in the destroyer's four S bays.
@@ -954,6 +1027,10 @@ def wings(state: dict, data: dict) -> list[str]:
         del wing[code]
     carriers = [s["code"] for s in ships if sitrep.ship_type(s.get("macro")) == "carrier"]
     destroyers = [s["code"] for s in ships if sitrep.ship_type(s.get("macro")) == "destroyer"]
+    # A sector's patrol and a trader's escort are `fighter_posts`', and a guard is a station's.
+    held = data.get("standing") or {}
+    posted = set(held.get("sector_patrol") or {}) | set(held.get("escorting") or {})
+    stations = {s.get("code") for s in catalog._stations(state)}
     load = {code: 0 for code in carriers + destroyers}
     for ship in ships:
         boss, role = executor.serves(ship, state)
@@ -964,8 +1041,10 @@ def wings(state: dict, data: dict) -> list[str]:
     out = []
     for ship in ships:
         free = sitrep.role_of(ship) == "IDLE" or sitrep._first_order(ship) == "Patrol"
-        guard = executor.serves(ship, state)[1] == "defence"
-        if sitrep.ship_type(ship.get("macro")) != "fighter" or ship.get("code") in wing or not (free or guard):
+        boss, role = executor.serves(ship, state)
+        guard = role == "defence" and boss in stations
+        if (sitrep.ship_type(ship.get("macro")) != "fighter" or ship.get("code") in wing
+                or ship.get("code") in posted or not (free or guard)):
             continue
         leader = next((c for c in carriers if load[c] < per_carrier), None)
         if leader is None:
@@ -1486,7 +1565,8 @@ def civilians_flee(state: dict, data: dict) -> list[str]:
     return out
 
 
-RULES = (sell_limits, wharf_sales, revisit, satellites, watch, ledger, once, avoid_sectors, civilians_flee, patrols, build_method,
+RULES = (sell_limits, wharf_sales, revisit, satellites, watch, ledger, once, avoid_sectors, civilians_flee, fighter_posts,
+         patrols, build_method,
          find_builds, hire_builders, own_stock, repairs, seminars, scouts, empty_builds, docks, managers, shiptraders,
          cargo_drones, accounts, undock_fleet, wings, raids, hunts, carriers, route_patrol, fleet, grow)
 

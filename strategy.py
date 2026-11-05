@@ -343,10 +343,15 @@ def fleet(state: dict, data: dict) -> list[str]:
                     bought = True
         # The wing: three guns against the Xenon S the destroyers' big guns
         # miss. Named by `standing.wings` once delivered.
+        # Also those that patrol a sector or escort traders (`standing.fighter_posts`), for all
+        # stations at once: the count is of all our fighters.
         fighters = sum(1 for s in catalog._ships(state) if sitrep.ship_type(s.get("macro")) == "fighter")
         carriers = sum(1 for s in catalog._ships(state) if sitrep.ship_type(s.get("macro")) == "carrier")
-        wanted = ((goal.get("fighters_per_destroyer") or 0) * (goal.get("destroyers") or 0)
-                  + (goal.get("fighters_per_carrier") or 0) * carriers)
+        wanted = sum((g.get("fighters_per_destroyer") or 0) * (g.get("destroyers") or 0)
+                     + (g.get("fighters_per_carrier") or 0) * carriers
+                     + sum((g.get("patrol_sectors") or {}).values())
+                     + (g.get("escorts_per_trader") or 0) * (g.get("traders") or 0)
+                     for g in plan.values())
         if not bought and fighters < wanted:
             own = own_build(state, "ship_{race}_s_fighter_02_a_macro", "s", brake=False)
             if own:
