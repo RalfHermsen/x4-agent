@@ -1316,21 +1316,32 @@ def carriers(state: dict, data: dict) -> list[str]:
     defence, which keeps it near the leader; an auxiliary goes along as supplyfleet and
     repairs and rearms them there. A new guard takes them over from the last, which
     brought them home under its leader. The player asked for both at 182 game hours,
-    for the destroyers on guard in Hatikvah's Choice I."""
+    for the destroyers on guard in Hatikvah's Choice I.
+    With a plan's `carrier_station` the carrier guards that station instead: the guard
+    held Silent Witness XI, yet the Pact killed three freighters there in start8u and
+    start8v near ZXX-974, where its fighters can meet them."""
     import catalog
     import executor
     import strategy
-    raid = (data.get("standing") or {}).get("raid")
-    if not (raid and raid.get("guard") and raid["phase"] == "out"):
-        return []
-    leader = raid["leader"]
-    per = max((goal.get("fighters_per_carrier") or 0 for goal in strategy.goals(data).values()), default=0)
+    goals = strategy.goals(data).values()
+    post = next((goal.get("carrier_station") for goal in goals if goal.get("carrier_station")), "")
     ships = catalog._ships(state)
+    per = max((goal.get("fighters_per_carrier") or 0 for goal in goals), default=0)
     sent = data.setdefault("standing", {}).setdefault("with_guard", {})
     out = []
+    if post:
+        for ship in ships:
+            if (sitrep.ship_type(ship.get("macro")) == "carrier" and executor.serves(ship, state) != (post, "defence")
+                    and sent.get(ship["code"]) != post):
+                sent[ship["code"]] = post
+                out.append(f"assign {ship['code']} {post} defend")
+    raid = (data.get("standing") or {}).get("raid")
+    if not (raid and raid.get("guard") and raid["phase"] == "out"):
+        return out
+    leader = raid["leader"]
     for ship in ships:
         kind = sitrep.ship_type(ship.get("macro"))
-        role = {"carrier": "defence", "resupplier": "supplyfleet"}.get(kind)
+        role = {"carrier": None if post else "defence", "resupplier": "supplyfleet"}.get(kind)
         if not role or executor.serves(ship, state) == (leader, role) or sent.get(ship["code"]) == leader:
             continue
         if kind == "carrier":

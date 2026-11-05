@@ -441,6 +441,8 @@ class StationGoal(BaseModel):
                                                                        "miners keep out of, as of a hostile one")
     free_growth: bool = Field(default=True, description="with every planned target standing, expand by the "
                                                         "margin ranking; false builds only what the plan names")
+    carrier_station: str = Field(default="", description="code of a station of ours whose defence our carriers "
+                                                         "join, instead of flying with the guard")
     raid_faction: str = Field(default="xenon", description="whose stations a raid on raid_sector attacks: "
                                                            "xenon, or an enemy such as scaleplate")
     route_sectors: list[str] = Field(default_factory=list, description="macros of the sectors a patrol of "

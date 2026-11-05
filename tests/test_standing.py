@@ -725,6 +725,18 @@ def test_a_hurt_route_patrol_comes_home_and_one_left_out_is_taken_over(small_sta
     assert data["standing"]["route"]["ships"] == ["FRI-000", "FRI-001"] and data["standing"]["route"]["stop"] == 1
 
 
+def test_a_carrier_guards_the_plans_station_instead_of_flying_with_the_guard(small_state):
+    """start8v: three freighters lost near ZXX-974 while the carrier flew with the guard."""
+    state, data = _raid_ready(small_state)
+    data["strategy"]["plan"]["stations"]["KYV-745"].update(fighters_per_carrier=2, carrier_station="KYV-745")
+    _guarding(state, data)
+    _add_ship(state, "CAR-000", "ship_arg_xl_carrier_01_a_macro", cls="ship_xl",
+              assignment={"groups": {5: "interception"}})
+    _add_ship(state, "ATL-000", "ship_arg_xl_resupplier_01_a_macro", cls="ship_xl")
+    assert standing.carriers(state, data) == ["assign CAR-000 KYV-745 defend", "command ATL-000 DES-000 supplyfleet"]
+    assert standing.carriers(state, data) == []
+
+
 def test_a_guard_leaves_when_outgunned_or_with_an_xl_at_home(small_state):
     state, data = _raid_ready(small_state)
     _guarding(state, data)
