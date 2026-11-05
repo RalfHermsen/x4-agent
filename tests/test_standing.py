@@ -517,26 +517,34 @@ def test_free_fighters_patrol_a_sector_first_then_escort_the_traders(small_state
     """The player's call at 362 game hours: miners lost to the Kha'ak in Second Contact II
     Flashpoint, freighters to the Pact."""
     state, data = _fighters_ready(small_state, fighters=3)
-    assert standing.fighter_posts(state, data) == [f"raid FIG-000 {XEN_SECTOR} stay", f"raid FIG-001 {XEN_SECTOR} stay",
+    assert standing.fighter_posts(state, data) == [f"raid FIG-000 {XEN_SECTOR} stay", "command FIG-001 FIG-000 attack",
                                                    "command FIG-002 TRA-001 defence"]
     assert standing.fighter_posts(state, data) == []            # each once
     # wings and patrols leave them alone.
     data["strategy"]["plan"]["stations"]["KYV-745"]["fighters_per_carrier"] = 40
     assert not any("FIG-" in c for c in standing.wings(state, data))
-    # A patrol whose Patrol went is told again, not at once; the escort, under its trader now, stays.
-    fig = next(a for a in state["assets"] if a["code"] == "FIG-000")
-    fig["orders"] = [{"order": "Patrol"}]
+    # A leader whose Patrol went is told again, not at once; the escort, under its trader now, stays.
+    next(a for a in state["assets"] if a["code"] == "FIG-001")["assignment"] = {"group": 4}
+    next(a for a in state["assets"] if a["code"] == "FIG-000")["assignment"] = {"groups": {4: "attack"}}
+    state["assigned_to"]["FIG-001"] = "FIG-000"
     next(a for a in state["assets"] if a["code"] == "FIG-002")["assignment"] = {"group": 5}
     state["meta"]["playtime_s"] += standing.PATROL_AGAIN
+    assert standing.fighter_posts(state, data) == [f"raid FIG-000 {XEN_SECTOR} stay"]
+    # With the leader lost, the other leads.
+    state["assets"] = [a for a in state["assets"] if a["code"] != "FIG-000"]
+    next(a for a in state["assets"] if a["code"] == "FIG-001")["assignment"] = None
     assert standing.fighter_posts(state, data) == [f"raid FIG-001 {XEN_SECTOR} stay"]
 
 
 def test_a_sector_patrol_is_known_again_from_the_save(small_state):
     """A run starts with no memory: a free fighter on a Patrol in the sector is its patrol."""
-    state, data = _fighters_ready(small_state, fighters=2)
-    fig = next(a for a in state["assets"] if a["code"] == "FIG-000")
-    fig.update(orders=[{"order": "Patrol"}], place={"sector": XEN_SECTOR})
-    assert standing.fighter_posts(state, data) == [f"raid FIG-001 {XEN_SECTOR} stay"]
+    state, data = _fighters_ready(small_state, fighters=3)
+    for code in ("FIG-000", "FIG-001"):
+        next(a for a in state["assets"] if a["code"] == code).update(orders=[{"order": "Patrol"}],
+                                                                    place={"sector": XEN_SECTOR})
+    # start9f's seven each on its own Patrol: one leads, the others go under it, a free one joins.
+    assert standing.fighter_posts(state, data) == ["release FIG-001", "command FIG-001 FIG-000 attack",
+                                                   "command FIG-002 TRA-001 defence"]
 
 
 def test_fleet_builds_fighters_for_the_patrols_and_escorts(small_state):

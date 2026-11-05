@@ -982,8 +982,8 @@ PATROL_AGAIN = 1800         # game seconds before a sector patrol's fighter is t
 
 def fighter_posts(state: dict, data: dict) -> list[str]:
     """The plan's fighters on their posts. `patrol_sectors` sends free fighters to patrol a
-    sector, each on a Patrol of its own (`raid ... stay`), so they spread over it; one whose
-    Patrol went is told again. `escorts_per_trader` puts free fighters under each of a
+    sector as one group: a leader on a Patrol (`raid ... stay`), told again when it goes, and
+    the rest under it in attack; when the leader is lost another leads. `escorts_per_trader` puts free fighters under each of a
     station's traders, in defence. The player's call at 362 game hours: five miners were lost
     to the Kha'ak in Second Contact II Flashpoint past two destroyers on Patrol there, and
     twenty freighters to the Pact over the day. The sector patrols are filled first; `wings`
@@ -1006,12 +1006,20 @@ def fighter_posts(state: dict, data: dict) -> list[str]:
 
     def queue(ship):
         return [o.get("order") for o in ship.get("orders") or [] if not o.get("default")]
+    leaders = held.setdefault("sector_leader", {})
     for ship in fighters:
         sector = (ship.get("place") or {}).get("sector")
         if (ship.get("assignment") or {}).get("group") is None and sector in sectors and "Patrol" in queue(ship):
             posts.setdefault(ship["code"], sector)
+    # One under a fighter of a sector's patrol, in attack, is that sector's too.
+    for ship in fighters:
+        boss, role = executor.serves(ship, state)
+        if role == "attack" and boss in posts:
+            posts.setdefault(ship["code"], posts[boss])
     for code in [c for c, s in posts.items() if c not in ours or s not in sectors]:
         del posts[code]
+    for sector in [s for s, c in leaders.items() if c not in posts]:
+        del leaders[sector]
     for code in [c for c in asked if c not in posts]:
         del asked[code]
     # An escort whose trader is gone, or that is still free a while after it was sent, is free again.
@@ -1022,15 +1030,30 @@ def fighter_posts(state: dict, data: dict) -> list[str]:
     free = [s["code"] for s in fighters if s["code"] not in posts and s["code"] not in escorting
             and (s.get("assignment") or {}).get("group") is None and sitrep.role_of(s) == "IDLE"]
     out = []
+    # A sector's patrol flies as one: a leader on its Patrol and the rest under it in attack.
+    # Each on its own Patrol, spread over Second Contact II Flashpoint, five were shot down one
+    # by one by the Kha'ak in start9f, and none of the nineteen Kha'ak killed fell to them.
     for sector, n in sectors.items():
-        mine = [c for c, s in posts.items() if s == sector]
+        mine = sorted(c for c, s in posts.items() if s == sector)
+        leader = leaders.get(sector) or next(
+            (c for c in mine if (ours[c].get("assignment") or {}).get("group") is None), None) or (
+            mine[0] if mine else (free[0] if free else None))
+        if leader is None:
+            continue
+        leaders[sector], posts[leader] = leader, sector
+        free = [c for c in free if c != leader]
+        if "Patrol" not in queue(ours[leader]) and now - asked.get(leader, -1e9) >= PATROL_AGAIN:
+            asked[leader] = now
+            out.append(f"raid {leader} {sector} stay")
         for code in mine:
-            if "Patrol" not in queue(ours[code]) and now - asked.get(code, -1e9) >= PATROL_AGAIN:
+            if (code != leader and executor.serves(ours[code], state) != (leader, "attack")
+                    and now - asked.get(code, -1e9) >= PATROL_AGAIN):
                 asked[code] = now
-                out.append(f"raid {code} {sector} stay")
-        for code in free[:max(0, n - len(mine))]:
+                out += [f"release {code}", f"command {code} {leader} attack"]
+        have = sum(1 for s in posts.values() if s == sector)
+        for code in free[:max(0, n - have)]:
             posts[code], asked[code] = sector, now
-            out.append(f"raid {code} {sector} stay")
+            out.append(f"command {code} {leader} attack")
         free = [c for c in free if c not in posts]
     for station, goal in goals.items():
         per = goal.get("escorts_per_trader") or 0
