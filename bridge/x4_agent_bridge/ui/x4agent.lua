@@ -1073,9 +1073,10 @@ end
 
 --- "moveto JOU-525 XZM-766 scaleplate" -> the ship flies to MOVETO_OFFSET from that
 --- station and waits there until released, a priority order as in `dockat`. Near enough
---- to put the station on the map, outside a pirate base's turrets. Explore searches only
---- a sector's core, and the Pact's base in Silent Witness XII lay outside it (start8x).
-local MOVETO_OFFSET = 10000
+--- to put the station on the map, a ship's radar reaching 40 km (libraries/defaults.xml),
+--- and out of its guns: at 10 km the Pact's base shot scout JOU-525 down (start8y).
+--- Explore searches only a sector's core, and that base in Silent Witness XII lay outside it.
+local MOVETO_OFFSET = 25000
 local function move_to(args)
     local shipcode, stationcode, faction = args[1], args[2], args[3]
     local ship = shipcode and player_ships()[shipcode]
