@@ -1071,6 +1071,29 @@ local function deploy_satellite(args)
     return true
 end
 
+--- "moveto JOU-525 XZM-766 scaleplate" -> the ship flies to MOVETO_OFFSET from that
+--- station and waits there until released, a priority order as in `dockat`. Near enough
+--- to put the station on the map, outside a pirate base's turrets. Explore searches only
+--- a sector's core, and the Pact's base in Silent Witness XII lay outside it (start8x).
+local MOVETO_OFFSET = 10000
+local function move_to(args)
+    local shipcode, stationcode, faction = args[1], args[2], args[3]
+    local ship = shipcode and player_ships()[shipcode]
+    local station = stationcode and faction and faction_station(faction, stationcode)
+    if not ship or not station then
+        return refuse("moveto needs: moveto <SHIP> <STATION> <faction>")
+    end
+    if not C.IsOrderSelectableFor("MoveWait", ship) then
+        return refuse("moveto: " .. shipcode .. " cannot take a MoveWait order")
+    end
+    local pos = C.GetObjectPositionInSector(station)
+    CreateOrder(ConvertStringToLuaID(tostring(ship)), "MoveWait", {
+        destination = { station_sector(station), { pos.x + MOVETO_OFFSET, pos.y, pos.z } },
+    }, false, false, true)
+    log(string.format("ORDER: %s moves to %s (%s)", shipcode, stationcode, faction))
+    return true
+end
+
 --- "getsupplies ATL-001" -> a carrier or auxiliary of ours goes to buy what it
 --- needs to resupply its fleet (aiscripts/order.restock.getsupplies.xml). The
 --- game sends one there by itself only when it is not the player's
@@ -2312,6 +2335,7 @@ local BARE_HANDLERS = {
     loop = loop_orders,
     revisit = revisit,
     satellite = deploy_satellite,
+    moveto = move_to,
     getsupplies = get_supplies,
     collect = collect,
     resupply = set_resupply,

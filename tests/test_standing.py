@@ -355,6 +355,17 @@ def test_the_bridge_puts_an_auxiliary_under_a_fleet_and_sends_it_for_supplies():
     assert "event.param2 == 'command_supplyfleet'" in md and 'exact="assignment.supplyfleet"' in md
 
 
+def test_the_bridge_moves_a_ship_to_another_factions_station():
+    lua = (Path(__file__).parent.parent / "bridge/x4_agent_bridge/ui/x4agent.lua").read_text(encoding="utf-8")
+    bare = lua.split("local BARE_HANDLERS = {", 1)[1].split("}", 1)[0]
+    assert "moveto = move_to" in bare
+    # It finds the station by `faction_station` and its sector by `station_sector`, locals before it.
+    assert lua.index("local function faction_station") < lua.index("local function move_to(")
+    assert lua.index("local function station_sector") < lua.index("local function move_to(")
+    move = lua.split("local function move_to(args)", 1)[1].split("\nend\n", 1)[0]
+    assert '"MoveWait"' in move and "false, false, true)" in move
+
+
 def test_a_raid_goes_for_kha_ak_weapon_platforms_before_the_hive():
     lua = (Path(__file__).parent.parent / "bridge/x4_agent_bridge/ui/x4agent.lua").read_text(encoding="utf-8")
     raid = lua.split("local function raid(args)", 1)[1].split("\nend\n", 1)[0]
