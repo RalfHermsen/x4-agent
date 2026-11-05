@@ -168,16 +168,24 @@ def own_build(state: dict, pattern: str, size: str = "m", brake: bool = True) ->
             return None
     if brake and catalog._bought_recently(state):
         return None
-    stuck, coming = catalog._orders(state, size)
+    stuck, _ = catalog._orders(state, size)
     kind = sitrep.ship_type(pattern.format(race="arg"))
-    if kind in coming or (brake and catalog._idle_ship(state, kind)):
+    # One of the kind on order at a wharf of ours holds that wharf, not every wharf: from
+    # start8w ZLR-942's and ZXX-974's L bays build destroyers side by side. One bought
+    # elsewhere still holds them all.
+    ours = {st.get("code") for st in catalog._stations(state)}
+    orders = [o for o in state.get("ships_on_order") or []
+              if sitrep.ship_type(o["macro"]) == kind and o["wharf"] not in stuck
+              and ("_l_" in o["macro"]) == (size == "l")]
+    if any(o["wharf"] not in ours for o in orders) or (brake and catalog._idle_ship(state, kind)):
         return None
+    busy = {o["wharf"] for o in orders}
     macro = next((pattern.format(race=race) for race in sorted(set(catalog.RACE.values()))
                   if pattern.format(race=race).removesuffix("_macro") in held), None)
     bay = executor.EXPANSION_MODULES["wharf_l" if size == "l" else "wharf"][0]
     wharf = next((st for st in catalog._stations(state)
                   if bay in (st.get("modules") or [])
-                  and st.get("code") not in stuck), None)
+                  and st.get("code") not in stuck | busy), None)
     if not (macro and wharf):
         return None
     return f"buildship {wharf['code']} {macro} {sitrep.ship_name(macro)}"

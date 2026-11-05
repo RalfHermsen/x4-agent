@@ -1282,15 +1282,22 @@ local function raid(args)
     -- Only a station the player knows, as on the map, and a factory before a defence
     -- base: in Scale Plate Green I that is 24 turrets against 74 and 120. Not a wreck: it
     -- stays on the list, and ship12e-camp's raid was sent back to the factory it had just killed.
-    local target, storage
+    -- Kha'ak weapon platforms before their hive: the platforms are the guns (Silent Witness
+    -- XII, start8w). Then a factory before the rest, as above.
+    local function rank(macro)
+        if string.find(macro, "weaponplatform", 1, true) then return 1 end
+        if string.find(macro, "factory", 1, true) then return 2 end
+        return 3
+    end
+    local target, storage, best
     for i = 0, count - 1 do
         local sectorid = station_sector(buffer[i])
         if sectorid and string.lower(GetComponentData(sectorid, "macro") or "") == sector
                 and C.IsObjectKnown(buffer[i]) then
             if not C.IsComponentWrecked(buffer[i]) then
                 local macro = GetComponentData(ConvertStringToLuaID(tostring(buffer[i])), "macro") or ""
-                if not target or string.find(macro, "factory", 1, true) then
-                    target = buffer[i]
+                if not target or rank(macro) < best then
+                    target, best = buffer[i], rank(macro)
                 end
             end
             -- A station's build storage outlives it, and from it the faction builds again: the

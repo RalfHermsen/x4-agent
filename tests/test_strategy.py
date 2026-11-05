@@ -259,6 +259,26 @@ def test_a_destroyer_comes_from_our_own_l_bay_and_is_never_bought(small_state, m
     assert "destroyers 0/1" in strategy.lines(state, plan)[1]
 
 
+def test_two_of_our_l_bays_build_destroyers_side_by_side(small_state):
+    """From start8w ZLR-942 and ZXX-974 each have an L bay; one held the other."""
+    state = copy.deepcopy(small_state)
+    state["assets"] = [a for a in state["assets"] if a.get("cls") == "station"]
+    state["player"]["blueprints"] = ["ship_tel_l_destroyer_01_a", "engine_tel_l_allround_01_mk1",
+                                     "thruster_gen_l_allround_01_mk1"]
+    first = _station(state)
+    first["modules"] = list(first["modules"]) + [executor.EXPANSION_MODULES["wharf_l"][0]]
+    state["assets"].append(dict(copy.deepcopy(first), code="ZXX-974"))
+    now = state["meta"]["playtime_s"]
+    macro = "ship_{race}_l_destroyer_01_a_macro"
+    assert strategy.own_build(state, macro, "l", brake=False) == "buildship KYV-745 ship_tel_l_destroyer_01_a_macro x4-agent-des"
+    state["ships_on_order"] = [{"wharf": "KYV-745", "macro": "ship_tel_l_destroyer_01_a_macro", "since": now}]
+    assert strategy.own_build(state, macro, "l", brake=False) == "buildship ZXX-974 ship_tel_l_destroyer_01_a_macro x4-agent-des"
+    state["ships_on_order"].append({"wharf": "ZXX-974", "macro": "ship_tel_l_destroyer_01_a_macro", "since": now})
+    assert strategy.own_build(state, macro, "l", brake=False) is None          # both busy
+    state["ships_on_order"] = [{"wharf": "EBF-432", "macro": "ship_arg_l_destroyer_02_a_macro", "since": now}]
+    assert strategy.own_build(state, macro, "l", brake=False) is None          # one bought elsewhere holds them
+
+
 def _reserve(small_state, destroyers=1):
     state = copy.deepcopy(small_state)
     state["assets"] = [a for a in state["assets"] if a.get("cls") == "station"]

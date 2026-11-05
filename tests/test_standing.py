@@ -355,6 +355,13 @@ def test_the_bridge_puts_an_auxiliary_under_a_fleet_and_sends_it_for_supplies():
     assert "event.param2 == 'command_supplyfleet'" in md and 'exact="assignment.supplyfleet"' in md
 
 
+def test_a_raid_goes_for_kha_ak_weapon_platforms_before_the_hive():
+    lua = (Path(__file__).parent.parent / "bridge/x4_agent_bridge/ui/x4agent.lua").read_text(encoding="utf-8")
+    raid = lua.split("local function raid(args)", 1)[1].split("\nend\n", 1)[0]
+    assert 'string.find(macro, "weaponplatform", 1, true) then return 1' in raid
+    assert "rank(macro) < best" in raid
+
+
 def test_the_plans_sectors_to_avoid_are_listed_once_each(small_state):
     state, data = _raid_ready(small_state)
     data["strategy"]["plan"]["stations"]["KYV-745"]["avoid_sectors"] = ["cluster_29_sector001_macro"]
