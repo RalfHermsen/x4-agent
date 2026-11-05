@@ -106,6 +106,10 @@ EXPANSION_MODULES = {
     # 6.10: the M dock KYV-745 is built with, whose blueprint is held. Ships
     # trade at a dock; a station without one is out of their reach.
     "dock": ("dockarea_arg_m_station_01_lowtech_macro", None),
+    # A Teladi pier, whose blueprint is held (module_tel_pier_l_02): where L and XL ships
+    # dock. The player's call (2026-11-05): ZXX-974's wharf had none, so its own large
+    # ships could not dock there. Every station gets one (`standing.docks`).
+    "pier": ("pier_tel_harbor_02_macro", None),
     # Shipbuilding step 4: a wharf of our own, the S/M Ship Fabrication Bay,
     # and the S/M Ship Maintenance Bay that fits and repairs (licence
     # station_equip_sm, held from Teladi on the ally ceremony).

@@ -495,6 +495,12 @@
           <set_value name="$agent_module" exact="macro.dockarea_arg_m_station_01_lowtech_macro"/>
         </do_if>
 
+        <!-- A Teladi pier, where L and XL ships dock: every station gets one. -->
+        <do_if value="event.param == 'expand %s pier'.[$agent_station.idcode]">
+          <set_value name="$agent_ware" exact="ware.module_tel_pier_l_02"/>
+          <set_value name="$agent_module" exact="macro.pier_tel_harbor_02_macro"/>
+        </do_if>
+
         <!-- 3.7: a small habitat, of the race Python chose from the station's
              own modules. $agent_ware is the module's own ware, so the logbook
              line names it. -->

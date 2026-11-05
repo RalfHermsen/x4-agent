@@ -123,6 +123,16 @@ def test_own_builder_is_called_again_for_the_next_build(small_state):
     assert standing.find_builds(state, data) == ["deploy BLD-001 KYV-745"]
 
 
+def test_own_builder_at_work_on_one_build_is_not_taken_for_another(small_state):
+    """A pier queued at ZLR-942 would have taken our one vessel from GZI-064's station."""
+    state = copy.deepcopy(small_state)
+    _add_ship(state, "BLD-001", "ship_arg_xl_builder_01_a_macro", owner="player",
+              orders=[{"order": "DeployToStation"}])
+    bs = next(a for a in state["assets"] if a["code"] == "XQL-000")
+    bs["build"] = {"queued": 1, "in_progress": 0, "builders": [], "processor": {}}
+    assert standing.find_builds(state, {}) == []
+
+
 def test_each_station_gets_the_default_build_method_once(small_state):
     data = {}
     assert standing.build_method(small_state, data) == ["buildmethod KYV-745 default"]
@@ -1331,6 +1341,38 @@ def test_a_station_without_a_dock_gets_one(small_state, monkeypatch):
     _station(state)["modules"] = []                                 # an empty plot: its dock first
     assert standing.docks(state, {}) == ["expand KYV-745 dock"]
     assert standing.managers(state, {}) == []
+
+
+def test_empty_scouts_beyond_the_plan_are_sold_at_a_wharf_of_their_race(small_state):
+    """The player's call: 31 scouts flew at 363 game hours, 30 of them empty, for a plan of five."""
+    state = copy.deepcopy(small_state)
+    sector = _station(state)["place"]["sector"]
+    _add_ship(state, "SCO-001", "ship_tel_s_scout_01_a_macro", satellites_aboard=5)
+    for i in range(2, 6):
+        _add_ship(state, f"SCO-00{i}", "ship_tel_s_scout_01_a_macro", satellites_aboard=0)
+    state["known_stations"] = [{"code": "ARG-001", "owner": "argon", "builds": ["s", "m"], "place": {"sector": sector}},
+                               {"code": "TEL-001", "owner": "teladi", "builds": ["m"], "place": {"sector": sector}}]
+    data = {"strategy": {"plan": {"stations": {"KYV-745": {"build": {}, "miners": {}, "traders": 0, "defenders": 0,
+                                                           "destroyers": 0, "raid_sector": "", "scouts": 2}}}}}
+    # The one with satellites and one empty one stay, the plan's two.
+    assert standing.sell_scouts(state, data) == [f"sellship SCO-00{i} TEL-001 teladi" for i in (3, 4, 5)]
+    assert standing.sell_scouts(state, data) == []              # each once
+
+
+def test_a_station_with_a_dock_and_no_pier_gets_a_pier(small_state, monkeypatch):
+    """The player's call: ZXX-974's own destroyers could not dock at their wharf."""
+    import copy
+    import catalog
+    import executor
+    state = copy.deepcopy(small_state)
+    monkeypatch.setattr(catalog, "_through_gates",
+                        lambda action, state: f"expand {action['station_id']} {action['ware']}")
+    _station(state)["modules"] = ["dockarea_arg_m_station_01_lowtech_macro", "prod_gen_water_macro"]
+    assert standing.docks(state, {}) == ["expand KYV-745 pier"]
+    _station(state)["modules"].append(executor.EXPANSION_MODULES["pier"][0])
+    assert standing.docks(state, {}) == []
+    md = (Path(__file__).parent.parent / "bridge/x4_agent_bridge/md/x4_agent_bridge.xml").read_text(encoding="utf-8")
+    assert "'expand %s pier'" in md and "macro.pier_tel_harbor_02_macro" in md
 
 
 def test_a_managed_station_with_an_empty_account_gets_the_estimate_once(small_state):

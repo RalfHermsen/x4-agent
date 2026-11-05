@@ -313,8 +313,11 @@ def find_builds(state: dict, data: dict) -> list[str]:
         return []
     sent = _done(data, "findbuilds")
     for ship in state.get("assets", []):
+        # Not one at work on another build: a pier queued at ZLR-942 would have taken our
+        # one vessel from GZI-064's half-built station.
         if (sitrep.ship_type(ship.get("macro")) == "construction vessel"
-                and ship.get("owner") == "player" and ship.get("code") not in sent):
+                and ship.get("owner") == "player" and ship.get("code") not in sent
+                and "DeployToStation" not in [o.get("order") for o in ship.get("orders") or []]):
             _mark(data, "findbuilds", ship["code"])
             return [f"deploy {ship['code']} {waiting[0]}"]
     return []
@@ -585,6 +588,43 @@ def _spread_scouts(state: dict, data: dict, ours: list[dict], now: float) -> tup
         have.add(code)
         out += [f"release {code}", f"scout {code} {sector}"]
     return have, out
+
+
+SCOUTS_SOLD_PER_CYCLE = 5
+
+
+def sell_scouts(state: dict, data: dict) -> list[str]:
+    """Scouts beyond the plan's number with no satellites left aboard are sold, at the
+    nearest known wharf of their race that builds S or M ships (an M fabrication bay
+    builds S too). The player's call (2026-11-05): `watch` buys a scout with ten satellites
+    whenever none has any left, and by 363 game hours 31 flew, 30 of them empty, for a plan
+    of five. The game hands a sold ship over where it is: QUZ-488 went to the Teladi five
+    jumps from their wharf. Those with satellites aboard are kept, then the plan's number.
+    """
+    import catalog
+    import strategy
+    from purchases import _graph, jumps
+    planned = max((goal.get("scouts") or 0 for goal in strategy.goals(data).values()), default=0)
+    occupied = (state.get("player") or {}).get("occupied_ship")
+    ours = sorted((s for s in catalog._ships(state) if sitrep.ship_type(s.get("macro")) == "scout"
+                   and s.get("code") != occupied), key=lambda s: s["code"])
+    empty = [s for s in ours if not s.get("satellites_aboard")]
+    keep = max(0, planned - (len(ours) - len(empty)))
+    if not planned or len(empty) <= keep:
+        return []
+    sent = _done(data, "sold")
+    graph = _graph()
+    out = []
+    for ship in [s for s in empty[keep:] if s["code"] not in sent][:SCOUTS_SOLD_PER_CYCLE]:
+        race = (ship.get("macro") or "").split("_")[1:2]
+        sector = (ship.get("place") or {}).get("sector")
+        yards = [k for k in state.get("known_stations") or [] if set(k.get("builds") or []) & {"s", "m"}
+                 and [catalog.RACE.get(k.get("owner"))] == race]
+        if yards:
+            yard = min(yards, key=lambda k: jumps(graph, sector, (k.get("place") or {}).get("sector")))
+            _mark(data, "sold", ship["code"])
+            out.append(f"sellship {ship['code']} {yard['code']} {yard.get('owner')}")
+    return out
 
 
 def scouts(state: dict, data: dict) -> list[str]:
@@ -861,13 +901,19 @@ def docks(state: dict, data: dict) -> list[str]:
     could be fitted afterwards. So an empty plot starts with its dock. Through
     the same gates as any expansion: the blueprint, one build at a time, and
     not again once the bridge could not fit it.
+    A station with its dock and no pier gets a pier, where L and XL ships dock: the
+    player's call, when ZXX-974's own destroyers could not dock at their wharf.
     """
     import catalog
     out = []
     for st in catalog._stations(state):
-        if st.get("code") and not catalog._has_dock(st):
+        if not st.get("code"):
+            continue
+        piers = any(m.startswith("pier_") for m in st.get("modules") or [])
+        ware = "dock" if not catalog._has_dock(st) else None if piers else "pier"
+        if ware:
             command = catalog._through_gates({"type": "expand_station", "station_id": st["code"],
-                                              "ware": "dock"}, state)
+                                              "ware": ware}, state)
             if command:
                 out.append(command)
     return out
@@ -1567,7 +1613,7 @@ def civilians_flee(state: dict, data: dict) -> list[str]:
 
 RULES = (sell_limits, wharf_sales, revisit, satellites, watch, ledger, once, avoid_sectors, civilians_flee, fighter_posts,
          patrols, build_method,
-         find_builds, hire_builders, own_stock, repairs, seminars, scouts, empty_builds, docks, managers, shiptraders,
+         find_builds, hire_builders, own_stock, repairs, seminars, sell_scouts, scouts, empty_builds, docks, managers, shiptraders,
          cargo_drones, accounts, undock_fleet, wings, raids, hunts, carriers, route_patrol, fleet, grow)
 
 
