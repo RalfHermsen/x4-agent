@@ -1389,6 +1389,26 @@ local function faction_ship(faction, shipcode)
     return nil
 end
 
+--- "hunt ZVP-957 QRJ-271 scaleplate" -> the ship attacks that ship of another faction, a
+--- priority order as `raid` gives it, its own orders queued behind. The Pact's armed scout
+--- QRJ-271 shot five of our freighters in Silent Witness XI (start8z), beyond the reach of
+--- the carrier that guards ZXX-974. Behind another priority order it waits its turn.
+local function hunt(args)
+    local shipcode, targetcode, faction = args[1], args[2], args[3]
+    local ship = shipcode and player_ships()[shipcode]
+    local target = targetcode and faction and faction_ship(faction, targetcode)
+    if not ship or not target then
+        return refuse("hunt needs: hunt <SHIP> <TARGET SHIP> <faction>")
+    end
+    if not C.IsOrderSelectableFor("Attack", ship) then
+        return refuse("hunt: " .. shipcode .. " cannot take an Attack order")
+    end
+    CreateOrder(ConvertStringToLuaID(tostring(ship)), "Attack",
+                { primarytarget = ConvertStringToLuaID(tostring(target)) }, false, false, true)
+    log(string.format("ORDER: %s hunts %s (%s)", shipcode, targetcode, faction))
+    return true
+end
+
 --- "hire CZK-784 antigone KYV-745" -> hire somebody else's construction vessel
 --- for the build at our station. The map menu's selectCV, step by step: not
 --- busy, not an enemy, pay GetBuilderHiringFee to the vessel, then clear its
@@ -2344,6 +2364,7 @@ local BARE_HANDLERS = {
     repair = repair,
     patrol = patrol,
     raid = raid,
+    hunt = hunt,
     findbuilds = find_builds,
     hire = hire_builder,
     deploy = deploy_builder,

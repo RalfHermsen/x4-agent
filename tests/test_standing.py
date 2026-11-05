@@ -366,6 +366,16 @@ def test_the_bridge_moves_a_ship_to_another_factions_station():
     assert '"MoveWait"' in move and "false, false, true)" in move
 
 
+def test_the_bridge_hunts_a_ship_of_another_faction():
+    lua = (Path(__file__).parent.parent / "bridge/x4_agent_bridge/ui/x4agent.lua").read_text(encoding="utf-8")
+    bare = lua.split("local BARE_HANDLERS = {", 1)[1].split("}", 1)[0]
+    assert "hunt = hunt" in bare
+    # It finds the target by `faction_ship`, a local before it.
+    assert lua.index("local function faction_ship") < lua.index("local function hunt(")
+    hunt = lua.split("local function hunt(args)", 1)[1].split("\nend\n", 1)[0]
+    assert '"Attack"' in hunt and "primarytarget" in hunt and "false, false, true)" in hunt
+
+
 def test_a_raid_goes_for_kha_ak_weapon_platforms_before_the_hive():
     lua = (Path(__file__).parent.parent / "bridge/x4_agent_bridge/ui/x4agent.lua").read_text(encoding="utf-8")
     raid = lua.split("local function raid(args)", 1)[1].split("\nend\n", 1)[0]
