@@ -2066,3 +2066,63 @@ we see is still open.
 worth at cost 654.4 M to 626.8 M. start8k, with nothing added: credits up 24.7 M, the station's account
 up 13.2 M, net worth at cost 626.8 M to 663.7 M over 22.6 game hours. Lost from start8c to start8k:
 eleven destroyers to Xenon, seven freighters (one to Xenon, six to the Pact) and fourteen scouts.
+
+## 2026-11-04/05: start8l to start9c, Silent Witness XI and XII claimed
+
+Eighteen runs in a row from the end of start8k, most stopped by hand to load a fix or a request of the
+player's.
+
+| Run | Game hours | Result |
+|---|---|---|
+| start8l, 8m | 147.6 to 176.0 | the guard back in Hatikvah's Choice I with one XL in sight |
+| start8n | 176.2 to 182.4 | a guard on its post is topped up from home to the plan's number |
+| start8o | 182.5 to 193.2 | a carrier with 40 fighters and an auxiliary go with the guard |
+| start8p | 193.3 to 196.7 | the Pact made an enemy in the save; six frigates patrol the trade route |
+| start8q, 8r | 196.8 to 219.9 | the guard clears the Pact's stations and build storages in Silent Witness XI |
+| start8s to 8v | 219.9 to 293.4 | XI claimed at 223.4 by ZXX-974's L bay; its plan built by 292.6 |
+| start8w | 293.5 to 299.5 | the carrier guards ZXX-974 after three freighters were lost near it |
+| start8x, 8y | 300.1 to 305.8 | the guard in Silent Witness XII; both L bays build destroyers; the Pact's base destroyed |
+| start8z | 305.8 to 324.9 | the Kha'ak hive and four of its five weapon platforms destroyed |
+| start9a to 9c | 324.9 to 337.7 | third station GZI-064; Silent Witness XII claimed; the guard hunts |
+
+**Claiming a sector.** A sector goes to the faction with a claiming module there: the game's own
+ship-building modules for S, M, L and XL, equipment docks, claim defence modules and trade stations
+carry `<ownership claim="1"/>`. Our S/M dock area does not. ZXX-974's L bay made Silent Witness XI ours
+at 223.4 game hours, GZI-064's made Silent Witness XII ours at about 337.7. The plot in XII cost
+nothing: the sector had no owner and so no control station to pay.
+
+**What the save holds is not what the player knows.** The raid on Silent Witness XII was planned from
+the whole save, and nothing there was known to the player (no `knownto="player"`): `raid` attacks only
+known stations, so the guard of 20 patrolled beside the Kha'ak nest for half a game hour. Explore
+searches only a sector's core (`order.move.recon`, the blind tourist), and the Pact's base lay outside
+it. New verb `moveto` flies a ship to 25 km of another faction's station, inside a ship's 40 km radar
+(`libraries/defaults.xml`); at 10 km the base shot the scout down, after it was on the map. A scout
+that flees when attacked lost its order on the way to the hive; the guard itself went and put the
+hive and a platform on the map.
+
+**An attack takes the guard's Patrol with it.** After the Pact's base fell the guard of 20 flew home
+on its default order: the Attack put in front of its running Patrol had removed it. A guard now always
+asks with its Patrol behind the attack, and one without a Patrol is told again at once. A priority
+order goes behind another priority order, not in front of it: `moveto` waited behind an Attack that
+had not hit platform XYU-174 since 302.8 game hours, why is not known. The raid went back to the Pact,
+so the guard no longer asks for that attack and only patrols.
+
+**Hunting.** Patrolling did not stop the ships that shot our freighters: the Pact's armed scout
+QRJ-271 killed five in Silent Witness XI beyond the carrier's radius, and bombers kept coming into XII.
+New verb `hunt` gives one of ours an Attack on a ship of another faction; QRJ-271, two Pact destroyers
+and bombers and two Fallen Families destroyers fell to it, each in a cycle or two, with no loss. Rule
+`hunts` now sends up to six of the guard after a ship that attacked a freighter, miner or scout of ours
+in the guard's sector or on its way there, once per attacker, Xenon excepted. MD writes the attacker's
+faction id behind its name for it. An Attack reaches a ship assigned to a station; a Patrol given to
+the carrier, assigned to ZXX-974, did not stay.
+
+**Field coils.** The nine field coil lines at ZLR-942 waited for plasma conductors most of the time:
+nine need 2,160 an hour and 2,322 quantum tubes, one plasma conductor line makes 176. The lines ran on
+what the traders bought. The station's container storage held some wares at their share while 49 to
+61 of its 75 lines waited for room; a stock limit per ware (`SetContainerStockLimitOverride`) is not
+in the bridge yet.
+
+**Score.** 147.6 to 337.7 game hours: credits 527.7 M to 659.6 M, net worth at cost 663.7 M to
+877.4 M, two stations added and two sectors claimed. Lost, by the fleet's count of ships gone: 38
+freighters (most to the Pact, some to the Fallen Families), two miners, two frigates, four scouts and
+one destroyer.
