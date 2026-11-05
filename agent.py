@@ -80,6 +80,18 @@ def rules_off(env: dict) -> set[str]:
 
 RULES_OFF = rules_off(os.environ)
 
+# Verbs that set how a station or ship behaves, as against orders for now. Each run sends them
+# all again, as the save does not hold them (tasks/lessons.md L11), and the pipe takes one
+# command every two seconds (L9): start9g's first cycle had 129, settings first, and the
+# fighter patrol's orders waited minutes behind them.
+SETTINGS = frozenset({"tradeware", "limit", "sellware", "shiprespond", "respond", "turrets", "resupply",
+                      "traderule", "autotrade", "ledger", "price", "avoid", "buildmethod"})
+
+
+def orders_first(commands: list[str]) -> list[str]:
+    """Orders before settings, each kept in its own order: `release X` stays before `command X`."""
+    return sorted(commands, key=lambda c: c.split(" ", 1)[0] in SETTINGS)
+
 
 def _scripted(remembered: dict) -> PlannerResponse:
     steps = json.loads(Path(SCRIPT).read_text(encoding="utf-8"))
@@ -315,7 +327,7 @@ def cycle(model: str | None = None, save: Path | None = None, force: bool = Fals
     commands = kept
     commands += job_commands
     # The catalog and a standing rule can arrive at the same command.
-    commands = list(dict.fromkeys(commands))
+    commands = orders_first(list(dict.fromkeys(commands)))
 
     commands, repeats = memory.drop_repeats(remembered, commands)
 

@@ -32,3 +32,13 @@ def test_sellware_sent_only_when_the_ware_changes():
     memory.record(data, fresh)
     assert memory.drop_repeats(data, ["sellware KTK-861 water"]) == ([], ["sellware KTK-861 water"])
     assert memory.drop_repeats(data, ["sellware KTK-861 microchips"])[0] == ["sellware KTK-861 microchips"]
+
+
+def test_orders_go_before_settings_each_in_its_own_order():
+    """start9g's first cycle sent 129 commands two seconds apart, settings first."""
+    import agent
+    commands = ["tradeware ZLR-942 water sell on", "release FIG-001", "limit ZLR-942 water sell 2000",
+                "command FIG-001 FIG-000 attack", "shiprespond TRA-001 attacked flee", "raid FIG-000 X stay"]
+    assert agent.orders_first(commands) == ["release FIG-001", "command FIG-001 FIG-000 attack", "raid FIG-000 X stay",
+                                            "tradeware ZLR-942 water sell on", "limit ZLR-942 water sell 2000",
+                                            "shiprespond TRA-001 attacked flee"]

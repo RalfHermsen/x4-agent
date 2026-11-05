@@ -58,8 +58,9 @@ def test_repeat_adds_a_loop(run_cycle, fake_planner, small_state, monkeypatch):
                                      "from_station": "SEL-001", "to_station": "KYV-745",
                                      "amount": 100, "repeat": True, "rationale": "t"}]
     result = run_cycle(_market(small_state))
-    assert result["commands"][-2:] == ["haul ASO-629 microchips SEL-001 argon 100 901 KYV-745",
-                                       "loop ASO-629"]
+    # The loop right behind its haul; settings go after all orders (agent.orders_first).
+    i = result["commands"].index("haul ASO-629 microchips SEL-001 argon 100 901 KYV-745")
+    assert result["commands"][i + 1] == "loop ASO-629"
 
 
 def test_sale_at_the_nearest_yard_for_that_size(small_state):
