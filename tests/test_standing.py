@@ -438,11 +438,26 @@ def test_a_guard_goes_on_until_the_build_storages_are_gone_too(small_state):
     state["all_stations"] = []                                  # the station fell
     state["build_storages"] = [{"code": "BST-001", "owner": "scaleplate", "sector": XEN_SECTOR}]
     state["meta"]["playtime_s"] = data["standing"]["raid"]["since"] + standing.RAID_ASK_AGAIN + 1
-    # Its patrol is queued already, so the attack goes in front without another.
-    assert standing.raids(state, data) == [f"raid DES-000 {XEN_SECTOR} go scaleplate"]
+    # Its patrol goes again behind the attack: in start8y the attack took the queued one with it.
+    assert standing.raids(state, data) == [f"raid DES-000 {XEN_SECTOR} stay scaleplate"]
     state["build_storages"] = []
     state["meta"]["playtime_s"] += standing.RAID_ASK_AGAIN + 1
     assert standing.raids(state, data) == []                    # only the patrol stays
+
+
+def test_a_guard_that_lost_its_patrol_is_told_again_at_once(small_state):
+    """start8y: the Pact's base fell, the queue was empty and the guard flew home."""
+    state, data = _raid_ready(small_state)
+    data["strategy"]["plan"]["stations"]["KYV-745"].update(raid_guard=True, raid_faction="scaleplate")
+    state["hostiles"] = {}
+    state["all_stations"] = [{"code": "PAC-001", "owner": "scaleplate", "sector": XEN_SECTOR}]
+    assert standing.raids(state, data)[-1] == f"raid DES-000 {XEN_SECTOR} stay scaleplate"
+    leader = next(a for a in state["assets"] if a["code"] == "DES-000")
+    leader.update(place={"sector": XEN_SECTOR}, orders=[{"order": "Patrol"}])
+    state["all_stations"] = []
+    assert standing.raids(state, data) == []                    # posted, nothing left
+    leader["orders"] = [{"order": "ProtectStation", "default": True}]
+    assert standing.raids(state, data) == [f"raid DES-000 {XEN_SECTOR} stay scaleplate"]
 
 
 def test_a_guard_posted_on_the_way_to_a_new_raid_sector_goes_on_from_there(small_state):

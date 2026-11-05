@@ -1131,13 +1131,18 @@ def raids(state: dict, data: dict) -> list[str]:
                         return [f"command {s['code']} {raid['leader']} attack" for s in extra]
                 # A station came into sight, or the one it attacked is gone and
                 # another stands: the `raid` before this one only found a patrol.
+                # A guard asks with its Patrol behind the attack, every time: an Attack put in
+                # front takes the queued Patrol with it. In start8y the guard of 20 killed the
+                # Pact's base in Silent Witness XII and flew home on its default order. One
+                # without its Patrol is told at once.
                 queue = [o.get("order") for o in ours[raid["leader"]].get("orders") or [] if not o.get("default")]
-                stay = raid.get("guard") and "Patrol" not in queue
-                if (raid.get("arrived") and ((left or {}).get("station") or (left or {}).get("buildstorage") or stay)
+                lost = raid.get("guard") and "Patrol" not in queue
+                if (raid.get("arrived") and ((left or {}).get("station") or (left or {}).get("buildstorage") or lost)
                         and "Attack" not in queue
-                        and now - raid.get("asked", -1e9) >= RAID_ASK_AGAIN):
+                        and (lost or now - raid.get("asked", -1e9) >= RAID_ASK_AGAIN)):
                     raid["asked"] = now
-                    return [_raid_order(raid["leader"], raid["sector"], stay, raid.get("faction", "xenon"))]
+                    return [_raid_order(raid["leader"], raid["sector"], bool(raid.get("guard")),
+                                        raid.get("faction", "xenon"))]
                 return []
             if alive:
                 raid["phase"], raid["since"] = "back", now
