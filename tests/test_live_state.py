@@ -79,6 +79,23 @@ def test_a_campaign_against_the_pact_starts_by_scouting_heretics_end(live):
     assert any(c.startswith("sweep ") and c.endswith(" cluster_31_sector001_macro") for c in commands)
 
 
+def test_a_station_patrols_its_sectors_with_its_own_destroyers(live):
+    """Dry run before start9o: ZXX-974's reserve in Silent Witness XI was sent to ZLR-942's
+    post in Second Contact II Flashpoint, four jumps away."""
+    import executor
+    state, data = live
+    stations = data["strategy"]["plan"]["stations"]
+    stations["ZLR-942"]["patrol_destroyers"] = {"cluster_13_sector001_macro": 3}
+    stations["ZXX-974"]["patrol_destroyers"] = {"cluster_44_sector001_macro": 3}
+    before = {a["code"]: executor.serves(a, state)[0] for a in state["assets"] if a.get("code")}
+    _, found = _cycle(state, data)
+    assert found == []
+    for code, sector in data["standing"].get("sector_patrol", {}).items():
+        ship = next(a for a in state["assets"] if a.get("code") == code)
+        if "destroyer" in ship["macro"] and sector == "cluster_13_sector001_macro":
+            assert before[code] != "ZXX-974", code
+
+
 def test_a_pier_in_a_build_is_not_asked_for_again(live):
     """start9f and start9g: four piers for ZXX-974."""
     state, data = live

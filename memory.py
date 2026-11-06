@@ -79,9 +79,13 @@ CARRIED = ("refused", "explore_retried", "ledger", "blueprint_factions", "offere
            "reserved", "sent_at", "campaign")
 # From `standing`: where our ships were (a ship lost in a new run's first cycle is placed),
 # the logbook a hunt has read, swept sectors, the scouts' sectors, satellite rounds,
-# sold scouts, seminars and builder hiring.
+# sold scouts, seminars and builder hiring. And who patrols, leads, escorts, guards and
+# rides the route: read from the save alone, a destroyer leading destroyers on a Patrol in
+# Second Contact II is the route's or the sector's, and a run cannot tell which. The rules
+# drop what the save no longer bears out.
 STANDING_CARRIED = ("where", "hunt_seen", "swept", "scouts_visited", "scouts_most", "watch",
-                    "watch_scouts", "sold", "seminar_at", "hired_at", "hire_tried")
+                    "watch_scouts", "sold", "seminar_at", "hired_at", "hire_tried",
+                    "sector_patrol", "sector_leader", "escorting", "guarding", "route")
 
 
 def carry(previous: Path, store: Path) -> list[str]:

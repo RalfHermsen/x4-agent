@@ -1272,8 +1272,10 @@ def fighter_posts(state: dict, data: dict) -> list[str]:
                       and (s.get("place") or {}).get("sector") == homes[executor.serves(s, state)[0]]
                       and _hull_share(s) >= RAID_GO_FROM][keep:]
     # Destroyers come from the station whose plan names them, whole and at home, above its
-    # floor (`raid_home`), and above the route patrol's number while the route is home.
-    free_destroyers = []
+    # floor (`raid_home`), and above the route patrol's number while the route is home. Each
+    # station's for its own sectors: one pool sent ZXX-974's from Silent Witness XI to ZLR-942's
+    # post in Second Contact II, four jumps away (dry run before start9o).
+    free_destroyers = {}
     for station in catalog._stations(state):
         goal = goals.get(station.get("code")) or {}
         if not goal.get("patrol_destroyers"):
@@ -1284,7 +1286,7 @@ def fighter_posts(state: dict, data: dict) -> list[str]:
                 and executor.serves(s, state) == (station["code"], "defence")
                 and (s.get("place") or {}).get("sector") == (station.get("place") or {}).get("sector")
                 and _hull_share(s) >= RAID_GO_FROM and "Attack" not in queue(s)]
-        free_destroyers += mine[floor:]
+        free_destroyers[station["code"]] = mine[floor:]
     out = []
 
     def frigate(code):
@@ -1301,14 +1303,20 @@ def fighter_posts(state: dict, data: dict) -> list[str]:
             posts[code], asked[code] = sector, -1e9
         free_frigates = [c for c in free_frigates if c not in posts]
         have = sum(1 for c, s in posts.items() if s == sector and rank(c) == 2)
-        for code in free_destroyers[:max(0, destroyers_wanted.get(sector, 0) - have)]:
-            posts[code], asked[code] = sector, -1e9
-        free_destroyers = [c for c in free_destroyers if c not in posts]
+        for station, pool in free_destroyers.items():
+            n = ((goals.get(station) or {}).get("patrol_destroyers") or {}).get(sector, 0)
+            for code in pool[:max(0, n - have)]:
+                posts[code], asked[code] = sector, -1e9
+                have += 1
+            free_destroyers[station] = [c for c in pool if c not in posts]
         mine = sorted(c for c, s in posts.items() if s == sector)
         # The heaviest leads, the one leading first: a destroyer before a frigate before a
         # fighter, and the rest go under it at once.
-        before = leaders.get(sector)
+        # With no memory of it (a new run), the one leading in the save: by name, CLU-930 would
+        # have taken Second Contact II's group from TIV-371 and every ship been told again.
         best = max((rank(c) for c in mine), default=0)
+        before = leaders.get(sector) or next((c for c in mine if c in led and rank(c) == best
+                                              and "Patrol" in queue(ours[c])), None)
         leader = (before if before in mine and best and rank(before) == best else None) or next(
             (c for c in mine if best and rank(c) == best), None) or before or next(
             (c for c in mine if (ours[c].get("assignment") or {}).get("group") is None), None) or (

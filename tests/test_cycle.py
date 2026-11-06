@@ -55,8 +55,8 @@ def test_a_new_run_takes_what_the_save_cannot_tell_from_the_run_before(tmp_path)
     carried = memory.carry(before, store)
     data = memory.load(store)
     assert data["sent_at"] == {"buyship": 5.0} and data["logbook_seen"] == 9.0 and data["pending"] == []
-    assert data["standing"] == {"where": {"FIG-000": ["S1", "fighter"]}, "swept": ["S1"]}
-    assert set(carried) == {"sent_at", "logbook_seen", "standing.where", "standing.swept"}
+    assert data["standing"] == {"where": {"FIG-000": ["S1", "fighter"]}, "swept": ["S1"], "sector_patrol": {"F": "S1"}}
+    assert set(carried) == {"sent_at", "logbook_seen", "standing.where", "standing.swept", "standing.sector_patrol"}
     assert memory.carry(tmp_path / "missing.json", store) == []
 
 
