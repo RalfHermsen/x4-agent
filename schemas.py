@@ -463,6 +463,11 @@ class StationGoal(BaseModel):
                                               "leading; from those at home above raid_home")
     escorts_per_trader: int = Field(default=0, description="fighters that fly under each of this station's "
                                                            "traders, in defence")
+    open_sectors: list[str] = Field(default_factory=list, description="macros of sectors taken off the avoided "
+                                                                      "list again, once listed")
+    sell_runs: dict[str, int] = Field(default_factory=dict, description="ware to how many freighters of our own "
+                                      "take it from this station to the best bid within reach, outside the "
+                                      "avoided sectors")
 
 
 class Campaign(BaseModel):

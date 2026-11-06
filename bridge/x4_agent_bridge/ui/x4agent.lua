@@ -973,6 +973,38 @@ local function haul(args)
     return true
 end
 
+--- "sellrun VUL-123 refinedmetals ZXX-974 HWE-974 paranid 25091 190" -> take up to
+--- 25091 refinedmetals from our ZXX-974 and sell them at HWE-974 (paranid) for at
+--- least 190 Cr each. Two orders the game runs itself: SingleBuy at our station,
+--- paying no more than that minimum (the money stays between us and our station),
+--- then SingleSell. A trade order's amount is what is to be aboard afterwards
+--- (order.trade.single.sell.xml: it sells cargo minus amount), so the sale's is 0.
+local function sell_run(args)
+    local shipcode, ware, homecode, buyercode, faction, amount, floor =
+        args[1], args[2], args[3], args[4], args[5], tonumber(args[6]), tonumber(args[7])
+    if not (shipcode and ware and homecode and buyercode and faction and amount and floor) then
+        return refuse("sellrun needs: sellrun <SHIP> <ware> <OUR STATION> <BUYER> <faction> <amount> <min price>")
+    end
+    local ship = player_ships()[shipcode]
+    local home = player_stations()[homecode]
+    local buyer = faction_station(faction, buyercode)
+    if not ship then return refuse("sellrun: no ship of ours with id code " .. shipcode) end
+    if not home then return refuse("sellrun: no station of ours with id code " .. homecode) end
+    if not buyer then return refuse("sellrun: " .. faction .. " has no station " .. buyercode) end
+    if not GetComponentData(ConvertStringToLuaID(tostring(ship)), "assignedpilot") then
+        return refuse("sellrun: " .. shipcode .. " has no pilot")
+    end
+    local cents = math.floor(floor * 100)
+    local buy = trade_order(ship, "SingleBuy", ware, home, amount, cents)
+    local sell = buy > 0 and trade_order(ship, "SingleSell", ware, buyer, 0, cents) or 0
+    if buy == 0 or sell == 0 then
+        return refuse("sellrun: the game would not create the trade orders for " .. shipcode)
+    end
+    log(string.format("ORDER: %s sells up to %d %s from %s at %s for at least %d Cr (orders %d, %d)",
+                      shipcode, amount, ware, homecode, buyercode, floor, buy, sell))
+    return true
+end
+
 --- "loop ASO-629" -> make the ship's order queue repeat. An experiment as
 --- much as a verb: the UI's own route goes through a planned default order
 --- that could not be traced, so this asks the game what it allows first and
@@ -2383,6 +2415,7 @@ local BARE_HANDLERS = {
     licence = buy_licence,
     command = command_ship,
     haul = haul,
+    sellrun = sell_run,
     loop = loop_orders,
     revisit = revisit,
     satellite = deploy_satellite,

@@ -1930,6 +1930,109 @@ def build_method(state: dict, data: dict) -> list[str]:
     return out
 
 
+SELL_AGAIN = 600       # game seconds before an idle runner is sent again: the save lags the order
+SELL_FROM = 1000       # units a station offers before a run is worth it
+SELL_PROFIT = 1.2      # a bid this far above our own price is worth the trip
+SELL_NEAR = 0.95       # bids this close to the best count as the best, and the nearest goes
+SELL_FLOOR = 0.9       # the sell order's minimum against the bid seen
+
+
+def _hops(graph: dict, start: str | None, goal: str | None, blocked: set) -> int | None:
+    """Jumps from `start` to `goal` through no sector in `blocked`; None without a way."""
+    if not start or not goal or goal in blocked:
+        return None
+    seen, todo = {start: 0}, collections.deque([start])
+    while todo:
+        here = todo.popleft()
+        if here == goal:
+            return seen[here]
+        for nxt in graph.get(here, []):
+            if nxt not in seen and nxt not in blocked:
+                seen[nxt] = seen[here] + 1
+                todo.append(nxt)
+    return None
+
+
+def _best_buyer(state: dict, ware: str, ours: float, sector: str, blocked: set,
+                graph: dict) -> tuple[dict, float, int] | None:
+    """(station, price, wanted) of the nearest buyer paying within SELL_NEAR of the best bid
+    in reach, the bid SELL_PROFIT above our price; None if there is none."""
+    bids = []
+    for station in state.get("known_stations") or []:
+        for offer in station.get("offers") or []:
+            if (offer.get("ware") == ware and offer.get("side") == "buy" and (offer.get("desired") or 0) > 0
+                    and offer.get("price", 0) >= ours * SELL_PROFIT):
+                hops = _hops(graph, sector, (station.get("place") or {}).get("sector"), blocked)
+                if hops is not None:
+                    bids.append((offer["price"], hops, station, offer["desired"]))
+    if not bids:
+        return None
+    best = max(b[0] for b in bids)
+    price, _, station, wanted = min((b for b in bids if b[0] >= best * SELL_NEAR), key=lambda b: (b[1], -b[0]))
+    return station, price, wanted
+
+
+def sell_runs(state: dict, data: dict) -> list[str]:
+    """The plan's `sell_runs`: freighters of our own take a ware from a station of ours to
+    the best bid in reach and sell it there (tasks/plan-2026-11.md 1.5). At 452 game hours
+    ZXX-974 and GZI-064 offered refined metals at 92 to 95 Cr, their modules stood still on
+    full stores, and buyers 3 to 8 jumps away paid 207 to 212: station traders trade in their
+    own range and went to none of them. A free freighter becomes a runner, kept in memory
+    (`strategy.fleet` buys one when none is free and hands no runner to a station), and is
+    sent again each time it has no orders left. The buyer is the nearest of those paying
+    within SELL_NEAR of the best, on a way through no avoided sector."""
+    import catalog
+    import executor
+    import strategy
+    from purchases import _graph
+    plan = strategy.goals(data)
+    held = data.setdefault("standing", {})
+    runs, sent = held.setdefault("sell_runs", {}), held.setdefault("sell_sent", {})
+    ships = {s["code"]: s for s in catalog._ships(state) if s.get("code")}
+    for code in [c for c in runs if c not in ships]:
+        del runs[code]
+    if not any(g.get("sell_runs") for g in plan.values()):
+        return []
+    occupied = (state.get("player") or {}).get("occupied_ship")
+    lent = {f["ship"] for each in (data.get("feeders") or {}).values() for f in each}
+    busy = lent | set(held.get("sector_patrol") or {}) | set(held.get("escorting") or {}) | set(held.get("guarding") or {})
+    free = [s for s in ships.values() if s["code"] not in runs and s["code"] not in busy and s["code"] != occupied
+            and (s.get("assignment") or {}).get("group") is None and sitrep.role_of(s) == "IDLE"]
+    blocked = ({s for g in plan.values() for s in g.get("avoid_sectors") or []}
+               - {s for g in plan.values() for s in g.get("open_sectors") or []})
+    graph = _graph()
+    now = (state.get("meta") or {}).get("playtime_s") or 0
+    stations = {a.get("code"): a for a in catalog._stations(state)}
+    out = []
+    for code, goal in plan.items():
+        home = stations.get(code)
+        for ware, n in ((goal.get("sell_runs") or {}).items() if home else ()):
+            hulls = executor.CARRIES.get((gamedata.wares().get(ware) or {}).get("transport"), ())
+            mine = [c for c, (station, w) in runs.items() if station == code and w == ware]
+            for ship in [s for s in free if sitrep.ship_type(s.get("macro")) in hulls][:max(0, n - len(mine))]:
+                runs[ship["code"]] = [code, ware]
+                free.remove(ship)
+                mine.append(ship["code"])
+            offer = next((o for o in home.get("offers") or [] if o.get("ware") == ware and o.get("side") == "sell"), None)
+            if not offer or (offer.get("amount") or 0) < SELL_FROM:
+                continue
+            found = _best_buyer(state, ware, offer.get("price") or 0, (home.get("place") or {}).get("sector"),
+                                blocked, graph)
+            if not found:
+                continue
+            buyer, price, wanted = found
+            for c in mine:
+                ship = ships[c]
+                if (c in lent or (ship.get("assignment") or {}).get("group") is not None
+                        or [o for o in ship.get("orders") or [] if not o.get("default")]
+                        or now - sent.get(c, -1e9) < SELL_AGAIN):
+                    continue
+                sent[c] = now
+                out.append(f"sellrun {c} {ware} {code} {buyer['code']} {buyer.get('owner')} "
+                           f"{int(min(offer['amount'], wanted))} {int(price * SELL_FLOOR)}")
+    return out
+
+
 def fleet(state: dict, data: dict) -> list[str]:
     """Ships toward a strategist's numbers (strategy.fleet); nothing without a plan."""
     import strategy
@@ -1944,13 +2047,20 @@ def avoid_sectors(state: dict, data: dict) -> list[str]:
     in start7 to start8c, one with six of our destroyers in the sector.
     """
     import strategy
-    done = _done(data, "avoidsector")
+    done, opened = _done(data, "avoidsector"), _done(data, "opensector")
+    goals = strategy.goals(data).values()
+    # A sector listed once stays listed in the game; `open_sectors` takes it off again,
+    # once a run: Hatikvah's Choice I, patrolled, between our home and Argon Prime.
+    open_ = {s for goal in goals for s in goal.get("open_sectors") or []}
     out = []
-    for goal in strategy.goals(data).values():
+    for goal in goals:
         for sector in goal.get("avoid_sectors") or []:
-            if sector not in done:
+            if sector not in done and sector not in open_:
                 _mark(data, "avoidsector", sector)
                 out.append(f"avoid sector {sector} on")
+    for sector in sorted(open_ - opened):
+        _mark(data, "opensector", sector)
+        out.append(f"avoid sector {sector} off")
     return out
 
 
@@ -1977,7 +2087,7 @@ def civilians_flee(state: dict, data: dict) -> list[str]:
 RULES = (campaign, sweeps, sell_limits, wharf_sales, revisit, satellites, watch, ledger, once, avoid_sectors, civilians_flee, fighter_posts,
          patrols, build_method,
          find_builds, hire_builders, own_stock, repairs, seminars, sell_scouts, scouts, empty_builds, docks, managers, shiptraders,
-         cargo_drones, accounts, undock_fleet, wings, route_patrol, raids, hunts, carriers, fleet, grow)
+         cargo_drones, accounts, undock_fleet, wings, route_patrol, raids, hunts, carriers, sell_runs, fleet, grow)
 
 
 # Which rule gave which commands in the last call of `commands`, for `invariants.check`,

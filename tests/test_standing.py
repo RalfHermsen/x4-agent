@@ -1883,3 +1883,79 @@ def test_a_large_station_without_discs_gets_one_before_anything_else(small_state
     assert standing.grow(state, {}) == ["expand KYV-745 defence"]
     st["modules"].append("defence_tel_disc_01_macro")              # 61 modules, 1 disc
     assert standing.grow(state, {}) == ["expand KYV-745 water"]
+
+
+def _sell_ready(small_state):
+    """KYV-745 offering 5,000 refined metals at 92, a free freighter, and three buyers: 207 one
+    jump away, 180 at home, 100 at home (not worth the trip)."""
+    from purchases import _graph
+    state = copy.deepcopy(small_state)
+    home = _station(state)
+    sector = home["place"]["sector"]
+    near = _graph()[sector][0]
+    home["offers"] = [{"ware": "refinedmetals", "side": "sell", "price": 92, "amount": 5000, "desired": None}]
+    buyer = {"cls": "station", "owner": "argon", "offers": []}
+    state["known_stations"] = [
+        dict(buyer, code="NEA-001", place={"sector": near},
+             offers=[{"ware": "refinedmetals", "side": "buy", "price": 207, "amount": 100, "desired": 26000}]),
+        dict(buyer, code="HOM-001", place={"sector": sector},
+             offers=[{"ware": "refinedmetals", "side": "buy", "price": 180, "amount": 100, "desired": 3000}]),
+        dict(buyer, code="LOW-001", place={"sector": sector},
+             offers=[{"ware": "refinedmetals", "side": "buy", "price": 100, "amount": 100, "desired": 9000}])]
+    _add_ship(state, "VUL-001", "ship_tel_m_trans_container_01_a_macro",
+              orders=[{"order": "Wait", "state": "started", "default": True}])
+    next(a for a in state["assets"] if a["code"] == "ASO-629")["assignment"] = {"group": 1}   # trades for KYV-745
+    data = {"strategy": {"plan": {"stations": {"KYV-745": {"build": {}, "miners": {}, "traders": 0,
+                                                           "sell_runs": {"refinedmetals": 1}}}}}}
+    return state, data, near
+
+
+def test_a_sell_run_takes_our_goods_to_the_best_bid_in_reach(small_state):
+    """Plan 1.5: ZXX-974 offered refined metals at 92 to 95 while buyers in reach paid 207."""
+    state, data, near = _sell_ready(small_state)
+    assert standing.sell_runs(state, data) == ["sellrun VUL-001 refinedmetals KYV-745 NEA-001 argon 5000 186"]
+    assert data["standing"]["sell_runs"] == {"VUL-001": ["KYV-745", "refinedmetals"]}
+    assert standing.sell_runs(state, data) == []                     # the save has not caught up yet
+    # Behind an avoided sector the best bid is out of reach: the best in reach is at home.
+    state, data, near = _sell_ready(small_state)
+    data["strategy"]["plan"]["stations"]["KYV-745"]["avoid_sectors"] = [near]
+    assert standing.sell_runs(state, data) == ["sellrun VUL-001 refinedmetals KYV-745 HOM-001 argon 3000 162"]
+    # Opened again, it is in reach once more.
+    state, data, near = _sell_ready(small_state)
+    data["strategy"]["plan"]["stations"]["KYV-745"].update(avoid_sectors=[near], open_sectors=[near])
+    assert standing.sell_runs(state, data)[0].split()[4] == "NEA-001"
+
+
+def test_a_runner_on_its_run_or_with_little_to_sell_waits(small_state):
+    state, data, _ = _sell_ready(small_state)
+    ship = next(a for a in state["assets"] if a["code"] == "VUL-001")
+    ship["orders"].append({"order": "SingleSell", "state": "started"})
+    assert standing.sell_runs(state, data) == []
+    ship["orders"].pop()
+    _station(state)["offers"][0]["amount"] = standing.SELL_FROM - 1
+    assert standing.sell_runs(state, data) == []
+    assert data["standing"]["sell_runs"] == {"VUL-001": ["KYV-745", "refinedmetals"]}
+
+
+def test_a_runner_is_no_trader_to_hand_out(small_state):
+    import strategy
+    state, data, _ = _sell_ready(small_state)
+    data["strategy"]["plan"]["stations"]["KYV-745"]["traders"] = 1
+    data["standing"] = {"sell_runs": {"VUL-001": ["KYV-745", "refinedmetals"]}}
+    assert not [c for c in strategy.fleet(state, data) if "VUL-001" in c]
+
+
+def test_an_opened_sector_comes_off_the_avoided_list_once(small_state):
+    state, data = _raid_ready(small_state)
+    goal = data["strategy"]["plan"]["stations"]["KYV-745"]
+    goal.update(avoid_sectors=["cluster_29_sector001_macro"], open_sectors=["cluster_29_sector001_macro"])
+    assert standing.avoid_sectors(state, data) == ["avoid sector cluster_29_sector001_macro off"]
+    assert standing.avoid_sectors(state, data) == []
+
+
+def test_the_bridge_sells_a_run_whole():
+    """A trade order's amount is what stays aboard (order.trade.single.sell.xml)."""
+    lua = (Path(__file__).parent.parent / "bridge/x4_agent_bridge/ui/x4agent.lua").read_text(encoding="utf-8")
+    table = lua.split("local BARE_HANDLERS = {", 1)[1].split("}", 1)[0]
+    assert "sellrun = sell_run" in table
+    assert 'trade_order(ship, "SingleSell", ware, buyer, 0, cents)' in lua

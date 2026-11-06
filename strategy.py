@@ -310,9 +310,10 @@ def fleet(state: dict, data: dict) -> list[str]:
     held = data.get("standing") or {}
     posted = set(held.get("sector_patrol") or {}) | set(held.get("escorting") or {})
     guarding = set(held.get("guarding") or {})          # on its way to guard a station
+    runners = held.get("sell_runs") or {}               # `standing.sell_runs`', idle between runs
     free = [s for s in catalog._ships(state)
             if (s.get("assignment") or {}).get("group") is None
-            and s.get("code") not in errand | lent | posted | guarding
+            and s.get("code") not in errand | lent | posted | guarding | set(runners)
             and sitrep.role_of(s) == "IDLE" and not (winged and sitrep.ship_type(s.get("macro")) == "fighter")]
     held = set((state.get("player") or {}).get("blueprints") or [])
     named = set(((data.get("strategy") or {}).get("plan") or {}).get("blueprints") or [])
@@ -326,6 +327,9 @@ def fleet(state: dict, data: dict) -> list[str]:
                   lambda s, kind=kind: executor._miner_kind(s.get("macro")) == kind)
                  for kind, n in (goal.get("miners") or {}).items()]
         wants.append(("trade", None, goal.get("traders") or 0, "container freighter",
+                      "ship_{race}_m_trans_container_01_a_macro",
+                      lambda s: sitrep.ship_type(s.get("macro")) in executor.FREIGHTERS))
+        wants.append(("sellrun", None, sum((goal.get("sell_runs") or {}).values()), "container freighter",
                       "ship_{race}_m_trans_container_01_a_macro",
                       lambda s: sitrep.ship_type(s.get("macro")) in executor.FREIGHTERS))
         # Any combat ship of ours defends; a new one is an M frigate, which
@@ -361,13 +365,18 @@ def fleet(state: dict, data: dict) -> list[str]:
         if reserve:
             out.append(reserve)
         for role, kind, target, label, pattern, fits in wants:
-            have = sum(1 for s in catalog._ships(state)
-                       if (executor.serves(s, state) in _working(code, role) or s.get("code") in raiding)
-                       and fits(s))
+            have = (sum(1 for station, _ in runners.values() if station == code) if role == "sellrun" else
+                    sum(1 for s in catalog._ships(state)
+                        if (executor.serves(s, state) in _working(code, role) or s.get("code") in raiding)
+                        and fits(s)))
             pick = next((s for s in free if fits(s)), None)
+            # `standing.sell_runs` takes a free freighter itself; one is bought only when none is.
+            if role == "sellrun":
+                if have >= target or pick:
+                    continue
             # Past the plan's number an idle warship still guards home: it was
             # paid for, and 'defenders' counts destroyers as well.
-            if have >= target and not (pick and role == "defend"):
+            elif have >= target and not (pick and role == "defend"):
                 continue
             if pick:
                 command = catalog._through_gates({"type": "assign_ship", "ship_ref": pick["code"],
