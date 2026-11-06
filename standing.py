@@ -207,8 +207,9 @@ def watch(state: dict, data: dict) -> list[str]:
     stocked = [s for s in state.get("assets", [])
                if sitrep.ship_type(s.get("macro")) == "scout" and s.get("code") != occupied
                and s.get("satellites_aboard")]
-    free = sorted((s["code"] for s in stocked
-                   if "DeployObjectAtPosition" not in [o.get("order") for o in s.get("orders") or []]),
+    sweeping = data["standing"].get("sweeping") or {}
+    free = sorted((s["code"] for s in stocked if s["code"] not in sweeping
+                   and "DeployObjectAtPosition" not in [o.get("order") for o in s.get("orders") or []]),
                   key=lambda code: went.get(code, -1e9))
     now = (state.get("meta") or {}).get("playtime_s") or 0
     out, short = [], False
@@ -608,7 +609,8 @@ def sell_scouts(state: dict, data: dict) -> list[str]:
     occupied = (state.get("player") or {}).get("occupied_ship")
     ours = sorted((s for s in catalog._ships(state) if sitrep.ship_type(s.get("macro")) == "scout"
                    and s.get("code") != occupied), key=lambda s: s["code"])
-    empty = [s for s in ours if not s.get("satellites_aboard")]
+    sweeping = (data.get("standing") or {}).get("sweeping") or {}
+    empty = [s for s in ours if not s.get("satellites_aboard") and s["code"] not in sweeping]
     keep = max(0, planned - (len(ours) - len(empty)))
     if not planned or len(empty) <= keep:
         return []
@@ -625,6 +627,41 @@ def sell_scouts(state: dict, data: dict) -> list[str]:
             _mark(data, "sold", ship["code"])
             out.append(f"sellship {ship['code']} {yard['code']} {yard.get('owner')}")
     return out
+
+
+def sweeps(state: dict, data: dict) -> list[str]:
+    """The plan's `sweep_sectors` are searched to their edges, one scout each, the nearest:
+    `sweep` sends it to the sector's undiscovered spot nearest to it, every cycle, until the
+    bridge logs the sector SWEPT. Explore stays in a sector's core, and at 416 game hours the
+    player saw parts of Silent Witness XII we had never seen; that is where the Pact's base
+    and the Kha'ak's new hive had stood unknown. `scouts`, `watch` and `sell_scouts` leave a
+    sweeping scout alone.
+    """
+    import catalog
+    import strategy
+    from purchases import _graph, jumps
+    held = data.setdefault("standing", {})
+    sweeping, swept = held.setdefault("sweeping", {}), held.setdefault("swept", [])
+    for _, text in state.get("logbook") or []:
+        found = re.search(r"SWEPT: (\S+) by", text or "")
+        if found and found.group(1) not in swept:
+            swept.append(found.group(1))
+    occupied = (state.get("player") or {}).get("occupied_ship")
+    scouts = [s for s in catalog._ships(state) if sitrep.ship_type(s.get("macro")) == "scout"
+              and s.get("code") != occupied]
+    alive = {s["code"] for s in scouts}
+    for code in [c for c, sector in sweeping.items() if c not in alive or sector in swept]:
+        del sweeping[code]
+    free = [s for s in scouts if s["code"] not in sweeping
+            and "DeployObjectAtPosition" not in [o.get("order") for o in s.get("orders") or []]]
+    graph = _graph()
+    for sector in [s for goal in strategy.goals(data).values() for s in goal.get("sweep_sectors") or []]:
+        if sector in swept or sector in sweeping.values() or not free:
+            continue
+        scout = min(free, key=lambda s: (jumps(graph, (s.get("place") or {}).get("sector"), sector), s["code"]))
+        free.remove(scout)
+        sweeping[scout["code"]] = sector
+    return [f"sweep {code} {sector}" for code, sector in sweeping.items()]
 
 
 def scouts(state: dict, data: dict) -> list[str]:
@@ -656,8 +693,10 @@ def scouts(state: dict, data: dict) -> list[str]:
     # order sent to it is remembered (agent.py, `sent_at`) and not sent again
     # for a while. QPE-143 was sent one three cycles running.
     sent_at = data.get("sent_at") or {}
-    spread, spread_out = _spread_scouts(state, data, ours, now) if planned else (set(), [])
-    out = spread_out + [f"explore {s['code']}" for s in ours
+    sweeping = st.get("sweeping") or {}
+    exploring = [s for s in ours if s["code"] not in sweeping]
+    spread, spread_out = _spread_scouts(state, data, exploring, now) if planned else (set(), [])
+    out = spread_out + [f"explore {s['code']}" for s in exploring
                         if s["code"] not in spread
                         and sitrep.role_of(s) == "IDLE" and (s.get("assignment") or {}).get("group") is None
                         and now - sent_at.get(f"explore {s['code']}", -1e9) > SCOUT_DELIVERY]
@@ -1715,7 +1754,7 @@ def civilians_flee(state: dict, data: dict) -> list[str]:
     return out
 
 
-RULES = (sell_limits, wharf_sales, revisit, satellites, watch, ledger, once, avoid_sectors, civilians_flee, fighter_posts,
+RULES = (sweeps, sell_limits, wharf_sales, revisit, satellites, watch, ledger, once, avoid_sectors, civilians_flee, fighter_posts,
          patrols, build_method,
          find_builds, hire_builders, own_stock, repairs, seminars, sell_scouts, scouts, empty_builds, docks, managers, shiptraders,
          cargo_drones, accounts, undock_fleet, wings, route_patrol, raids, hunts, carriers, fleet, grow)

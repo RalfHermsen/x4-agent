@@ -2265,6 +2265,20 @@ local function scout_sector(args)
     return true
 end
 
+--- "sweep VSR-185 cluster_45_sector001_macro" -> the ship flies to the undiscovered spot
+--- of that sector nearest to it and waits there; with none left the bridge logs SWEPT
+--- (md/x4_agent_bridge.xml, Agent_Sweep_Sector).
+local function sweep_sector(args)
+    local shipcode, sector = args[1], args[2]
+    local ship = shipcode and player_ships()[shipcode]
+    if not ship or not sector then
+        return refuse("sweep needs a ship of ours and a sector macro: sweep <SHIP> <SECTOR>")
+    end
+    pcall(AddUITriggeredEvent, "X4Agent", "sweep_ship", ConvertStringToLuaID(tostring(ship)))
+    pcall(AddUITriggeredEvent, "X4Agent", "sweep_sector", sector)
+    return true
+end
+
 --- "undock TUR-084" -> the queue goes, last to first, as the map menu's Delete All
 --- does, and the ship is back on its default order. `release` leaves a DockAndWait
 --- the game gave the ship itself: TUR-084 kept one through two releases (ship10b).
@@ -2350,6 +2364,7 @@ local BARE_HANDLERS = {
     undock = undock_ship,
     shiprespond = set_ship_response,
     scout = scout_sector,
+    sweep = sweep_sector,
     licence = buy_licence,
     command = command_ship,
     haul = haul,

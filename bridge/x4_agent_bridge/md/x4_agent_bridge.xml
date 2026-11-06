@@ -1246,6 +1246,15 @@
     </actions>
   </cue>
 
+  <cue name="Agent_Sweep_Ship" instantiate="true">
+    <conditions>
+      <event_ui_triggered screen="'X4Agent'" control="'sweep_ship'"/>
+    </conditions>
+    <actions>
+      <set_value name="Agent_Command_Store.$sweeper" exact="event.param3"/>
+    </actions>
+  </cue>
+
   <!-- A scout sent to one sector by name. `explore` takes the first unknown
        sector in range, which need not be the one a raid is planned for. -->
   <cue name="Agent_Scout_Sector" instantiate="true">
@@ -1271,6 +1280,51 @@
         <do_else>
           <write_to_logbook category="general"
             text="'[x4-agent] REFUSED: scout: %s found no sector %s in the galaxy'.[$ship.idcode, event.param3]"/>
+        </do_else>
+      </do_if>
+    </actions>
+  </cue>
+
+  <!-- A scout sent to the undiscovered spot of a sector nearest to it, where it waits
+       (MoveWait without a timeout) until the next `sweep`. Explore does not reach a
+       sector's edges: its blind tourist looks for undiscovered spots no further than
+       half the core's size from the core (aiscripts/order.move.recon.xml). With none
+       left anywhere in the sector, its orders go and it is back on its default. -->
+  <cue name="Agent_Sweep_Sector" instantiate="true">
+    <conditions>
+      <event_ui_triggered screen="'X4Agent'" control="'sweep_sector'"/>
+    </conditions>
+    <actions>
+      <set_value name="$ship" exact="Agent_Command_Store.$sweeper"/>
+      <set_value name="Agent_Command_Store.$sweeper" exact="null"/>
+      <do_if value="@$ship.isoperational">
+        <find_sector name="$target" macro="macro.{event.param3}" space="player.galaxy"/>
+        <do_if value="$target">
+          <do_if value="$ship.sector == $target">
+            <create_position name="$from" space="$target" object="$ship"/>
+          </do_if>
+          <do_else>
+            <set_value name="$from" exact="$target.coreposition"/>
+          </do_else>
+          <find_closest_undiscovered_position result="$spot" sector="$target">
+            <position value="$from"/>
+          </find_closest_undiscovered_position>
+          <cancel_all_orders object="$ship"/>
+          <do_if value="$spot">
+            <create_order object="$ship" id="'MoveWait'" immediate="true">
+              <param name="destination" value="[$target, $spot]"/>
+            </create_order>
+            <write_to_logbook category="general"
+              text="'[x4-agent] ORDER: %s sweeps %s'.[$ship.idcode, event.param3]"/>
+          </do_if>
+          <do_else>
+            <write_to_logbook category="general"
+              text="'[x4-agent] SWEPT: %s by %s'.[event.param3, $ship.idcode]"/>
+          </do_else>
+        </do_if>
+        <do_else>
+          <write_to_logbook category="general"
+            text="'[x4-agent] REFUSED: sweep: %s found no sector %s in the galaxy'.[$ship.idcode, event.param3]"/>
         </do_else>
       </do_if>
     </actions>

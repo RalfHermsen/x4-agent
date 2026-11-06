@@ -455,6 +455,8 @@ class StationGoal(BaseModel):
                                                                              "lead and join that sector's patrol")
     route_destroyers: int = Field(default=0, description="destroyers that lead the route patrol, the home "
                                                          "reserve kept")
+    sweep_sectors: list[str] = Field(default_factory=list, description="sector macros a scout each searches "
+                                                                       "to their edges, once")
     escorts_per_trader: int = Field(default=0, description="fighters that fly under each of this station's "
                                                            "traders, in defence")
 

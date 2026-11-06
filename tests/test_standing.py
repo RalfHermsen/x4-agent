@@ -1473,6 +1473,31 @@ def test_a_station_without_a_dock_gets_one(small_state, monkeypatch):
     assert standing.managers(state, {}) == []
 
 
+def test_scouts_sweep_the_plans_sectors_to_their_edges_one_each(small_state):
+    """At 416 game hours the player saw parts of Silent Witness XII we had never seen."""
+    state = copy.deepcopy(small_state)
+    here = _station(state)["place"]["sector"]
+    for i in range(3):
+        _add_ship(state, f"SCO-00{i}", "ship_tel_s_scout_01_a_macro", place={"sector": here}, satellites_aboard=0,
+                  orders=[{"order": "Explore", "default": True}])
+    data = {"strategy": {"plan": {"stations": {"KYV-745": {"build": {}, "miners": {}, "traders": 0, "defenders": 0,
+                                                           "destroyers": 0, "raid_sector": "", "scouts": 2,
+                                                           "sweep_sectors": [here, "S2"]}}}}}
+    assert standing.sweeps(state, data) == [f"sweep SCO-000 {here}", "sweep SCO-001 S2"]
+    assert standing.sweeps(state, data) == [f"sweep SCO-000 {here}", "sweep SCO-001 S2"]     # every cycle
+    # Exploring, placing satellites and selling leave them alone.
+    assert not any("SCO-000" in c or "SCO-001" in c for c in standing.scouts(state, data))
+    assert not any("SCO-000" in c or "SCO-001" in c for c in standing.sell_scouts(state, data))
+    # Once the bridge has found nothing left, the scout is free again.
+    state["logbook"] = [(1.0, f"[x4-agent] SWEPT: {here} by SCO-000")]
+    assert standing.sweeps(state, data) == ["sweep SCO-001 S2"]
+    assert data["standing"]["swept"] == [here]
+    md = (Path(__file__).parent.parent / "bridge/x4_agent_bridge/md/x4_agent_bridge.xml").read_text(encoding="utf-8")
+    assert "control=\"'sweep_sector'\"" in md and "<find_closest_undiscovered_position" in md
+    lua = (Path(__file__).parent.parent / "bridge/x4_agent_bridge/ui/x4agent.lua").read_text(encoding="utf-8")
+    assert "sweep = sweep_sector," in lua
+
+
 def test_empty_scouts_beyond_the_plan_are_sold_at_a_wharf_of_their_race(small_state):
     """The player's call: 31 scouts flew at 363 game hours, 30 of them empty, for a plan of five."""
     state = copy.deepcopy(small_state)
