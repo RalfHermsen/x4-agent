@@ -1787,10 +1787,17 @@ RULES = (sweeps, sell_limits, wharf_sales, revisit, satellites, watch, ledger, o
          cargo_drones, accounts, undock_fleet, wings, route_patrol, raids, hunts, carriers, fleet, grow)
 
 
+# Which rule gave which commands in the last call of `commands`, for `invariants.check`.
+LAST_BY_RULE: list[tuple[str, list[str]]] = []
+
+
 def commands(state: dict, data: dict, off: set | frozenset = frozenset()) -> list[str]:
     """Every standing rule's commands, except the rules named in `off`."""
     out = []
+    LAST_BY_RULE.clear()
     for rule in RULES:
         if rule.__name__ not in off:
-            out += rule(state, data)
+            given = rule(state, data)
+            LAST_BY_RULE.append((rule.__name__, list(given)))
+            out += given
     return out

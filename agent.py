@@ -29,6 +29,7 @@ from pathlib import Path
 import action_lines
 import catalog
 import executor
+import invariants
 import memory
 import planner
 import purchases
@@ -330,6 +331,8 @@ def cycle(model: str | None = None, save: Path | None = None, force: bool = Fals
     commands = orders_first(list(dict.fromkeys(commands)))
 
     commands, repeats = memory.drop_repeats(remembered, commands)
+    # What looks like a known mistake is named in the notes (invariants.py).
+    failures += invariants.check(state, commands, standing.LAST_BY_RULE)
 
     remembered["goals"] = plan.updated_goals or remembered.get("goals", [])
     memory.record(remembered, commands)

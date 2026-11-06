@@ -234,6 +234,8 @@ def main() -> int:
     parser.add_argument("--baseline-file", type=Path,
                         help="a save to copy into the agent's slot and load from there")
     parser.add_argument("--seta", action="store_true", help="run at six-times time warp")
+    parser.add_argument("--allow-warnings", action="store_true",
+                        help="start even when the dry run's checks name something (dryrun.py)")
     args = parser.parse_args()
 
     if args.baseline_file:
@@ -282,6 +284,18 @@ def main() -> int:
         log(run_dir, f"could not deploy the bridge: {deployed.stderr.strip()}")
         return 1
     log(run_dir, "bridge deployed from this checkout")
+    # The first cycle on paper, sending nothing (dryrun.py): start9k's assigned the guard
+    # of 30 home, and that was seen only after the restart.
+    dry = subprocess.run([sys.executable, "dryrun.py", str(baseline), "--out", str(run_dir / "dryrun.txt")],
+                         cwd=REPO, capture_output=True, text=True, encoding="utf-8", errors="replace")
+    if dry.returncode not in (0, 3):
+        log(run_dir, f"the dry run failed: {(dry.stderr or '').strip()[-300:]}")
+    else:
+        named = [line for line in dry.stdout.splitlines() if line.startswith("INVARIANT:")]
+        log(run_dir, "dry run: " + ("; ".join(named) if named else "no check named anything") + " (dryrun.txt)")
+    if dry.returncode != 0 and not args.allow_warnings:
+        log(run_dir, "not starting: see the dry run, or start with --allow-warnings")
+        return 2
     sums = snapshot(folder, run_dir / "player-saves")
     if not sums:
         log(run_dir, f"no protected saves found in {folder}; refusing to run without a copy")
