@@ -1376,6 +1376,8 @@ def test_a_station_with_a_dock_and_no_pier_gets_a_pier(small_state, monkeypatch)
     monkeypatch.setattr(catalog, "_through_gates",
                         lambda action, state: f"expand {action['station_id']} {action['ware']}")
     _station(state)["modules"] = ["dockarea_arg_m_station_01_lowtech_macro", "prod_gen_water_macro"]
+    assert standing.docks(state, {}) == []                      # off: a build with our pier took no vessel
+    monkeypatch.setattr(standing, "PIERS", True)
     assert standing.docks(state, {}) == ["expand KYV-745 pier"]
     _station(state)["modules"].append(executor.EXPANSION_MODULES["pier"][0])
     assert standing.docks(state, {}) == []

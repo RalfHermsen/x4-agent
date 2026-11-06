@@ -892,6 +892,9 @@ def empty_builds(state: dict, data: dict) -> list[str]:
     return out
 
 
+PIERS = False               # a pier for every station (`docks`); off until one can be placed
+
+
 def docks(state: dict, data: dict) -> list[str]:
     """6.10: a station without a dock gets an M dock, an empty plot first.
 
@@ -902,14 +905,16 @@ def docks(state: dict, data: dict) -> list[str]:
     the same gates as any expansion: the blueprint, one build at a time, and
     not again once the bridge could not fit it.
     A station with its dock and no pier gets a pier, where L and XL ships dock: the
-    player's call, when ZXX-974's own destroyers could not dock at their wharf.
+    player's call, when ZXX-974's own destroyers could not dock at their wharf. Off while
+    `PIERS` is false: in start9f/9g each build with our Teladi pier in it took no
+    construction vessel, ours stood on Wait beside them, and GZI-064's build stopped too.
     """
     import catalog
     out = []
     for st in catalog._stations(state):
         if not st.get("code"):
             continue
-        piers = any(m.startswith("pier_") for m in st.get("modules") or [])
+        piers = not PIERS or any(m.startswith("pier_") for m in st.get("modules") or [])
         ware = "dock" if not catalog._has_dock(st) else None if piers else "pier"
         if ware:
             command = catalog._through_gates({"type": "expand_station", "station_id": st["code"],
