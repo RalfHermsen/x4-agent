@@ -4,6 +4,24 @@ One entry per mistake that cost real time, with the rule that prevents it
 happening again. Evidence rather than advice: every one of these was measured,
 not guessed. The long-form story of most of them is in `docs/`.
 
+## Before naming a cause (tasks/plan-2026-11.md, 0.5)
+
+Two causes named on 2026-11-06 were wrong: "a build with the pier in it takes no
+construction vessel" (the vessel was building four piers ordered across two runs,
+the station waited in line), and "hunt orders do not stick" (an Attack of a ship
+under a leader drops when the target is in another sector; the reserve's held).
+Before a cause is written down or acted on:
+
+1. **The order in the save.** What the ship's queue held, default included, in the
+   save of the cycle before and after (`orders` of the asset).
+2. **The sector.** Where the ship and its target were, and whether a commander or
+   group decides for it (`executor.serves`).
+3. **A queue.** Whether the thing waits behind something else of ours: a build
+   behind another build, a builder on another station, a pipe of commands.
+4. **Who else sent what.** Every command for that ship in `host.log` that cycle,
+   by rule (`standing.LAST_BY_RULE`, the dry run), and by hand (`hand.log`).
+5. **Once more on another case.** One example is an anecdote.
+
 ## About the game
 
 **L1. X4 omits attributes that are zero.** `<account id="[0x10c]" own="1"/>`

@@ -58,3 +58,16 @@ def test_a_new_run_takes_what_the_save_cannot_tell_from_the_run_before(tmp_path)
     assert data["standing"] == {"where": {"FIG-000": ["S1", "fighter"]}, "swept": ["S1"]}
     assert set(carried) == {"sent_at", "logbook_seen", "standing.where", "standing.swept"}
     assert memory.carry(tmp_path / "missing.json", store) == []
+
+
+def test_a_hand_command_goes_out_and_on_record(tmp_path):
+    """tasks/plan-2026-11.md 0.5: a hand command left no trace in the run's folder."""
+    import hand
+    runs = tmp_path / "runs"
+    (runs / "20261106-100000-execute-a").mkdir(parents=True)
+    (runs / "20261106-110000-execute-b").mkdir()
+    outbox = tmp_path / "outbox.txt"
+    log = hand.send(["release X", " raid X S go khaak "], "a test", outbox=outbox, runs=runs)
+    assert outbox.read_text(encoding="utf-8") == "release X\nraid X S go khaak\n"
+    assert log == runs / "20261106-110000-execute-b" / "hand.log"
+    assert log.read_text(encoding="utf-8").count("# a test") == 2
