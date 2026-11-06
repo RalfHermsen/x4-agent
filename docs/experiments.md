@@ -2126,3 +2126,31 @@ in the bridge yet.
 877.4 M, two stations added and two sectors claimed. Lost, by the fleet's count of ships gone: 38
 freighters (most to the Pact, some to the Fallen Families), two miners, two frigates, four scouts and
 one destroyer.
+
+## 2026-11-05/06: start9d to start9n, the Kha'ak cleared from XII, a review, and a yardstick
+
+**What happened.** The guard of 30 took Silent Witness XII from the Kha'ak a second time (a hive,
+six weapon platforms and a nest rebuilt there after the claim, put on the map with `moveto`), and the
+reserve took the nest in Silent Witness XI. The fleet's home moved to ZXX-974; ZLR-942 in Argon
+Prime, which the Argon now defend, keeps a reserve and the route patrol of its own. Fighter patrols
+in Second Contact II and Silent Witness XI were tried as single fighters (slaughtered), as groups,
+and as groups led by frigates (four frigates lost); light ships were all the losses there.
+
+**Bugs found by running.** A guard leader without its Patrol was not recognised at a restart, and
+its 30 were assigned home (start9k); a second station with destroyers called the guard to itself;
+`fleet` counted raid ships at every station; four piers were ordered for one station across two
+runs, which looked like a build that took no vessel; Attack orders of ships under a leader dropped
+when the target was in another sector. Each fixed with a test.
+
+**The review.** Four reviewers read the repository and the run data (tasks/plan-2026-11.md has the
+findings). Since start8p Pact kills of our freighters and miners rose from about 0.08 to 0.23 a game
+hour; no destroyer was lost since start8m; miners filled full stores while our mining raises the
+Kha'ak's activity; a run started with empty memory and rules met on the same ships. The plan that
+followed: a foundation (dry run with checks before every run, memory carried across runs, one owner
+per ship per cycle, rules reloaded between cycles), the losses stopped (miners parked, hunts from
+the reserve, destroyers leading patrols), a yardstick, then campaigns against one faction at a time.
+
+**The yardstick, start9n.** 426.9 to 448.4 game hours with the plan frozen and no hand command: net
+worth at cost +5.36 M a game hour, credits +3.87 M; 6 fighters and 2 frigates lost to the Kha'ak,
+no freighter or miner lost; 30 Kha'ak, 2 Fallen Families and 1 Pact ship killed; 46 of 94
+production lines running at the end.
