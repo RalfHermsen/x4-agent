@@ -71,3 +71,27 @@ def test_a_hand_command_goes_out_and_on_record(tmp_path):
     assert outbox.read_text(encoding="utf-8") == "release X\nraid X S go khaak\n"
     assert log == runs / "20261106-110000-execute-b" / "hand.log"
     assert log.read_text(encoding="utf-8").count("# a test") == 2
+
+
+def test_a_changed_rule_module_reloads_and_a_broken_one_is_kept(tmp_path, monkeypatch):
+    """tasks/plan-2026-11.md 0.4: five restarts in one morning were for rule fixes."""
+    import importlib
+    import os
+    import sys
+    import agent
+    path = tmp_path / "x4hot.py"
+    path.write_text("VALUE = 1\n", encoding="utf-8")
+    monkeypatch.syspath_prepend(str(tmp_path))
+    module = importlib.import_module("x4hot")
+    try:
+        assert agent.reload_rules(("x4hot",)) == []                    # first seen
+        path.write_text("VALUE = 2\n", encoding="utf-8")
+        os.utime(path, (path.stat().st_atime, path.stat().st_mtime + 5))
+        assert agent.reload_rules(("x4hot",)) == ["reloaded x4hot.py"] and module.VALUE == 2
+        path.write_text("VALUE = = 3\n", encoding="utf-8")
+        os.utime(path, (path.stat().st_atime, path.stat().st_mtime + 10))
+        notes = agent.reload_rules(("x4hot",))
+        assert notes[0].startswith("kept the old x4hot.py: SyntaxError") and module.VALUE == 2
+    finally:
+        sys.modules.pop("x4hot", None)
+        agent._loaded_at.pop("x4hot", None)

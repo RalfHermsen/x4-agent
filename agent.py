@@ -150,6 +150,38 @@ def _fingerprint(state: dict, failures: list[str], goals: list[str],
                         .encode()).hexdigest()
 
 
+# Rule modules reload between cycles when their source changed, so a fix to a rule needs
+# no restart of the run: five restarts in one morning (start9i to start9m) were for that
+# (tasks/plan-2026-11.md 0.4). A module whose new source does not import is kept as it was.
+# Not agent.py itself, nor the parser, whose functions agent.py holds by name.
+RELOADABLE = ("sitrep", "purchases", "catalog", "executor", "invariants", "strategy", "standing")
+_loaded_at: dict[str, float] = {}
+
+
+def reload_rules(names: tuple[str, ...] = RELOADABLE) -> list[str]:
+    """Reload each module of `names` whose file changed since it was last seen; notes."""
+    import importlib
+    import importlib.util
+    notes = []
+    for name in names:
+        module = sys.modules.get(name)
+        path = Path(getattr(module, "__file__", None) or "")
+        if module is None or not path.is_file():
+            continue
+        mtime = path.stat().st_mtime
+        if mtime <= _loaded_at.setdefault(name, mtime):
+            continue
+        _loaded_at[name] = mtime
+        try:
+            spec = importlib.util.spec_from_file_location(f"_x4_trial_{name}", path)
+            spec.loader.exec_module(importlib.util.module_from_spec(spec))
+            importlib.reload(module)
+            notes.append(f"reloaded {path.name}")
+        except Exception as exc:  # noqa: BLE001 - a broken edit must not stop the run
+            notes.append(f"kept the old {path.name}: {type(exc).__name__}: {exc}")
+    return notes
+
+
 def cycle(model: str | None = None, save: Path | None = None, force: bool = False,
           sends: bool = True) -> dict:
     """Run one full cycle. Returns everything the caller might want to log.
@@ -169,7 +201,8 @@ def cycle(model: str | None = None, save: Path | None = None, force: bool = Fals
     # the model plans with continuity and can see its own failures.
     remembered = memory.load()
     before = copy.deepcopy(remembered)
-    failures = memory.check(remembered, state)
+    failures = reload_rules()
+    failures += memory.check(remembered, state)
     failures += memory.check_fleet(remembered, state, sitrep_mod.ship_type)
     failures += memory.track_expansions(remembered, state)
     failures += memory.game_refusals(remembered, state)
