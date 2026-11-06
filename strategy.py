@@ -277,8 +277,11 @@ def fleet(state: dict, data: dict) -> list[str]:
     # first) is not free: in start8t XOV-290 went to ZXX-974's build storage and, the same
     # cycle, to its trade, and the build waited 30 game hours on turret components.
     lent = {f["ship"] for each in (data.get("feeders") or {}).values() for f in each}
+    # A sector's patrol and a trader's escort are `standing.fighter_posts`', frigates as well.
+    held = data.get("standing") or {}
+    posted = set(held.get("sector_patrol") or {}) | set(held.get("escorting") or {})
     free = [s for s in catalog._ships(state)
-            if (s.get("assignment") or {}).get("group") is None and s.get("code") not in errand | lent
+            if (s.get("assignment") or {}).get("group") is None and s.get("code") not in errand | lent | posted
             and sitrep.role_of(s) == "IDLE" and not (winged and sitrep.ship_type(s.get("macro")) == "fighter")]
     held = set((state.get("player") or {}).get("blueprints") or [])
     named = set(((data.get("strategy") or {}).get("plan") or {}).get("blueprints") or [])
@@ -303,13 +306,15 @@ def fleet(state: dict, data: dict) -> list[str]:
         wants.append(("defend", None, goal.get("destroyers") or 0, "destroyer",
                       "ship_{race}_l_destroyer_01_a_macro",
                       lambda s: sitrep.ship_type(s.get("macro")) == "destroyer"))
-        # The route patrol's frigates, from our own S/M bay (`standing.route_patrol`).
-        wants.append(("defend", None, goal.get("route_frigates") or 0, "frigate",
-                      "ship_{race}_m_frigate_01_a_macro",
+        # The route patrol's frigates and those of the sector patrols, from our own S/M bay
+        # (`standing.route_patrol`, `standing.fighter_posts`).
+        wants.append(("defend", None, (goal.get("route_frigates") or 0) + sum((goal.get("patrol_frigates") or {}).values()),
+                      "frigate", "ship_{race}_m_frigate_01_a_macro",
                       lambda s: sitrep.ship_type(s.get("macro")) == "frigate"))
-        # A ship out on a raid or on the route is under its leader, and still ours to count.
+        # A ship out on a raid, on the route or on a patrol post is under its leader, and still ours to count.
         raiding = set(((data.get("standing") or {}).get("raid") or {}).get("ships") or [])
         raiding |= set(((data.get("standing") or {}).get("route") or {}).get("ships") or [])
+        raiding |= posted
         home = next((a for a in catalog._stations(state) if a.get("code") == code), {})
         reserve = reserve_purchase(state, data, goal, (home.get("place") or {}).get("sector"))
         if reserve:
@@ -390,6 +395,7 @@ def lines(state: dict, data: dict) -> list[str]:
         parts.append(f"defenders {have}/{goal.get('defenders') or 0}")
         if goal.get("destroyers"):
             raiding = set(((data.get("standing") or {}).get("raid") or {}).get("ships") or [])
+            raiding |= set(((data.get("standing") or {}).get("route") or {}).get("ships") or [])
             have = sum(1 for s in catalog._ships(state)
                        if (executor.serves(s, state) in _working(code, "defend") or s.get("code") in raiding)
                        and sitrep.ship_type(s.get("macro")) == "destroyer")

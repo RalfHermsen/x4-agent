@@ -450,7 +450,11 @@ class StationGoal(BaseModel):
     route_frigates: int = Field(default=0, description="frigates in that patrol; it goes when this many whole "
                                                        "ones stand at home")
     patrol_sectors: dict[str, int] = Field(default_factory=dict, description="sector macro to how many fighters "
-                                                                            "patrol it, each on its own Patrol")
+                                                                            "patrol it, as one group")
+    patrol_frigates: dict[str, int] = Field(default_factory=dict, description="sector macro to how many frigates "
+                                                                             "lead and join that sector's patrol")
+    route_destroyers: int = Field(default=0, description="destroyers that lead the route patrol, the home "
+                                                         "reserve kept")
     escorts_per_trader: int = Field(default=0, description="fighters that fly under each of this station's "
                                                            "traders, in defence")
 

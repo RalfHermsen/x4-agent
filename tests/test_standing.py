@@ -562,6 +562,63 @@ def test_with_no_carrier_to_fill_its_fighters_join_patrols_and_escorts(small_sta
                                                    "command CFT-001 TRA-001 defence", "command CFT-002 TRA-001 defence"]
 
 
+def _frigates_home(state, n):
+    home = _station(state)
+    home["assignment"]["groups"][3] = "defence"
+    for i in range(n):
+        _add_ship(state, f"FRI-00{i}", "ship_tel_m_frigate_01_a_macro", cls="ship_m", assignment={"group": 3},
+                  place=dict(home["place"]), orders=[{"order": "ProtectStation", "default": True}])
+
+
+def test_a_frigate_from_home_leads_the_sector_patrol_and_the_route_keeps_its_own(small_state):
+    """The player's choice at 410 game hours: 32 light fighters lost to the Kha'ak in a night."""
+    state, data = _fighters_ready(small_state, fighters=2)
+    assert standing.fighter_posts(state, data) == [f"raid FIG-000 {XEN_SECTOR} stay", "command FIG-001 FIG-000 attack"]
+    _frigates_home(state, 2)
+    data["strategy"]["plan"]["stations"]["KYV-745"].update(patrol_frigates={XEN_SECTOR: 2}, route_sectors=["S1"],
+                                                           route_frigates=1)
+    # The route is home and keeps one; the other leads, and the fighters go under it at once.
+    assert standing.fighter_posts(state, data) == [f"raid FRI-001 {XEN_SECTOR} stay",
+                                                   "release FIG-000", "command FIG-000 FRI-001 attack",
+                                                   "release FIG-001", "command FIG-001 FRI-001 attack"]
+    # The route patrol does not take the one posted.
+    assert standing.route_patrol(state, data) == ["raid FRI-000 S1 ships"]
+    # With the route out, the patrol has the other too.
+    data["standing"].pop("route")
+    data["standing"]["route"] = {"ships": ["XXX-000"]}
+    assert standing.fighter_posts(state, data) == ["release FRI-000", "command FRI-000 FRI-001 attack"]
+
+
+def test_a_frigate_leading_fighters_is_known_again_from_the_save(small_state):
+    state, data = _fighters_ready(small_state, fighters=2)
+    _frigates_home(state, 1)
+    data["strategy"]["plan"]["stations"]["KYV-745"]["patrol_frigates"] = {XEN_SECTOR: 1}
+    next(a for a in state["assets"] if a["code"] == "FRI-000").update(
+        place={"sector": XEN_SECTOR}, orders=[{"order": "Patrol"}], assignment={"group": 3, "groups": {6: "attack"}})
+    next(a for a in state["assets"] if a["code"] == "FIG-000")["assignment"] = {"group": 6}
+    state["assigned_to"]["FIG-000"] = "FRI-000"
+    assert standing.fighter_posts(state, data) == ["command FIG-001 FRI-000 attack"]
+    assert data["standing"]["sector_leader"] == {XEN_SECTOR: "FRI-000"}
+
+
+def test_fleet_builds_frigates_for_the_patrols_and_leaves_a_posted_one_free(small_state):
+    import strategy
+    state, data = _fighters_ready(small_state, fighters=0)
+    goal = data["strategy"]["plan"]["stations"]["KYV-745"]
+    goal.update(destroyers=0, patrol_frigates={XEN_SECTOR: 2}, patrol_sectors={}, escorts_per_trader=0)
+    calls = []
+    real = strategy.own_build
+    strategy.own_build = lambda state, pattern, size="m", brake=True: calls.append(pattern) or f"build {pattern}"
+    try:
+        assert strategy.fleet(state, data) == ["build ship_{race}_m_frigate_01_a_macro"]
+        _add_ship(state, "FRI-000", "ship_tel_m_frigate_01_a_macro", cls="ship_m")
+        assert any("FRI-000" in c for c in strategy.fleet(state, data))
+        data["standing"] = {"sector_patrol": {"FRI-000": XEN_SECTOR}}
+        assert not any("FRI-000" in c for c in strategy.fleet(state, data))
+    finally:
+        strategy.own_build = real
+
+
 def test_a_sector_patrol_is_known_again_from_the_save(small_state):
     """A run starts with no memory: a free fighter on a Patrol in the sector is its patrol."""
     state, data = _fighters_ready(small_state, fighters=3)
@@ -903,6 +960,45 @@ def test_a_hurt_route_patrol_comes_home_and_one_left_out_is_taken_over(small_sta
     state["assigned_to"] = {"FRI-001": "FRI-000"}
     assert standing.route_patrol(state, data) == []
     assert data["standing"]["route"]["ships"] == ["FRI-000", "FRI-001"] and data["standing"]["route"]["stop"] == 1
+
+
+def _with_destroyers(state, n):
+    home = _station(state)
+    for i in range(n):
+        _add_ship(state, f"DES-00{i}", "ship_tel_l_destroyer_01_a_macro", cls="ship_l", assignment={"group": 3},
+                  place=dict(home["place"]), orders=[{"order": "ProtectStation", "default": True}])
+
+
+def test_a_route_patrol_with_destroyers_is_led_by_one_and_leaves_the_reserve_home(small_state):
+    """By 410 game hours Pact and Fallen Families L destroyers on the route killed freighters
+    the frigates could not stop: the player chose eight destroyers for the route."""
+    state, data = _route_ready(small_state)
+    _with_destroyers(state, 3)
+    data["strategy"]["plan"]["stations"]["KYV-745"].update(route_destroyers=2, raid_home=2)
+    assert standing.route_patrol(state, data) == ["command FRI-000 DES-000 attack", "command FRI-001 DES-000 attack",
+                                                  "raid DES-000 S1 ships"]
+    # The raid leaves the route's destroyers alone: none called home, none sent.
+    state, data = _route_ready(small_state)
+    _with_destroyers(state, 3)
+    goal = data["strategy"]["plan"]["stations"]["KYV-745"]
+    goal.update(route_destroyers=2, destroyers=3, raid_sector=XEN_SECTOR)
+    standing.route_patrol(state, data)
+    assert data["standing"]["route"]["ships"] == ["DES-000", "DES-001", "FRI-000", "FRI-001"]
+    leader = next(a for a in state["assets"] if a["code"] == "DES-000")
+    leader.update(place={"sector": "S1"}, orders=[{"order": "Patrol"}], assignment={"group": 3, "groups": {6: "attack"}})
+    next(a for a in state["assets"] if a["code"] == "DES-001").update(place={"sector": "S1"}, assignment={"group": 6})
+    state["assigned_to"] = {"DES-001": "DES-000"}
+    assert standing.raids(state, data) == []
+
+
+def test_a_new_run_takes_over_the_route_but_not_a_frigate_leading_fighters(small_state):
+    state, data = _route_ready(small_state)
+    leader = next(a for a in state["assets"] if a["code"] == "FRI-000")
+    leader.update(place={"sector": "S1"}, orders=[{"order": "Patrol"}], assignment={"group": 3, "groups": {6: "attack"}})
+    _add_ship(state, "FIG-000", "ship_tel_s_fighter_01_a_macro", cls="ship_s", assignment={"group": 6})
+    state["assigned_to"] = {"FIG-000": "FRI-000"}
+    assert standing.route_patrol(state, data) == []
+    assert "route" not in data["standing"]
 
 
 def test_a_carrier_guards_the_plans_station_instead_of_flying_with_the_guard(small_state):
