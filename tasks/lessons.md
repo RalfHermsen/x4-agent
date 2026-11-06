@@ -229,9 +229,12 @@ cutscene), and the game's own autosave stops too. The reason is
 `GetSaveInquiryReason()`, as the save menu's mouse-over shows it. In start9p
 the first refusal said `cutscene`: the comm window an NPC opens to speak to
 the player is one (`aiscripts/player.interaction.xml`, `play_cutscene` on
-the target monitor, stopped after its Duration, 10 s by default), so with
-230 ships `save` flickers to 0 for seconds at a time. Which cutscene held
-start9o's game for four hours is not known. The state
+the target monitor, stopped after its Duration, 10 s by default). What held
+it for good was our own sweep: a MoveWait that arrives with no next order has
+the pilot say "Awaiting orders" (`order.move.wait.xml`), and five scouts on
+legs of a few seconds kept one playing without a break. `save` flickered
+from the first sweep and stayed 0 from the second. A Wait now stands behind
+each leg. The state
 line now carries `save=` (`player.autosave.available`), a refused
 `savegame` sends `lua unsaved <reason>` over the pipe instead of only to the
 logbook (which arrives with a save, so never), and `experiment.py` reloads
