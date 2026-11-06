@@ -630,6 +630,124 @@ def sell_scouts(state: dict, data: dict) -> list[str]:
     return out
 
 
+SCOUT_SETTLED = 7200       # game seconds the target's known stations stay the same before the siege
+SIEGE_CLEAR = 1800         # game seconds the target has nothing left in the sector before the claim
+PLOT_AGAIN = 3600          # game seconds before a plot is asked for again
+PHASES = ("scout", "siege", "claim", "base", "patrol", "gate", "done")
+
+
+def campaign(state: dict, data: dict) -> list[str]:
+    """One faction at a time, its sectors one by one (tasks/plan-2026-11.md, phase 2): the
+    plan's `campaign`, its phase kept here in memory and turned into goals by
+    `strategy.goals`. The player's call on 2026-11-06: grow slowly and steadily at the
+    expense of hostile factions, one at a time, every sector taken a base before the next.
+
+    scout:  the sector is swept and its gates watched, until it is swept and what we know
+            of the target there has not changed for SCOUT_SETTLED.
+    siege:  the home's guard holds it (a guard elsewhere comes home first); until the
+            target has no station or build storage left there for SIEGE_CLEAR. A sector
+            changes hands when its owner's administration and build modules are gone and
+            another's stands (Egosoft wiki, Sector Ownership).
+    claim:  the guard's leader buys a plot there, until a station of ours stands in it.
+    base:   that station builds the plan's template, its first module the claim, under
+            the guard, until that module and its defence discs stand.
+    patrol: the guard goes home and a garrison of the home's destroyers takes the sector.
+    gate:   no ship of ours lost there for `hold_hours`, and net worth at cost not below
+            where the campaign began; then the next sector. A loss starts the clock again.
+    """
+    import catalog
+    import score
+    import strategy
+    plan = (data.get("strategy") or {}).get("plan") or {}
+    spec = plan.get("campaign")
+    if not spec or not spec.get("sectors"):
+        return []
+    held = data.setdefault("standing", {})
+    now = (state.get("meta") or {}).get("playtime_s") or 0
+    at = data.get("campaign") or {}
+    if at.get("faction") != spec["faction"] or at.get("sector") not in spec["sectors"] + [None]:
+        at = {"faction": spec["faction"], "sector": None, "taken": [], "bases": {},
+              "worth": score.score(state).get("net_worth_cost")}
+    if at.get("sector") is None:
+        left = [s for s in spec["sectors"] if s not in at["taken"]]
+        if not left:
+            at["phase"] = "done"
+            data["campaign"] = at
+            return []
+        at.update(sector=left[0], phase="scout", since=now)
+    data["campaign"] = at
+    sector, phase, faction = at["sector"], at["phase"], spec["faction"]
+    ours = {s["code"]: s for s in state.get("assets", []) if (s.get("cls") or "").startswith("ship") and s.get("code")}
+    raid = held.get("raid")
+
+    def advance(to):
+        at.update(phase=to, since=now)
+
+    def guard_home():
+        alive = [ours[c] for c in raid["ships"] if c in ours]
+        raid["phase"], raid["since"] = "back", now
+        return _fly_home(raid, alive)
+
+    target = _enemy(state, sector, faction)
+    if phase == "scout":
+        known = (target.get("station") or 0) + (target.get("buildstorage") or 0)
+        if known != at.get("known"):
+            at["known"], at["known_since"] = known, now
+        if sector in (held.get("swept") or []) and now - at.get("known_since", now) >= SCOUT_SETTLED:
+            advance("siege")
+        return []
+    if phase == "siege":
+        if raid and raid.get("sector") != sector and raid.get("phase") == "out":
+            return guard_home()
+        if target.get("station") or target.get("buildstorage"):
+            at.pop("clear_since", None)
+        elif now - at.setdefault("clear_since", now) >= SIEGE_CLEAR:
+            advance("claim")
+        return []
+    if phase == "claim":
+        mine = [st["code"] for st in catalog._stations(state) if (st.get("place") or {}).get("sector") == sector]
+        if mine:
+            at["bases"][mine[0]] = sector
+            at["base"] = mine[0]
+            advance("base")
+            return []
+        leader = (raid or {}).get("leader")
+        if (raid and raid.get("sector") == sector and leader in ours
+                and (ours[leader].get("place") or {}).get("sector") == sector
+                and now - at.get("plotted", -1e9) >= PLOT_AGAIN):
+            at["plotted"] = now
+            return [f"newplot {leader} 8 {spec.get('plot_cap') or 20_000_000} 30000 0 0"]
+        return []
+    if phase == "base":
+        st = next((s for s in catalog._stations(state) if s.get("code") == at.get("base")), None)
+        build = (spec.get("base") or {}).get("build") or {}
+        first = next(iter(build), None)
+        if st and (not first or strategy.built(st, first) >= build[first]) and (
+                strategy.built(st, "defence") >= (build.get("defence") or 0)):
+            advance("patrol")
+        return []
+    if phase == "patrol":
+        if raid and raid.get("sector") == sector and raid.get("phase") == "out":
+            return guard_home()
+        posted = sum(1 for s in (held.get("sector_patrol") or {}).values() if s == sector)
+        if posted >= (spec.get("garrison") or 0):
+            advance("gate")
+            at["clock"] = now
+        return []
+    if phase == "gate":
+        where = held.get("where") or {}
+        for when, text in state.get("logbook") or []:
+            found = when > at["clock"] and re.search(r"DESTROYED: (\S+) by", text or "")
+            if found and (where.get(found.group(1)) or [None])[0] == sector:
+                at["clock"] = when
+        worth = score.score(state).get("net_worth_cost") or 0
+        if now - at["clock"] >= (spec.get("hold_hours") or 10) * 3600 and worth >= (at.get("worth") or 0):
+            at["taken"].append(sector)
+            at.update(sector=None, phase=None)
+        return []
+    return []
+
+
 SWEEP_AGAIN = 600          # game seconds before a sweep cut short is started again
 
 
@@ -666,13 +784,15 @@ def sweeps(state: dict, data: dict) -> list[str]:
         free.remove(scout)
         sweeping[scout["code"]] = sector
     # The bridge flies the legs one after the other; `sweep` again only for a scout on none,
-    # its sweep cut short, and not before the last had time to start.
+    # its sweep cut short, and not before the last had time to start. A scout on a leg this
+    # run did not start gets one too: a leg of the bridge before 4bfb818 waits for ever, and
+    # the new `sweep` takes its place.
     now = (state.get("meta") or {}).get("playtime_s") or 0
     sent = held.setdefault("sweep_sent", {})
     ours = {s["code"]: s for s in scouts}
     out = []
     for code, sector in sweeping.items():
-        if ("MoveWait" in [o.get("order") for o in ours[code].get("orders") or []]
+        if (("MoveWait" in [o.get("order") for o in ours[code].get("orders") or []] and code in sent)
                 or now - sent.get(code, -1e9) < SWEEP_AGAIN):
             continue
         sent[code] = now
@@ -1846,7 +1966,7 @@ def civilians_flee(state: dict, data: dict) -> list[str]:
     return out
 
 
-RULES = (sweeps, sell_limits, wharf_sales, revisit, satellites, watch, ledger, once, avoid_sectors, civilians_flee, fighter_posts,
+RULES = (campaign, sweeps, sell_limits, wharf_sales, revisit, satellites, watch, ledger, once, avoid_sectors, civilians_flee, fighter_posts,
          patrols, build_method,
          find_builds, hire_builders, own_stock, repairs, seminars, sell_scouts, scouts, empty_builds, docks, managers, shiptraders,
          cargo_drones, accounts, undock_fleet, wings, route_patrol, raids, hunts, carriers, fleet, grow)

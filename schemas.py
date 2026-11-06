@@ -465,6 +465,20 @@ class StationGoal(BaseModel):
                                                            "traders, in defence")
 
 
+class Campaign(BaseModel):
+    """One faction at a time, its sectors one by one (tasks/plan-2026-11.md, phase 2):
+    scout, siege, claim, base, patrol, gate. `standing.campaign` keeps the phase in
+    memory; `strategy.goals` turns it into the goals the rules carry out."""
+    faction: str = Field(description="the faction's id, as the save names it (scaleplate, loanshark, ...)")
+    sectors: list[str] = Field(description="its sectors to take, in order, by macro")
+    home: str = Field(description="the station whose destroyers are the strike group (raid_* in its goal)")
+    garrison: int = Field(default=3, description="destroyers that patrol a sector once it is taken")
+    hold_hours: float = Field(default=10.0, description="game hours a base holds before the next sector")
+    plot_cap: int = Field(default=20_000_000, description="the most a plot may cost")
+    base: StationGoal = Field(description="the goal of the station built in a sector taken; its first "
+                                          "module claims the sector (an L bay did in Silent Witness XI and XII)")
+
+
 class Strategy(BaseModel):
     """Goals for the next hours, set by a strategist and carried out by the
     rules: `grow` builds toward `build`, `fleet` assigns and buys toward the
@@ -478,3 +492,4 @@ class Strategy(BaseModel):
         description="ship and equipment blueprints to buy, by ware; a planned module's "
                     "blueprint is bought without being named here")
     rationale: str = Field(description="Why, in a few sentences. Logged.")
+    campaign: Campaign | None = Field(default=None, description="the conquest under way, if any")

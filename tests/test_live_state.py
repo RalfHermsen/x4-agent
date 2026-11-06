@@ -63,6 +63,22 @@ def test_a_guard_leader_without_its_patrol_keeps_its_guard(live):
     assert data["standing"]["raid"]["leader"] == "TXA-598"
 
 
+def test_a_campaign_against_the_pact_starts_by_scouting_heretics_end(live):
+    """tasks/plan-2026-11.md phase 3: the Pact first, Heretic's End first."""
+    state, data = live
+    plan = data["strategy"]["plan"]
+    base = {k: v for k, v in plan["stations"]["GZI-064"].items()}
+    plan["campaign"] = {"faction": "scaleplate", "home": "ZXX-974", "garrison": 3, "hold_hours": 10,
+                        "plot_cap": 20_000_000, "base": base,
+                        "sectors": ["cluster_31_sector001_macro", "cluster_04_sector002_macro"]}
+    # Our own five sectors swept by then, a scout is free for it.
+    data["standing"] = {"swept": [s for g in plan["stations"].values() for s in g.get("sweep_sectors") or []]}
+    commands, found = _cycle(state, data)
+    assert found == [] and standing.LAST_CLAIMED == []
+    assert (data["campaign"]["sector"], data["campaign"]["phase"]) == ("cluster_31_sector001_macro", "scout")
+    assert any(c.startswith("sweep ") and c.endswith(" cluster_31_sector001_macro") for c in commands)
+
+
 def test_a_pier_in_a_build_is_not_asked_for_again(live):
     """start9f and start9g: four piers for ZXX-974."""
     state, data = live

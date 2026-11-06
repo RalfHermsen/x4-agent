@@ -42,8 +42,36 @@ def load(data: dict, state: dict) -> list[str]:
 
 
 def goals(data: dict) -> dict[str, dict]:
-    """Station code -> its goal, from the plan in memory; empty without one."""
-    return ((data.get("strategy") or {}).get("plan") or {}).get("stations") or {}
+    """Station code -> its goal, from the plan in memory; empty without one.
+
+    A campaign under way (`standing.campaign`, tasks/plan-2026-11.md phase 2) changes two
+    goals. Its home's: the target sector swept and watched while scouted; its guard there
+    while besieged, claimed and built; home again after, with a garrison patrolling every
+    sector taken. And a base's: the plan's template, until the plan names that station.
+    """
+    plan = (data.get("strategy") or {}).get("plan") or {}
+    stations = plan.get("stations") or {}
+    spec, at = plan.get("campaign"), data.get("campaign") or {}
+    if not (spec and at.get("sector") and spec.get("home") in stations):
+        return stations
+    stations, sector, phase = dict(stations), at["sector"], at.get("phase")
+    home = dict(stations[spec["home"]])
+    taken = [s for s in spec.get("sectors") or [] if s in (at.get("taken") or [])]
+    if phase in ("patrol", "gate", "done"):
+        taken.append(sector)
+    home["patrol_destroyers"] = {**(home.get("patrol_destroyers") or {}),
+                                 **{s: spec.get("garrison") or 0 for s in taken}}
+    if phase == "scout":
+        home["sweep_sectors"] = [*(home.get("sweep_sectors") or []), sector]
+        home["watch_sectors"] = [*(home.get("watch_sectors") or []), sector]
+    elif phase in ("siege", "claim", "base"):
+        home.update(raid_sector=sector, raid_faction=spec["faction"], raid_guard=True, raid_unseen=True)
+    else:
+        home["raid_sector"] = ""
+    stations[spec["home"]] = home
+    for code in at.get("bases") or {}:
+        stations.setdefault(code, dict(spec["base"]))
+    return stations
 
 
 def built(st: dict, ware: str) -> int:
@@ -390,6 +418,10 @@ def lines(state: dict, data: dict) -> list[str]:
         return []
     out = [f"set at {held.get('since', 0) / 3600:.1f} h for {held['plan'].get('horizon_hours')} h "
            f"({held.get('source', 'model')}): {held['plan'].get('rationale', '')}"]
+    at = data.get("campaign") or {}
+    if (held.get("plan") or {}).get("campaign") and at:
+        out.append(f"campaign against {at.get('faction')}: {at.get('sector')} {at.get('phase')} since "
+                   f"{(at.get('since') or 0) / 3600:.1f} h, taken {', '.join(at.get('taken') or []) or 'none'}")
     stations = {st.get("code"): st for st in catalog._stations(state)}
     for code, goal in plan.items():
         st = stations.get(code)

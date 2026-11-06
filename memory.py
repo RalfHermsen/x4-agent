@@ -76,7 +76,7 @@ DID_KEYS = ("pending", "applied", "funded", "expansions", "purchases", "feeders"
 # patrols, builds: the rules find those there), nor the marks of things a run does once,
 # since some settings are not in the save and go out again each run (lessons L11).
 CARRIED = ("refused", "explore_retried", "ledger", "blueprint_factions", "offered", "logbook_seen",
-           "reserved", "sent_at")
+           "reserved", "sent_at", "campaign")
 # From `standing`: where our ships were (a ship lost in a new run's first cycle is placed),
 # the logbook a hunt has read, swept sectors, the scouts' sectors, satellite rounds,
 # sold scouts, seminars and builder hiring.
