@@ -630,10 +630,13 @@ def sell_scouts(state: dict, data: dict) -> list[str]:
     return out
 
 
+SWEEP_AGAIN = 600          # game seconds before a sweep cut short is started again
+
+
 def sweeps(state: dict, data: dict) -> list[str]:
     """The plan's `sweep_sectors` are searched to their edges, one scout each, the nearest:
-    `sweep` sends it to the sector's undiscovered spot nearest to it, every cycle, until the
-    bridge logs the sector SWEPT. Explore stays in a sector's core, and at 416 game hours the
+    `sweep` starts the bridge on the sector's undiscovered spots, nearest first, one leg
+    after the other, until it logs the sector SWEPT. Explore stays in a sector's core, and at 416 game hours the
     player saw parts of Silent Witness XII we had never seen; that is where the Pact's base
     and the Kha'ak's new hive had stood unknown. `scouts`, `watch` and `sell_scouts` leave a
     sweeping scout alone.
@@ -662,7 +665,19 @@ def sweeps(state: dict, data: dict) -> list[str]:
         scout = min(free, key=lambda s: (jumps(graph, (s.get("place") or {}).get("sector"), sector), s["code"]))
         free.remove(scout)
         sweeping[scout["code"]] = sector
-    return [f"sweep {code} {sector}" for code, sector in sweeping.items()]
+    # The bridge flies the legs one after the other; `sweep` again only for a scout on none,
+    # its sweep cut short, and not before the last had time to start.
+    now = (state.get("meta") or {}).get("playtime_s") or 0
+    sent = held.setdefault("sweep_sent", {})
+    ours = {s["code"]: s for s in scouts}
+    out = []
+    for code, sector in sweeping.items():
+        if ("MoveWait" in [o.get("order") for o in ours[code].get("orders") or []]
+                or now - sent.get(code, -1e9) < SWEEP_AGAIN):
+            continue
+        sent[code] = now
+        out.append(f"sweep {code} {sector}")
+    return out
 
 
 def scouts(state: dict, data: dict) -> list[str]:

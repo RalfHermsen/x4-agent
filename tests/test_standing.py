@@ -1574,14 +1574,18 @@ def test_scouts_sweep_the_plans_sectors_to_their_edges_one_each(small_state):
                                                            "destroyers": 0, "raid_sector": "", "scouts": 2,
                                                            "sweep_sectors": [here, "S2"]}}}}}
     assert standing.sweeps(state, data) == [f"sweep SCO-000 {here}", "sweep SCO-001 S2"]
-    assert standing.sweeps(state, data) == [f"sweep SCO-000 {here}", "sweep SCO-001 S2"]     # every cycle
+    assert standing.sweeps(state, data) == []                   # the bridge flies the legs
+    # On a leg it is left alone; with its sweep cut short, it is sent again after a while.
+    next(a for a in state["assets"] if a["code"] == "SCO-000")["orders"] = [{"order": "MoveWait"}]
+    state["meta"]["playtime_s"] += standing.SWEEP_AGAIN
+    assert standing.sweeps(state, data) == ["sweep SCO-001 S2"]
     # Exploring, placing satellites and selling leave them alone.
     assert not any("SCO-000" in c or "SCO-001" in c for c in standing.scouts(state, data))
     assert not any("SCO-000" in c or "SCO-001" in c for c in standing.sell_scouts(state, data))
     # Once the bridge has found nothing left, the scout is free again.
     state["logbook"] = [(1.0, f"[x4-agent] SWEPT: {here} by SCO-000")]
-    assert standing.sweeps(state, data) == ["sweep SCO-001 S2"]
-    assert data["standing"]["swept"] == [here]
+    assert standing.sweeps(state, data) == []
+    assert data["standing"]["swept"] == [here] and data["standing"]["sweeping"] == {"SCO-001": "S2"}
     md = (Path(__file__).parent.parent / "bridge/x4_agent_bridge/md/x4_agent_bridge.xml").read_text(encoding="utf-8")
     assert "control=\"'sweep_sector'\"" in md and "<find_closest_undiscovered_position" in md
     lua = (Path(__file__).parent.parent / "bridge/x4_agent_bridge/ui/x4agent.lua").read_text(encoding="utf-8")
