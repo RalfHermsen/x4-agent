@@ -364,8 +364,9 @@ def cycle(model: str | None = None, save: Path | None = None, force: bool = Fals
     commands = orders_first(list(dict.fromkeys(commands)))
 
     commands, repeats = memory.drop_repeats(remembered, commands)
-    # What looks like a known mistake is named in the notes (invariants.py).
-    failures += invariants.check(state, commands, standing.LAST_BY_RULE)
+    # What looks like a known mistake is named in the notes (invariants.py), and so is an
+    # order a rule lost to the rule that had the ship first (standing.commands).
+    failures += invariants.check(state, commands, standing.LAST_BY_RULE) + standing.LAST_CLAIMED
 
     remembered["goals"] = plan.updated_goals or remembered.get("goals", [])
     memory.record(remembered, commands)

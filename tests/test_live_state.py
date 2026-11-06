@@ -47,9 +47,9 @@ def _cycle(state, data):
 def test_a_run_starting_on_the_live_state_trips_no_check(live):
     state, data = live
     commands, found = _cycle(state, data)
-    assert commands and found == []
+    assert commands and found == [] and standing.LAST_CLAIMED == []
     # Nor the cycle after, with the memory the first one left.
-    assert _cycle(state, data)[1] == []
+    assert _cycle(state, data)[1] == [] and standing.LAST_CLAIMED == []
 
 
 def test_a_guard_leader_without_its_patrol_keeps_its_guard(live):

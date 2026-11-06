@@ -57,3 +57,21 @@ def test_the_standing_rules_say_which_gave_what(small_state):
 def test_a_cycle_names_what_the_checks_find(run_cycle, fake_planner, monkeypatch):
     monkeypatch.setattr(invariants, "check", lambda state, commands, by_rule: ["INVARIANT: test"])
     assert "INVARIANT: test" in run_cycle()["failures"]
+
+
+def test_the_first_rule_to_order_a_ship_has_it_for_the_cycle(small_state, monkeypatch):
+    """tasks/plan-2026-11.md 0.3: one owner per ship per cycle."""
+    state = copy.deepcopy(small_state)
+    _with_ships(state, "FIG", "ship_tel_s_fighter_01_a_macro", 1)
+
+    def fighter_posts(state, data):
+        return ["release FIG-000", "command FIG-000 TRA-001 defence"]
+
+    def fleet(state, data):
+        return ["assign FIG-000 KYV-745 defend", "shiprespond FIG-000 attacked flee", "expand KYV-745 dock"]
+    monkeypatch.setattr(standing, "RULES", (fighter_posts, fleet))
+    assert standing.commands(state, {}) == ["release FIG-000", "command FIG-000 TRA-001 defence",
+                                            "shiprespond FIG-000 attacked flee", "expand KYV-745 dock"]
+    assert standing.LAST_CLAIMED == ["CLAIMED: assign FIG-000 KYV-745 defend from fleet dropped, "
+                                     "FIG-000 is fighter_posts's this cycle"]
+    assert standing.LAST_BY_RULE[1] == ("fleet", ["shiprespond FIG-000 attacked flee", "expand KYV-745 dock"])

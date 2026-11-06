@@ -1819,17 +1819,39 @@ RULES = (sweeps, sell_limits, wharf_sales, revisit, satellites, watch, ledger, o
          cargo_drones, accounts, undock_fleet, wings, route_patrol, raids, hunts, carriers, fleet, grow)
 
 
-# Which rule gave which commands in the last call of `commands`, for `invariants.check`.
+# Which rule gave which commands in the last call of `commands`, for `invariants.check`,
+# and the orders it dropped because a rule before it had the ship that cycle.
 LAST_BY_RULE: list[tuple[str, list[str]]] = []
+LAST_CLAIMED: list[str] = []
 
 
 def commands(state: dict, data: dict, off: set | frozenset = frozenset()) -> list[str]:
-    """Every standing rule's commands, except the rules named in `off`."""
+    """Every standing rule's commands, except the rules named in `off`.
+
+    One owner per ship per cycle (tasks/plan-2026-11.md 0.3): the first rule in RULES to
+    give a ship an order has it, and a later rule's order for it is dropped, with a note.
+    Settings are not orders. Before this, rules that meet the same ships were kept apart
+    one at a time: a station without a raid called the guard to itself, `fleet` and
+    `fighter_posts` took one fighter, and the order of RULES decided the rest.
+    """
+    import invariants
+    ships = {a.get("code") for a in state.get("assets", []) if (a.get("cls") or "").startswith("ship")}
+    owner: dict[str, str] = {}
     out = []
     LAST_BY_RULE.clear()
+    LAST_CLAIMED.clear()
     for rule in RULES:
-        if rule.__name__ not in off:
-            given = rule(state, data)
-            LAST_BY_RULE.append((rule.__name__, list(given)))
-            out += given
+        if rule.__name__ in off:
+            continue
+        kept = []
+        for command in rule(state, data):
+            words = command.split()
+            ship = words[1] if len(words) > 1 and words[0] not in invariants.SETTINGS and words[1] in ships else None
+            if ship and owner.setdefault(ship, rule.__name__) != rule.__name__:
+                LAST_CLAIMED.append(f"CLAIMED: {command} from {rule.__name__} dropped, {ship} is "
+                                    f"{owner[ship]}'s this cycle")
+                continue
+            kept.append(command)
+        LAST_BY_RULE.append((rule.__name__, kept))
+        out += kept
     return out

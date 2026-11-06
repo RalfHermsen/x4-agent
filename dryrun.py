@@ -36,7 +36,10 @@ def main() -> int:
     import agent
     result = agent.cycle(save=args.save, sends=False)
     found = [f for f in result["failures"] if f.startswith("INVARIANT:")]
-    report = agent.render(result) + "\n\n# CHECKS (invariants.py)\n" + ("\n".join(found) or "    none")
+    claimed = [f for f in result["failures"] if f.startswith("CLAIMED:")]
+    report = (agent.render(result) + "\n\n# CHECKS (invariants.py)\n" + ("\n".join(found) or "    none")
+              + "\n\n# ORDERS DROPPED, THE SHIP ANOTHER RULE'S (standing.commands)\n"
+              + ("\n".join(claimed) or "    none"))
     print(report)
     if args.out:
         args.out.write_text(report + "\n", encoding="utf-8")
