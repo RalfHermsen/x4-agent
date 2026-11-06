@@ -458,6 +458,9 @@ class StationGoal(BaseModel):
     sweep_sectors: list[str] = Field(default_factory=list, description="sector macros a scout each searches "
                                                                        "to their edges, once")
     defence_fighters: int = Field(default=0, description="fighters that guard this station, in defence")
+    patrol_destroyers: dict[str, int] = Field(default_factory=dict, description="sector macro to how many of "
+                                              "this station's destroyers patrol it as one group, a destroyer "
+                                              "leading; from those at home above raid_home")
     escorts_per_trader: int = Field(default=0, description="fighters that fly under each of this station's "
                                                            "traders, in defence")
 

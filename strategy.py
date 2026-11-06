@@ -323,7 +323,11 @@ def fleet(state: dict, data: dict) -> list[str]:
         raiding = set(raid.get("ships") or []) if raid.get("home") == code else set()
         if goal.get("route_sectors"):
             raiding |= set(((data.get("standing") or {}).get("route") or {}).get("ships") or [])
-        raiding |= posted
+        # A sector patrol's at the station whose plan names the sector; escorts at every one.
+        patrolled = {*(goal.get("patrol_sectors") or {}), *(goal.get("patrol_frigates") or {}),
+                     *(goal.get("patrol_destroyers") or {})}
+        raiding |= {c for c, s in ((data.get("standing") or {}).get("sector_patrol") or {}).items() if s in patrolled}
+        raiding |= set(((data.get("standing") or {}).get("escorting") or {}))
         home = next((a for a in catalog._stations(state) if a.get("code") == code), {})
         reserve = reserve_purchase(state, data, goal, (home.get("place") or {}).get("sector"))
         if reserve:

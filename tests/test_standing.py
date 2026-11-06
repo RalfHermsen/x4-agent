@@ -645,6 +645,40 @@ def test_fleet_builds_frigates_for_the_patrols_and_leaves_a_posted_one_free(smal
         strategy.own_build = real
 
 
+def _destroyers_home(state, n):
+    home = _station(state)
+    home["assignment"]["groups"][3] = "defence"
+    for i in range(n):
+        _add_ship(state, f"DES-00{i}", "ship_tel_l_destroyer_01_a_macro", cls="ship_l", assignment={"group": 3},
+                  place=dict(home["place"]), orders=[{"order": "ProtectStation", "default": True}])
+
+
+def test_destroyers_above_the_floor_lead_a_sector_patrol(small_state):
+    """tasks/plan-2026-11.md 1.2: no destroyer lost to the Kha'ak, nine frigates were."""
+    state, data = _fighters_ready(small_state, fighters=2)
+    _destroyers_home(state, 4)
+    data["strategy"]["plan"]["stations"]["KYV-745"].update(raid_home=2, patrol_destroyers={XEN_SECTOR: 2},
+                                                           destroyers=0, raid_sector="")
+    assert standing.fighter_posts(state, data) == [f"raid DES-002 {XEN_SECTOR} stay",
+                                                   "release DES-003", "command DES-003 DES-002 attack",
+                                                   "command FIG-000 DES-002 attack", "command FIG-001 DES-002 attack"]
+    # The guard and the raid rule leave them alone.
+    next(a for a in state["assets"] if a["code"] == "DES-003")["assignment"] = {"group": 6}
+    next(a for a in state["assets"] if a["code"] == "DES-002").update(
+        orders=[{"order": "Patrol"}], place={"sector": XEN_SECTOR}, assignment={"group": 3, "groups": {6: "attack"}})
+    state["assigned_to"]["DES-003"] = "DES-002"
+    data["strategy"]["plan"]["stations"]["KYV-745"].update(destroyers=4, raid_sector="S9")
+    assert not any("DES-002" in c or "DES-003" in c for c in standing.raids(state, data))
+
+
+def test_no_destroyer_patrol_in_a_sector_a_guard_holds(small_state):
+    state, data = _fighters_ready(small_state, fighters=0)
+    _destroyers_home(state, 4)
+    data["strategy"]["plan"]["stations"]["KYV-745"].update(raid_home=2, patrol_destroyers={XEN_SECTOR: 2},
+                                                           raid_sector=XEN_SECTOR, patrol_sectors={})
+    assert standing.fighter_posts(state, data) == []
+
+
 def test_a_station_gets_its_own_guard_of_fighters_after_the_patrols(small_state):
     """The player asked for fifteen at ZLR-942 once the fleet's home moved to Silent Witness XI."""
     state, data = _fighters_ready(small_state, fighters=5)

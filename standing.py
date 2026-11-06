@@ -1069,7 +1069,13 @@ def fighter_posts(state: dict, data: dict) -> list[str]:
     # Frigates lead a sector's patrol and join it: a light fighter met a Kha'ak M fighter at
     # even hull and lighter guns, and 32 were lost in a night (start9g to start9i).
     frigates_wanted = {s: n for goal in goals.values() for s, n in (goal.get("patrol_frigates") or {}).items()}
-    for sector in frigates_wanted:
+    # And destroyers lead and join it before frigates (tasks/plan-2026-11.md 1.2): no destroyer
+    # was lost to the Kha'ak, nine frigates were (start9h to start9m). Not in a sector a guard
+    # holds, where a destroyer on its Patrol is the guard's.
+    guarded = {g.get("raid_sector") for g in goals.values() if g.get("raid_sector")}
+    destroyers_wanted = {s: n for goal in goals.values() for s, n in (goal.get("patrol_destroyers") or {}).items()
+                         if s not in guarded}
+    for sector in list(frigates_wanted) + list(destroyers_wanted):
         sectors.setdefault(sector, 0)
     ships = catalog._ships(state)
     ours = {s["code"]: s for s in ships}
@@ -1077,6 +1083,9 @@ def fighter_posts(state: dict, data: dict) -> list[str]:
     # Not the route patrol's frigates: Second Contact II Flashpoint is one of its stops too.
     on_route = set(((held.get("route") or {}).get("ships")) or [])
     frigates = [s for s in ships if sitrep.ship_type(s.get("macro")) == "frigate" and s["code"] not in on_route]
+    destroyers = [s for s in ships if sitrep.ship_type(s.get("macro")) == "destroyer" and s["code"] not in on_route
+                  and s["code"] not in ((held.get("raid") or {}).get("ships") or [])]
+    heavies = frigates + destroyers
     posts = held.setdefault("sector_patrol", {})
     asked = held.setdefault("sector_patrol_asked", {})
     escorting = held.setdefault("escorting", {})
@@ -1086,15 +1095,16 @@ def fighter_posts(state: dict, data: dict) -> list[str]:
     leaders = held.setdefault("sector_leader", {})
     # A frigate that leads still defends its station, as the route patrol's leader does; it is
     # told apart from that one by the fighters under it.
-    led = {executor.serves(s, state)[0] for s in fighters if executor.serves(s, state)[1] == "attack"}
-    for ship in fighters + frigates:
+    led = {executor.serves(s, state)[0] for s in fighters + destroyers if executor.serves(s, state)[1] == "attack"}
+    for ship in fighters + heavies:
         sector = (ship.get("place") or {}).get("sector")
         free_or_leading = ((ship.get("assignment") or {}).get("group") is None
-                           or (ship in frigates and ship["code"] in led))
-        if free_or_leading and sector in sectors and "Patrol" in queue(ship):
+                           or (ship in heavies and ship["code"] in led))
+        if (free_or_leading and sector in sectors and "Patrol" in queue(ship)
+                and not (ship in destroyers and sector not in destroyers_wanted)):
             posts.setdefault(ship["code"], sector)
     # One under a ship of a sector's patrol, in attack, is that sector's too.
-    for ship in fighters + frigates:
+    for ship in fighters + heavies:
         boss, role = executor.serves(ship, state)
         if role == "attack" and boss in posts:
             posts.setdefault(ship["code"], posts[boss])
@@ -1141,10 +1151,27 @@ def fighter_posts(state: dict, data: dict) -> list[str]:
                       and executor.serves(s, state)[1] == "defence" and executor.serves(s, state)[0] in homes
                       and (s.get("place") or {}).get("sector") == homes[executor.serves(s, state)[0]]
                       and _hull_share(s) >= RAID_GO_FROM][keep:]
+    # Destroyers come from the station whose plan names them, whole and at home, above its
+    # floor (`raid_home`), and above the route patrol's number while the route is home.
+    free_destroyers = []
+    for station in catalog._stations(state):
+        goal = goals.get(station.get("code")) or {}
+        if not goal.get("patrol_destroyers"):
+            continue
+        floor = (goal.get("raid_home") or 0) + (0 if held.get("route") or not goal.get("route_sectors")
+                                                else goal.get("route_destroyers") or 0)
+        mine = [s["code"] for s in destroyers if s["code"] not in posts and s["code"] not in busy
+                and executor.serves(s, state) == (station["code"], "defence")
+                and (s.get("place") or {}).get("sector") == (station.get("place") or {}).get("sector")
+                and _hull_share(s) >= RAID_GO_FROM and "Attack" not in queue(s)]
+        free_destroyers += mine[floor:]
     out = []
 
     def frigate(code):
         return sitrep.ship_type(ours[code].get("macro")) == "frigate"
+
+    def rank(code):
+        return {"destroyer": 2, "frigate": 1}.get(sitrep.ship_type(ours[code].get("macro")), 0)
     # A sector's patrol flies as one: a leader on its Patrol and the rest under it in attack.
     # Each on its own Patrol, spread over Second Contact II Flashpoint, five were shot down one
     # by one by the Kha'ak in start9f, and none of the nineteen Kha'ak killed fell to them.
@@ -1153,12 +1180,17 @@ def fighter_posts(state: dict, data: dict) -> list[str]:
         for code in free_frigates[:max(0, frigates_wanted.get(sector, 0) - have)]:
             posts[code], asked[code] = sector, -1e9
         free_frigates = [c for c in free_frigates if c not in posts]
+        have = sum(1 for c, s in posts.items() if s == sector and rank(c) == 2)
+        for code in free_destroyers[:max(0, destroyers_wanted.get(sector, 0) - have)]:
+            posts[code], asked[code] = sector, -1e9
+        free_destroyers = [c for c in free_destroyers if c not in posts]
         mine = sorted(c for c, s in posts.items() if s == sector)
-        # A frigate leads when one is there, the one leading first: a fighter that led goes
-        # under it, and so do the rest at once.
+        # The heaviest leads, the one leading first: a destroyer before a frigate before a
+        # fighter, and the rest go under it at once.
         before = leaders.get(sector)
-        leader = (before if before in mine and frigate(before) else None) or next(
-            (c for c in mine if frigate(c)), None) or before or next(
+        best = max((rank(c) for c in mine), default=0)
+        leader = (before if before in mine and best and rank(before) == best else None) or next(
+            (c for c in mine if best and rank(c) == best), None) or before or next(
             (c for c in mine if (ours[c].get("assignment") or {}).get("group") is None), None) or (
             mine[0] if mine else next((c for c in free if c in leaders_only), None))
         if leader is None:
@@ -1176,7 +1208,7 @@ def fighter_posts(state: dict, data: dict) -> list[str]:
                     and now - asked.get(code, -1e9) >= PATROL_AGAIN):
                 asked[code] = now
                 out += [f"release {code}", f"command {code} {leader} attack"]
-        have = sum(1 for c, s in posts.items() if s == sector and not frigate(c))
+        have = sum(1 for c, s in posts.items() if s == sector and not rank(c))
         for code in free[:max(0, n - have)]:
             posts[code], asked[code] = sector, now
             out.append(f"command {code} {leader} attack")
@@ -1351,8 +1383,9 @@ def raids(state: dict, data: dict) -> list[str]:
     held = data.setdefault("standing", {})
     raid = held.get("raid")
     now = (state.get("meta") or {}).get("playtime_s") or 0
-    # The route patrol's destroyers are its own: `route_patrol` runs first and takes them.
-    on_route = set((held.get("route") or {}).get("ships") or [])
+    # The route patrol's destroyers are its own: `route_patrol` runs first and takes them;
+    # and a sector patrol's are `fighter_posts`', which runs first as well.
+    on_route = set((held.get("route") or {}).get("ships") or []) | set(held.get("sector_patrol") or {})
     # Held one cycle past the `assign`s, for `fleet` to count them: in ship9-camp
     # the raid ended, the five under its leader read as gone, and a seventh
     # destroyer went on order in that same cycle.
@@ -1593,7 +1626,7 @@ def hunts(state: dict, data: dict) -> list[str]:
     for code in [c for c, p in prey.items() if now - p["since"] > HUNT_FOR]:
         del prey[code]
     busy = (set(raid["ships"]) | set(held.get("repairing") or {})
-            | set((held.get("route") or {}).get("ships") or []))
+            | set((held.get("route") or {}).get("ships") or []) | set(held.get("sector_patrol") or {}))
     reserve = [c for c, s in ours.items() if sitrep.ship_type(s.get("macro")) == "destroyer" and c not in busy
                and executor.serves(s, state) == (raid["home"], "defence")
                and (s.get("place") or {}).get("sector") == raid["home_sector"]
