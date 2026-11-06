@@ -428,6 +428,11 @@ def test_a_guard_left_on_its_post_by_an_earlier_run_is_taken_over(small_state):
     assert standing.raids(state, data) == []
     raid = data["standing"]["raid"]
     assert raid["leader"] == "DES-000" and raid["ships"] == ["DES-000", "DES-001"] and raid["arrived"] and raid["guard"]
+    # Also with an Attack where its Patrol was: start9k sent RGM-519's 30 home from the Kha'ak nest.
+    leader["orders"] = [{"order": "Attack"}, {"order": "ProtectStation", "default": True}]
+    data.pop("standing")
+    assert standing.raids(state, data) == []
+    assert data["standing"]["raid"]["leader"] == "DES-000"
 
 
 def test_a_raid_on_the_pacts_stations_counts_the_stations_we_know(small_state):

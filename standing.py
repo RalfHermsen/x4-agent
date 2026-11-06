@@ -1424,11 +1424,17 @@ def raids(state: dict, data: dict) -> list[str]:
             import purchases
             graph, home_sector = purchases._graph(), (home.get("place") or {}).get("sector")
             route = purchases.jumps(graph, home_sector, sector)
+            # Its Patrol, or the destroyers under it: an Attack in front can take the Patrol, and
+            # start9k found RGM-519 on the Kha'ak nest without one and sent all 30 home.
+            led = {executor.serves(s, state)[0] for s in ours.values()
+                   if sitrep.ship_type(s.get("macro")) == "destroyer" and s["code"] not in on_route
+                   and executor.serves(s, state)[1] == "attack"}
             leader = next((s for s in ours.values() if sitrep.ship_type(s.get("macro")) == "destroyer"
                            and (s.get("place") or {}).get("sector") not in (None, home_sector)
                            and purchases.jumps(graph, home_sector, s["place"]["sector"])
                            + purchases.jumps(graph, s["place"]["sector"], sector) == route
-                           and "Patrol" in [o.get("order") for o in s.get("orders") or [] if not o.get("default")]),
+                           and ("Patrol" in [o.get("order") for o in s.get("orders") or [] if not o.get("default")]
+                                or s["code"] in led)),
                           None)
             if leader:
                 under = [s["code"] for s in ours.values() if sitrep.ship_type(s.get("macro")) == "destroyer"
