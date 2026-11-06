@@ -220,6 +220,19 @@ away: player money after the proof was exactly the purchase plus the sale.
 Every verb that gets something now pays first, at the menu's price without
 its discounts, and logs the money before and after.
 
+**L8j. A save can be refused without a word, and the run must see it.** In
+start9o (2026-11-06) the game wrote its last save at 18:09 and ran four more
+hours: state every 30 seconds, SETA on, no save, no plan, and eight ships
+lost while nothing answered. `SaveGame` does nothing while the game says
+saving is not possible (texts 1026 400-406: dead, a conversation, a
+cutscene), and the game's own autosave stops too. The reason is
+`GetSaveInquiryReason()`, as the save menu's mouse-over shows it. The state
+line now carries `save=` (`player.autosave.available`), a refused
+`savegame` sends `lua unsaved <reason>` over the pipe instead of only to the
+logbook (which arrives with a save, so never), and `experiment.py` takes a
+screenshot and reloads after fifteen minutes without a save. Whatever only
+shows up in a save cannot report that saving stopped.
+
 ## About the model
 
 **L12. Put `type` first in a discriminated union, and give it no default.** With

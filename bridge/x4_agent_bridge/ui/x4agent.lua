@@ -36,6 +36,9 @@ declare [[ void UpdateSupplyOverrides(UniverseID containerid, SupplyOverride* ov
 declare [[ int64_t GetSupplyBudget(UniverseID containerid); ]]
 declare [[ void SetContainerWareIsBuyable(UniverseID containerid, const char* wareid, bool allowed); ]]
 declare [[ void SetContainerWareIsSellable(UniverseID containerid, const char* wareid, bool allowed); ]]
+-- Why saving is not possible now (gameoptions.lua, the save menu's mouse-over).
+declare [[ const char* GetSaveInquiryReason(void); ]]
+declare [[ const char* GetSaveInquiryText(); ]]
 
 -- Trade rules. A rule is a faction whitelist or blacklist, defined once at the
 -- empire level and then pointed at by any number of stations and wares.
@@ -594,6 +597,18 @@ local AGENT_SLOT = "save_008"
 local CHUNK = string.sub(tostring({}), -6)
 
 local function save_agent_slot(args)
+    -- SaveGame does nothing, without a word, while the game says saving is not
+    -- possible (texts 1026 400-406: dead, a conversation, a cutscene). start9o
+    -- (2026-11-06) asked four hours long into a game that had stopped saving,
+    -- and the reason was nowhere: the logbook only arrives with a save. So the
+    -- reason goes over the pipe.
+    local ok, possible = pcall(IsSavingPossible)
+    if ok and possible == false then
+        local reason = ffi.string(C.GetSaveInquiryReason())
+        local text = ffi.string(C.GetSaveInquiryText())
+        pcall(AddUITriggeredEvent, "X4Agent", "pipe", "unsaved " .. reason .. ": " .. text)
+        return refuse("savegame: saving is not possible: " .. reason)
+    end
     SaveGame(AGENT_SLOT, "x4-agent")
     log("savegame requested into " .. AGENT_SLOT .. " (chunk " .. CHUNK .. ")")
     return true

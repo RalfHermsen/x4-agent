@@ -91,6 +91,19 @@
     </actions>
   </cue>
 
+  <!-- A line from the Lua side straight to the host, for what must be seen
+       without waiting for a save: why a save was refused. -->
+  <cue name="Lua_Pipe" instantiate="true">
+    <conditions>
+      <event_ui_triggered screen="'X4Agent'" control="'pipe'" />
+    </conditions>
+    <actions>
+      <signal_cue_instantly
+        cue="md.Named_Pipes.Write"
+        param="table[$pipe = 'x4_agent', $msg = 'lua %s'.[event.param3]]"/>
+    </actions>
+  </cue>
+
   <!-- The documentation warns that a cue using Server_Reader must not be
        created alongside its own action libraries. Hence this dummy wrapper. -->
   <cue name="Server_Reader_Wrapper">
@@ -1004,19 +1017,23 @@
        current order only while the queue is enabled, else the default order
        (scriptproperties), and the game's attack response creates an internal
        Attack order. So `order` is now order/queue length/first in the
-       queue/the order's script, which shows an order the queue holds. -->
+       queue/the order's script, which shows an order the queue holds.
+       `save` is player.autosave.available, "true iff saving is currently
+       possible" (scriptproperties): start9o's game stopped saving at 18:09
+       and ran four hours more with nothing to show it. -->
   <cue name="Send_State" instantiate="true" checkinterval="30s">
     <actions>
       <signal_cue_instantly
         cue="md.Named_Pipes.Write"
         param="table[$pipe = 'x4_agent',
-                     $msg  = 'state money=%s time=%s ship=%s sector=%s zone=%s x=%s y=%s z=%s speed=%s order=%s'.[
+                     $msg  = 'state money=%s time=%s ship=%s sector=%s zone=%s x=%s y=%s z=%s speed=%s order=%s save=%s'.[
                        player.money, player.age, @player.occupiedship.idcode,
                        @player.occupiedship.sector.macro.id, @player.occupiedship.zone.macro.id,
                        @player.occupiedship.position.x, @player.occupiedship.position.y,
                        @player.occupiedship.position.z, @player.occupiedship.speed,
                        '%s/%s/%s/%s'.[@player.occupiedship.order.id, @player.occupiedship.orders.count,
-                                      @player.occupiedship.orders.{1}.id, @player.occupiedship.order.script]],
+                                      @player.occupiedship.orders.{1}.id, @player.occupiedship.order.script],
+                       player.autosave.available],
                      $cue  = Write_Callback]"/>
     </actions>
   </cue>

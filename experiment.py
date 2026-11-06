@@ -56,6 +56,12 @@ AGENT_SLOT = "save_008"
 # the game's Lua and MD afresh, and they connect again. A planner thinking for
 # five minutes is the longest the host has been silent while working.
 STALL_AFTER = 600
+# The game can also stop saving while the pipe lives: start9o (2026-11-06) wrote
+# its last save at 18:09, kept sending state for four hours, and its final save
+# never came; the game said nothing of why. The bridge asks every three minutes,
+# so fifteen without any save means it will not. A reload ends whatever blocks
+# it (a conversation, a cutscene) at the cost of the minutes since that save.
+SAVE_STALL = 900
 MAX_RELOADS = 3
 PROTECTED = ("autosave_01", "autosave_02", "autosave_03", "quicksave")
 
@@ -329,6 +335,7 @@ def main() -> int:
         seen = slot.stat().st_mtime if slot.exists() else 0
         next_note = time.monotonic() + 600
         started, reloads = time.time(), 0
+        reloaded = started
         # The player's own ship can be shot down while the run goes on around
         # it. The player then floats in a spacesuit, without SETA, and in three
         # runs (2026-10-23 to 10-26) the game ended about half an hour of game
@@ -354,6 +361,7 @@ def main() -> int:
                     log(run_dir, f"host log quiet for {quiet / 60:.0f} min and no save of this run to reload")
                 else:
                     reloads += 1
+                    reloaded = time.time()
                     log(run_dir, f"host log quiet for {quiet / 60:.0f} min; reloading {save.name} "
                                  f"({reloads} of {MAX_RELOADS})")
                     if launch_game.load(save.name.removesuffix(".xml.gz"), 180) != 0:
@@ -363,6 +371,26 @@ def main() -> int:
                             log(run_dir, "the game thread answers nothing; ending the run")
                             hung = True
                             break
+                    next_seta = time.monotonic()
+            save = newest_save(folder, started)
+            unsaved = time.time() - max(save.stat().st_mtime if save else 0, reloaded)
+            if quiet <= STALL_AFTER and unsaved > SAVE_STALL and reloads < MAX_RELOADS:
+                reloaded = time.time()
+                with (run_dir / "host.log").open(encoding="utf-8", errors="replace") as handle:
+                    why = [line.strip() for line in handle if "received: lua unsaved" in line][-1:]
+                log(run_dir, f"no save for {unsaved / 60:.0f} min while the game runs"
+                             + (f" ({why[0].removeprefix('[x4-agent] received: lua ')})" if why else ""))
+                try:
+                    log(run_dir, f"screenshot: {launch_game.call('capture_screenshot')[:200]}")
+                except Exception as exc:  # noqa: BLE001 - a picture must never end the run
+                    log(run_dir, f"screenshot failed: {exc}")
+                if save is None:
+                    log(run_dir, "no save of this run to reload")
+                else:
+                    reloads += 1
+                    log(run_dir, f"reloading {save.name} ({reloads} of {MAX_RELOADS})")
+                    if launch_game.load(save.name.removesuffix(".xml.gz"), 180) != 0:
+                        log(run_dir, f"reloading {save.name} failed")
                     next_seta = time.monotonic()
             if args.seta and time.monotonic() >= next_seta:
                 OUTBOX.parent.mkdir(parents=True, exist_ok=True)
