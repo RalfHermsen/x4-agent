@@ -1,13 +1,21 @@
 # x4-agent
 
-An agent that plays X4: Foundations according to your own written guidelines,
-driven by a **local** LLM. The model plans, deterministic Python does the maths
-and the execution.
+An agent that plays X4: Foundations under a plan you write. Deterministic Python
+rules carry the plan out every few minutes; a language model is optional.
 
-Status: **it plays.** The agent reads live game state, plans with a local model
-under your own written guidelines, validates every decision, and issues real
-orders into a running X4 9.00: assigning ships to stations, exploring, mining,
-trading, setting a station budget, and planning a station expansion.
+It began as a local-LLM planner. Measured over many runs, the model added little to
+what the rules did on their own ([docs/experiments.md](docs/experiments.md)), so what
+runs now is rules (`standing.py`, `strategy.py`) and a plan in JSON
+(`X4_STRATEGY_FILE`, `schemas.Strategy`) that is written and revised by hand. The
+model paths (a planner per cycle, a strategist that writes the plan) are still here
+and can be switched on.
+
+Status: **it plays, unattended for hours.** Each cycle the agent reads the live game
+state, runs its rules against the plan (stations and their builds, miners, traders,
+fleets, guards and raids, patrols, sector sweeps), checks the commands before they
+go out (`invariants.py`), and issues real orders into a running X4 9.00. Every run
+first plays its opening cycle on paper (`dryrun.py`). The current plan of work is
+[tasks/plan-2026-11.md](tasks/plan-2026-11.md).
 
 ## Standing on someone else's shoulders
 
@@ -28,22 +36,23 @@ documented. Credit for the IPC layer belongs to that project, not to this one.
 ## Architecture
 
 ```
-X4 (Windows)  <--named pipes-->  Python host (Windows)  <--LAN/HTTP-->  Ollama (GPU box)
-   MD + Lua                       sitrep + executor                      planner (policy)
+X4 (Windows)  <--named pipes-->  Python host (Windows)  <----  plan (JSON, by hand)
+   MD + Lua                       rules + checks + executor     optional: a model
 ```
 
 Three layers:
 
 1. **In-game bridge** (Mission Director XML + Lua) reads state and executes
    orders, through the Named Pipes API from `sn_mod_support_apis`.
-2. **Python host** on the game machine: builds a compact sitrep, calls the
-   model, validates the JSON it returns and translates it into concrete orders.
-3. **Planner** (Ollama, typically on a separate machine with a GPU): strategic
-   policy layer, not an optimiser.
+2. **Python host** on the game machine: parses the save, runs the rules against
+   the plan, checks the commands, and sends them one by one.
+3. **The plan**: targets per station (modules, miners, traders, fleets, posts),
+   written by hand with its reasons, or by a strategist model. With
+   `X4_RULES_ONLY=1` no model is asked anything.
 
-The core principle: the LLM decides *where attention goes*, Python works out
+The core principle: the plan decides *where attention goes*, Python works out
 *what that means in numbers*. No "find the best trade route among 400 stations"
-in the model. It is bad and expensive at that, and Python is neither.
+in a model. It is bad and expensive at that, and Python is neither.
 
 ## Phases
 
@@ -52,9 +61,10 @@ in the model. It is bad and expensive at that, and Python is neither.
 | 1 | Read-only advisor: parse save, build sitrep, get advice from Ollama | no |
 | 2 | One write command through the pipe, proving the closed loop | yes |
 | 3 | More order types, higher decision frequency, guardrails | yes |
+| 4 | Rules and a written plan play unattended; the model optional | yes |
 
-Phase 3 is under way: six executable action types and four gates before anything
-reaches the game. See [docs/phase3-acting.md](docs/phase3-acting.md).
+Phases 1 to 3 are done ([docs/phase3-acting.md](docs/phase3-acting.md)); phase 4
+is how it runs now.
 
 Phase 1 deliberately postpones the Mission Director, because that was expected
 to be the bottleneck. It turned out smaller than feared: see
@@ -70,7 +80,14 @@ python save_parser.py --latest --json state.json
 python explore_save.py census <save>   # explore the save format
 python evaluate.py                     # run the loop across every save you own
 python deploy_bridge.py                # install the in-game bridge
+python experiment.py --mode execute --baseline-file <save> --minutes 240 --name <run>
+python dryrun.py <save> [--memory <memory.json>]   # one cycle on a save, nothing sent
+python hand.py --why "<reason>" "<command>"        # a command by hand, on record
 ```
+
+`experiment.py` is how the agent plays: it deploys the bridge, carries the memory of
+the run a save came from, plays the first cycle on paper and does not start when a
+check names something, then launches the game and the host for the given minutes.
 
 `--latest` locates the newest save itself, including the case where Windows has
 redirected your Documents folder somewhere unexpected.
@@ -113,6 +130,12 @@ run_host.py           starts the pipe host, stopping any stale one first
 edit_save.py          edits a savegame into a new file, to set up a test
 bridge/               the X4 extension: MD script + Python pipe module
 agent.py              one full cycle: state, plan, validate, translate to commands
+standing.py           the rules, one function each, run every cycle in order (RULES)
+strategy.py           the plan: reading it, and the fleet each station is owed
+invariants.py         checks over a cycle's commands before they go out
+dryrun.py             one cycle on a save, sending nothing
+experiment.py         a run: bridge, memory, dry run, game, host, final save
+hand.py               a command by hand, written into the run's own folder
 executor.py           the whitelist: which actions may actually reach the game
 guidelines.md         the strategy rules the model follows (this is yours to edit)
 docs/                 what was measured, and what broke while measuring it

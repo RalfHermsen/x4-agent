@@ -5,6 +5,12 @@ the same day with section 8. Kept as the reference for scope: when something in
 the code and something here disagree, this document says what was intended and
 the code says what turned out to be true.
 
+What turned out to be true, as of 2026-11: the policy layer is a plan written by
+hand (JSON, `X4_STRATEGY_FILE`) and carried out by Python rules every cycle; the
+model paths below are still in the code and switched off (`X4_RULES_ONLY=1`),
+because measured over many runs they added little to the rules. See the README
+and `tasks/plan-2026-11.md`.
+
 Goal: build a system that plays X4: Foundations largely autonomously according
 to guidelines written by the user, driven by a **local** LLM (Ollama). The LLM
 acts as the strategic policy layer; deterministic Python does the numerical
