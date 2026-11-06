@@ -284,7 +284,8 @@ def patrols(state: dict, data: dict) -> list[str]:
         return []       # there is room under a destroyer (`wings`)
     sent = _done(data, "patrol")
     held = data.get("standing") or {}
-    posted = set(held.get("sector_patrol") or {}) | set(held.get("escorting") or {})   # `fighter_posts`'
+    posted = (set(held.get("sector_patrol") or {}) | set(held.get("escorting") or {})     # `fighter_posts`'
+              | set(held.get("guarding") or {}))
     out = []
     for ship in state.get("assets", []):
         if (sitrep.ship_type(ship.get("macro")) == "fighter" and sitrep.role_of(ship) == "IDLE"
@@ -1093,7 +1094,15 @@ def fighter_posts(state: dict, data: dict) -> list[str]:
                  if c not in ours or trader not in ours
                  or ((ours[c].get("assignment") or {}).get("group") is None and now - since >= PATROL_AGAIN)]:
         del escorting[code]
+    # One sent to guard a station is its guard while on its way there, a while.
+    guarding = held.setdefault("guarding", {})
+    for code in [c for c, (station, since) in guarding.items()
+                 if c not in ours or (executor.serves(ours[c], state) != (station, "defence")
+                                      and ((ours[c].get("assignment") or {}).get("group") is not None
+                                           or now - since >= PATROL_AGAIN))]:
+        del guarding[code]
     free = [s["code"] for s in fighters if s["code"] not in posts and s["code"] not in escorting
+            and s["code"] not in guarding
             and (s.get("assignment") or {}).get("group") is None and sitrep.role_of(s) == "IDLE"]
     # With no plan's carrier to fill, a carrier's fighters join a patrol or an escort too: SAP-470
     # kept 36 docked in Silent Witness XI while the Kha'ak shot a freighter there every hour (start9h).
@@ -1102,7 +1111,7 @@ def fighter_posts(state: dict, data: dict) -> list[str]:
     if not any(goal.get("fighters_per_carrier") for goal in goals.values()):
         carriers = {s["code"] for s in ships if sitrep.ship_type(s.get("macro")) == "carrier"}
         free += sorted(s["code"] for s in fighters if s["code"] not in posts and s["code"] not in escorting
-                       and executor.serves(s, state)[0] in carriers)
+                       and s["code"] not in guarding and executor.serves(s, state)[0] in carriers)
     free_frigates = [s["code"] for s in frigates if s["code"] not in posts
                      and (s.get("assignment") or {}).get("group") is None and sitrep.role_of(s) == "IDLE"]
     # Also the whole ones defending a station with frigates for the patrols, at home: at
@@ -1157,6 +1166,16 @@ def fighter_posts(state: dict, data: dict) -> list[str]:
             posts[code], asked[code] = sector, now
             out.append(f"command {code} {leader} attack")
         free = [c for c in free if c not in posts]
+    # A station's own guard of fighters, `defence_fighters`, before the escorts: the player
+    # asked for fifteen at ZLR-942 once the fleet's home moved to Silent Witness XI.
+    for station, goal in goals.items():
+        n = goal.get("defence_fighters") or 0
+        have = ({s["code"] for s in fighters if executor.serves(s, state) == (station, "defence")}
+                | {c for c, (st, _) in guarding.items() if st == station})
+        for code in free[:max(0, n - len(have))]:
+            guarding[code] = [station, now]
+            out.append(f"assign {code} {station} defend")
+        free = [c for c in free if c not in guarding]
     for station, goal in goals.items():
         per = goal.get("escorts_per_trader") or 0
         if not per:
@@ -1450,16 +1469,18 @@ def raids(state: dict, data: dict) -> list[str]:
                 return [f"undock {leader['code']}", _raid_order(leader["code"], sector, True, faction)]
         # A run that ends during a raid leaves its destroyers under the leader,
         # and the next one has no raid in its memory: ship9d-camp read 1 of 6.
+        # Only the station with the raid: from 418 game hours ZLR-942 keeps its own destroyers
+        # with no raid, and it would have called ZXX-974's guard to itself.
         strays = [s for s in ours.values() if sitrep.ship_type(s.get("macro")) == "destroyer"
                   and executor.serves(s, state)[1] == "attack" and s["code"] not in on_route]
-        if wanted and home and strays:
+        if sector and wanted and home and strays:
             return [f"assign {s['code']} {code} defend" for s in strays]
         # Its leader defends already, and keeps the guard's Patrol until `undock` (`_fly_home`):
         # NQB-447, leader of a guard start8b left out, patrolled Hatikvah's Choice I alone
         # for six game hours of start8c.
         posted = [s for s in ours.values() if sitrep.ship_type(s.get("macro")) == "destroyer" and s["code"] not in on_route
                   and "Patrol" in [o.get("order") for o in s.get("orders") or [] if not o.get("default")]]
-        if wanted and home and posted:
+        if sector and wanted and home and posted:
             return [f"undock {s['code']}" for s in posted]
         if not (sector and wanted and home):
             continue

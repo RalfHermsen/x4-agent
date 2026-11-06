@@ -280,8 +280,10 @@ def fleet(state: dict, data: dict) -> list[str]:
     # A sector's patrol and a trader's escort are `standing.fighter_posts`', frigates as well.
     held = data.get("standing") or {}
     posted = set(held.get("sector_patrol") or {}) | set(held.get("escorting") or {})
+    guarding = set(held.get("guarding") or {})          # on its way to guard a station
     free = [s for s in catalog._ships(state)
-            if (s.get("assignment") or {}).get("group") is None and s.get("code") not in errand | lent | posted
+            if (s.get("assignment") or {}).get("group") is None
+            and s.get("code") not in errand | lent | posted | guarding
             and sitrep.role_of(s) == "IDLE" and not (winged and sitrep.ship_type(s.get("macro")) == "fighter")]
     held = set((state.get("player") or {}).get("blueprints") or [])
     named = set(((data.get("strategy") or {}).get("plan") or {}).get("blueprints") or [])
@@ -311,9 +313,12 @@ def fleet(state: dict, data: dict) -> list[str]:
         wants.append(("defend", None, (goal.get("route_frigates") or 0) + sum((goal.get("patrol_frigates") or {}).values()),
                       "frigate", "ship_{race}_m_frigate_01_a_macro",
                       lambda s: sitrep.ship_type(s.get("macro")) == "frigate"))
-        # A ship out on a raid, on the route or on a patrol post is under its leader, and still ours to count.
-        raiding = set(((data.get("standing") or {}).get("raid") or {}).get("ships") or [])
-        raiding |= set(((data.get("standing") or {}).get("route") or {}).get("ships") or [])
+        # A ship out on a raid, on the route or on a patrol post is under its leader, and still ours
+        # to count: the raid's at its home, the route's at the station with the route.
+        raid = (data.get("standing") or {}).get("raid") or {}
+        raiding = set(raid.get("ships") or []) if raid.get("home") == code else set()
+        if goal.get("route_sectors"):
+            raiding |= set(((data.get("standing") or {}).get("route") or {}).get("ships") or [])
         raiding |= posted
         home = next((a for a in catalog._stations(state) if a.get("code") == code), {})
         reserve = reserve_purchase(state, data, goal, (home.get("place") or {}).get("sector"))
@@ -356,6 +361,7 @@ def fleet(state: dict, data: dict) -> list[str]:
                      + (g.get("fighters_per_carrier") or 0) * carriers
                      + sum((g.get("patrol_sectors") or {}).values())
                      + (g.get("escorts_per_trader") or 0) * (g.get("traders") or 0)
+                     + (g.get("defence_fighters") or 0)
                      for g in plan.values())
         if not bought and fighters < wanted:
             own = own_build(state, "ship_{race}_s_fighter_02_a_macro", "s", brake=False)
@@ -394,8 +400,10 @@ def lines(state: dict, data: dict) -> list[str]:
                    if executor.serves(s, state) in _working(code, "defend") and catalog._combat(s))
         parts.append(f"defenders {have}/{goal.get('defenders') or 0}")
         if goal.get("destroyers"):
-            raiding = set(((data.get("standing") or {}).get("raid") or {}).get("ships") or [])
-            raiding |= set(((data.get("standing") or {}).get("route") or {}).get("ships") or [])
+            raid = (data.get("standing") or {}).get("raid") or {}
+            raiding = set(raid.get("ships") or []) if raid.get("home") == code else set()
+            if goal.get("route_sectors"):
+                raiding |= set(((data.get("standing") or {}).get("route") or {}).get("ships") or [])
             have = sum(1 for s in catalog._ships(state)
                        if (executor.serves(s, state) in _working(code, "defend") or s.get("code") in raiding)
                        and sitrep.ship_type(s.get("macro")) == "destroyer")

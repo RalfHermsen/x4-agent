@@ -624,6 +624,51 @@ def test_fleet_builds_frigates_for_the_patrols_and_leaves_a_posted_one_free(smal
         strategy.own_build = real
 
 
+def test_a_station_gets_its_own_guard_of_fighters_after_the_patrols(small_state):
+    """The player asked for fifteen at ZLR-942 once the fleet's home moved to Silent Witness XI."""
+    state, data = _fighters_ready(small_state, fighters=5)
+    data["strategy"]["plan"]["stations"]["KYV-745"]["defence_fighters"] = 2
+    assert standing.fighter_posts(state, data) == [f"raid FIG-000 {XEN_SECTOR} stay", "command FIG-001 FIG-000 attack",
+                                                   "assign FIG-002 KYV-745 defend", "assign FIG-003 KYV-745 defend",
+                                                   "command FIG-004 TRA-001 defence"]
+    assert standing.fighter_posts(state, data) == []            # each once
+    # Once there they count by their commander.
+    for code in ("FIG-002", "FIG-003"):
+        next(a for a in state["assets"] if a["code"] == code)["assignment"] = {"group": 3}
+    _station(state)["assignment"]["groups"][3] = "defence"
+    assert standing.fighter_posts(state, data) == []
+
+
+def test_a_station_without_a_raid_leaves_the_guard_alone(small_state):
+    """From 418 game hours ZLR-942 keeps its own destroyers and ZXX-974 has the guard."""
+    state, data = _raid_ready(small_state)
+    data["strategy"]["plan"]["stations"]["KYV-745"]["raid_sector"] = ""
+    leader = next(a for a in state["assets"] if a["code"] == "DES-000")
+    leader.update(orders=[{"order": "Patrol"}], assignment={"group": 3, "groups": {2: "attack"}})
+    next(a for a in state["assets"] if a["code"] == "DES-001")["assignment"] = {"group": 2}
+    state["assigned_to"] = {"DES-001": "DES-000"}
+    assert standing.raids(state, data) == []
+
+
+def test_fleet_counts_a_raids_ships_at_its_home_only(small_state):
+    import strategy
+    state, data = _raid_ready(small_state, destroyers=3)
+    for a in state["assets"]:
+        if a["code"].startswith("DES-"):
+            a["assignment"] = {"group": 9}
+    plan = data["strategy"]["plan"]["stations"]
+    plan["KYV-745"].update(destroyers=2, raid_sector="")
+    data["standing"] = {"raid": {"home": "ZXX-974", "ships": ["DES-000", "DES-001", "DES-002"]}}
+    calls = []
+    real = strategy.own_build
+    strategy.own_build = lambda state, pattern, size="m", brake=True: calls.append(pattern) or None
+    try:
+        strategy.fleet(state, data)
+    finally:
+        strategy.own_build = real
+    assert "ship_{race}_l_destroyer_01_a_macro" in calls
+
+
 def test_a_sector_patrol_is_known_again_from_the_save(small_state):
     """A run starts with no memory: a free fighter on a Patrol in the sector is its patrol."""
     state, data = _fighters_ready(small_state, fighters=3)
