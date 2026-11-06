@@ -1498,10 +1498,16 @@ def test_a_station_with_a_dock_and_no_pier_gets_a_pier(small_state, monkeypatch)
     monkeypatch.setattr(catalog, "_through_gates",
                         lambda action, state: f"expand {action['station_id']} {action['ware']}")
     _station(state)["modules"] = ["dockarea_arg_m_station_01_lowtech_macro", "prod_gen_water_macro"]
-    assert standing.docks(state, {}) == []                      # off: a build with our pier took no vessel
-    monkeypatch.setattr(standing, "PIERS", True)
     assert standing.docks(state, {}) == ["expand KYV-745 pier"]
-    _station(state)["modules"].append(executor.EXPANSION_MODULES["pier"][0])
+    # Not again while a build has it: start9f and start9g put four piers on ZXX-974.
+    bs = next(a for a in state["assets"] if a["code"] == "XQL-000")
+    pier = executor.EXPANSION_MODULES["pier"][0]
+    bs["build"] = {"queue": [], "running": [{"since": 0.0, "sequence": [*_station(state)["modules"], pier]}]}
+    assert standing.docks(state, {}) == []
+    bs["build"] = {"queue": [[*_station(state)["modules"], pier]], "running": []}
+    assert standing.docks(state, {}) == []
+    bs["build"] = {}
+    _station(state)["modules"].append(pier)
     assert standing.docks(state, {}) == []
     md = (Path(__file__).parent.parent / "bridge/x4_agent_bridge/md/x4_agent_bridge.xml").read_text(encoding="utf-8")
     assert "'expand %s pier'" in md and "macro.pier_tel_harbor_02_macro" in md

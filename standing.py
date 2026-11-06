@@ -892,7 +892,7 @@ def empty_builds(state: dict, data: dict) -> list[str]:
     return out
 
 
-PIERS = False               # a pier for every station (`docks`); off until one can be placed
+PIERS = True                # a pier for every station (`docks`)
 
 
 def docks(state: dict, data: dict) -> list[str]:
@@ -905,16 +905,25 @@ def docks(state: dict, data: dict) -> list[str]:
     the same gates as any expansion: the blueprint, one build at a time, and
     not again once the bridge could not fit it.
     A station with its dock and no pier gets a pier, where L and XL ships dock: the
-    player's call, when ZXX-974's own destroyers could not dock at their wharf. Off while
-    `PIERS` is false: in start9f/9g each build with our Teladi pier in it took no
-    construction vessel, ours stood on Wait beside them, and GZI-064's build stopped too.
+    player's call, when ZXX-974's own destroyers could not dock at their wharf. Not while a
+    build of the station has one in it: each run starts without memory, start9f and start9g
+    asked ZXX-974 for a pier four times, and our one construction vessel built all four
+    before GZI-064's turn came, which looked like a build that took no vessel.
     """
     import catalog
     out = []
+
+    def pier_coming(code):
+        for bs in state.get("assets", []):
+            if bs.get("cls") == "buildstorage" and bs.get("station") == code:
+                build = bs.get("build") or {}
+                sequences = list(build.get("queue") or []) + [r.get("sequence") or [] for r in build.get("running") or []]
+                return any(m.startswith("pier_") for seq in sequences for m in seq)
+        return False
     for st in catalog._stations(state):
         if not st.get("code"):
             continue
-        piers = not PIERS or any(m.startswith("pier_") for m in st.get("modules") or [])
+        piers = not PIERS or any(m.startswith("pier_") for m in st.get("modules") or []) or pier_coming(st["code"])
         ware = "dock" if not catalog._has_dock(st) else None if piers else "pier"
         if ware:
             command = catalog._through_gates({"type": "expand_station", "station_id": st["code"],
