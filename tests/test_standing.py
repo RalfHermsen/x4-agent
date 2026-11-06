@@ -536,6 +536,32 @@ def test_free_fighters_patrol_a_sector_first_then_escort_the_traders(small_state
     assert standing.fighter_posts(state, data) == [f"raid FIG-001 {XEN_SECTOR} stay"]
 
 
+def test_with_no_carrier_to_fill_its_fighters_join_patrols_and_escorts(small_state):
+    """start9h: SAP-470 kept 36 fighters docked while the Kha'ak shot freighters beside it."""
+    state, data = _fighters_ready(small_state, fighters=1)
+    aso = next(a for a in state["assets"] if a["code"] == "ASO-629")
+    state["assets"].append(dict(copy.deepcopy(aso), code="CAR-001", cls="ship_xl", macro="ship_arg_xl_carrier_01_a_macro",
+                                assignment={"groups": {7: "interception"}}))
+    state["assets"] += [dict(copy.deepcopy(aso), code=f"CFT-00{i}", cls="ship_s", macro="ship_tel_s_fighter_01_a_macro",
+                             assignment={"group": 7}, orders=[{"order": "Escort", "default": True}]) for i in range(3)]
+    for i in range(3):
+        state["assigned_to"][f"CFT-00{i}"] = "CAR-001"
+    goal = data["strategy"]["plan"]["stations"]["KYV-745"]
+    goal["fighters_per_carrier"] = 40
+    # The plan fills the carrier: only the free one goes, as the patrol's leader.
+    assert standing.fighter_posts(state, data) == [f"raid FIG-000 {XEN_SECTOR} stay"]
+    state, data = _fighters_ready(small_state, fighters=1)
+    state["assets"].append(dict(copy.deepcopy(aso), code="CAR-001", cls="ship_xl", macro="ship_arg_xl_carrier_01_a_macro",
+                                assignment={"groups": {7: "interception"}}))
+    state["assets"] += [dict(copy.deepcopy(aso), code=f"CFT-00{i}", cls="ship_s", macro="ship_tel_s_fighter_01_a_macro",
+                             assignment={"group": 7}, orders=[{"order": "Escort", "default": True}]) for i in range(3)]
+    for i in range(3):
+        state["assigned_to"][f"CFT-00{i}"] = "CAR-001"
+    # No carrier to fill: the free one leads, the carrier's join it and escort.
+    assert standing.fighter_posts(state, data) == [f"raid FIG-000 {XEN_SECTOR} stay", "command CFT-000 FIG-000 attack",
+                                                   "command CFT-001 TRA-001 defence", "command CFT-002 TRA-001 defence"]
+
+
 def test_a_sector_patrol_is_known_again_from_the_save(small_state):
     """A run starts with no memory: a free fighter on a Patrol in the sector is its patrol."""
     state, data = _fighters_ready(small_state, fighters=3)

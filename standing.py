@@ -1034,6 +1034,14 @@ def fighter_posts(state: dict, data: dict) -> list[str]:
         del escorting[code]
     free = [s["code"] for s in fighters if s["code"] not in posts and s["code"] not in escorting
             and (s.get("assignment") or {}).get("group") is None and sitrep.role_of(s) == "IDLE"]
+    # With no plan's carrier to fill, a carrier's fighters join a patrol or an escort too: SAP-470
+    # kept 36 docked in Silent Witness XI while the Kha'ak shot a freighter there every hour (start9h).
+    # A leader is a free one: one under a carrier has a commander to answer to.
+    leaders_only = list(free)
+    if not any(goal.get("fighters_per_carrier") for goal in goals.values()):
+        carriers = {s["code"] for s in ships if sitrep.ship_type(s.get("macro")) == "carrier"}
+        free += sorted(s["code"] for s in fighters if s["code"] not in posts and s["code"] not in escorting
+                       and executor.serves(s, state)[0] in carriers)
     out = []
     # A sector's patrol flies as one: a leader on its Patrol and the rest under it in attack.
     # Each on its own Patrol, spread over Second Contact II Flashpoint, five were shot down one
@@ -1042,7 +1050,7 @@ def fighter_posts(state: dict, data: dict) -> list[str]:
         mine = sorted(c for c, s in posts.items() if s == sector)
         leader = leaders.get(sector) or next(
             (c for c in mine if (ours[c].get("assignment") or {}).get("group") is None), None) or (
-            mine[0] if mine else (free[0] if free else None))
+            mine[0] if mine else next((c for c in free if c in leaders_only), None))
         if leader is None:
             continue
         leaders[sector], posts[leader] = leader, sector
