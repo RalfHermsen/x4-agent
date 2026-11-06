@@ -375,8 +375,12 @@ def fleet(state: dict, data: dict) -> list[str]:
                 if have >= target or pick:
                     continue
             # Past the plan's number an idle warship still guards home: it was
-            # paid for, and 'defenders' counts destroyers as well.
-            elif have >= target and not (pick and role == "defend"):
+            # paid for, and 'defenders' counts destroyers as well. Only one already
+            # in the station's sector: in start9q each destroyer ZXX-974's bay built
+            # for its 46 went to ZLR-942, first in the plan, which ended at 21 of 17
+            # while ZXX-974 stayed at 42 and built the next.
+            elif have >= target and not (pick and role == "defend" and (pick.get("place") or {}).get("sector")
+                                         == (home.get("place") or {}).get("sector")):
                 continue
             if pick:
                 command = catalog._through_gates({"type": "assign_ship", "ship_ref": pick["code"],

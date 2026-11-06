@@ -235,6 +235,21 @@ def test_an_idle_warship_past_the_plans_number_still_guards_home(small_state, mo
     assert strategy.fleet(state, plan) == []
 
 
+def test_a_warship_past_a_stations_number_is_not_taken_from_another_sector(small_state, monkeypatch):
+    """start9q: each destroyer ZXX-974's bay built for its 46 went to ZLR-942, first in the
+    plan and past its 17, and ZXX-974 built the next."""
+    state = copy.deepcopy(small_state)
+    state["assets"] = [a for a in state["assets"] if a.get("cls") == "station" or a["code"] == "ASO-629"]
+    ship = _ship(state, "NBO-436", "ship_arg_m_frigate_01_a_macro")
+    ship["place"] = dict(ship["place"], sector="cluster_44_sector001_macro")
+    monkeypatch.setattr(catalog, "_through_gates",
+                        lambda action, state: f"assign {action['ship_ref']} {action['station_id']} {action['role']}")
+    monkeypatch.setattr(catalog, "_buy_options", lambda *a, **k: [catalog.Option("buy", "buyship")])
+    plan = {"strategy": {"plan": dict(PLAN, stations={"KYV-745": {"build": {}, "miners": {}, "traders": 0,
+                                                                  "defenders": 0}})}}
+    assert strategy.fleet(state, plan) == []
+
+
 def test_the_report_shows_how_far_each_station_is(small_state):
     state = copy.deepcopy(small_state)
     _station(state)["modules"] = ["prod_gen_hullparts_macro"]
