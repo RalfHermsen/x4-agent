@@ -1528,12 +1528,18 @@ def hunts(state: dict, data: dict) -> list[str]:
     XII. A guard on its Patrol did not: in start8z and start9a the Pact's scout QRJ-271 shot
     five freighters in Silent Witness XI, and its bombers kept coming into XII. By hand,
     `hunt` killed each within a cycle or two. The faction is the id MD writes behind the
-    attacker's name. Not the Xenon or the Kha'ak, whom the Patrol fights where it stands, and
-    not at home: in start9c hunters followed Kha'ak from Argon Prime into Second Contact II
-    Flashpoint, off the way, and the guard of 30 was called home.
+    attacker's name. Not the Xenon or the Kha'ak, whom the Patrol fights where it stands.
+    The hunters are the home reserve's above its floor: a ship under the guard's leader
+    drops an Attack on a ship in another sector (start9j: six went after the Pact's KET-043
+    in Silent Witness XI and were back on Escort while it shot two more freighters), and
+    three of the reserve killed it (start9j). Ships of the guard hunt only in the guard's own
+    sector, where theirs held. With hunters that are not the guard's, home counts too: in
+    start9c the guard's own had followed Kha'ak off the way and the guard was called home.
     """
+    import executor
     import purchases
     import save_parser
+    import strategy
     held = data.setdefault("standing", {})
     ours = {s["code"]: s for s in state.get("assets", [])
             if (s.get("cls") or "").startswith("ship") and s.get("code")}
@@ -1553,9 +1559,12 @@ def hunts(state: dict, data: dict) -> list[str]:
     route = purchases.jumps(graph, raid["home_sector"], raid["sector"])
 
     def near(sector):
-        return sector not in (None, raid["home_sector"]) and (sector == raid["sector"] or (
-            purchases.jumps(graph, sector, raid["sector"]) == 1
-            and purchases.jumps(graph, raid["home_sector"], sector) == route - 1))
+        return sector is not None and (sector in (raid["sector"], raid["home_sector"]) or (
+            purchases.jumps(graph, raid["home_sector"], sector) + purchases.jumps(graph, sector, raid["sector"])
+            == route))
+
+    def attacking(ship):
+        return "Attack" in [o.get("order") for o in ship.get("orders") or [] if not o.get("default")]
     now =(state.get("meta") or {}).get("playtime_s") or 0
     prey = held.setdefault("prey", {})
     for when, text in logbook:
@@ -1565,18 +1574,26 @@ def hunts(state: dict, data: dict) -> list[str]:
         victim, attacker, faction = found.groups()
         sector, kind = where.get(victim) or (None, None)
         if faction not in save_parser.ALWAYS_HOSTILE and kind in HUNTED_FOR and near(sector):
-            prey.setdefault(attacker, {"faction": faction, "since": when})
+            prey.setdefault(attacker, {"faction": faction, "since": when, "sector": sector})
     for code in [c for c, p in prey.items() if now - p["since"] > HUNT_FOR]:
         del prey[code]
+    busy = (set(raid["ships"]) | set(held.get("repairing") or {})
+            | set((held.get("route") or {}).get("ships") or []))
+    reserve = [c for c, s in ours.items() if sitrep.ship_type(s.get("macro")) == "destroyer" and c not in busy
+               and executor.serves(s, state) == (raid["home"], "defence")
+               and (s.get("place") or {}).get("sector") == raid["home_sector"]
+               and _hull_share(s) >= RAID_GO_FROM and not attacking(s)]
+    floor = (strategy.goals(data).get(raid["home"]) or {}).get("raid_home") or 0
+    spare = reserve[:max(0, len(reserve) - floor)]
     sent = _done(data, "hunt")
     for code, p in prey.items():
         if code in sent:
             continue
-        hunters = [c for c in raid["ships"] if c in ours and c != raid["leader"]
-                   and (ours[c].get("place") or {}).get("sector") == raid["sector"]
-                   and "Attack" not in [o.get("order") for o in ours[c].get("orders") or [] if not o.get("default")]]
+        guard = [c for c in raid["ships"] if c in ours and c != raid["leader"]
+                 and (ours[c].get("place") or {}).get("sector") == raid["sector"] and not attacking(ours[c])]
+        hunters = spare or (guard if p.get("sector", raid["sector"]) == raid["sector"] else [])
         if not hunters:
-            return []
+            continue
         _mark(data, "hunt", code)
         return [f"hunt {c} {code} {p['faction']}" for c in hunters[:HUNTERS]]
     return []

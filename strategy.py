@@ -15,6 +15,7 @@ thing. Either way it lives in the agent's memory under "strategy".
 """
 from __future__ import annotations
 
+import collections
 import os
 import re
 from pathlib import Path
@@ -289,6 +290,9 @@ def fleet(state: dict, data: dict) -> list[str]:
     named = set(((data.get("strategy") or {}).get("plan") or {}).get("blueprints") or [])
     races = sorted(set(catalog.RACE.values()))
     out, bought = [], False
+    # Ships on order count before another is ordered: each of our three L bays took a
+    # destroyer for ZLR-942's three short in start9m, four in all (tasks/plan-2026-11.md 1.6).
+    coming = collections.Counter(sitrep.ship_type(o.get("macro")) for o in state.get("ships_on_order") or [])
     for code, goal in plan.items():
         wants = [("mine", kind, n, f"{kind} miner", f"ship_{{race}}_m_miner_{kind}_01_a_macro",
                   lambda s, kind=kind: executor._miner_kind(s.get("macro")) == kind)
@@ -340,7 +344,7 @@ def fleet(state: dict, data: dict) -> list[str]:
                     out.append(command)
                     free.remove(pick)
                     continue
-            if not bought and have < target:
+            if not bought and have + coming[sitrep.ship_type(pattern.format(race="arg"))] < target:
                 # The L bay builds nothing else, so a miner on order does not hold it.
                 own = own_build(state, pattern, _size(pattern), brake=_size(pattern) != "l")
                 waiting = (not own and named - held
@@ -363,7 +367,7 @@ def fleet(state: dict, data: dict) -> list[str]:
                      + (g.get("escorts_per_trader") or 0) * (g.get("traders") or 0)
                      + (g.get("defence_fighters") or 0)
                      for g in plan.values())
-        if not bought and fighters < wanted:
+        if not bought and fighters + coming["fighter"] < wanted:
             own = own_build(state, "ship_{race}_s_fighter_02_a_macro", "s", brake=False)
             if own:
                 out.append(own)

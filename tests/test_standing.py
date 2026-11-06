@@ -486,7 +486,7 @@ def test_a_guard_hunts_a_ship_that_attacked_a_freighter_on_its_way_once(small_st
     state["meta"]["playtime_s"] = 1000
     state["logbook"] = [[900.0, "[x4-agent] ATTACKED: TRA-001 by OLD-001 (Scale Plate Pact) [scaleplate]"]]
     assert standing.hunts(state, data) == []                    # before this run: history
-    # Not the Xenon or the Kha'ak, and not at home: start9c's hunters followed Kha'ak off the way.
+    # Not the Xenon or the Kha'ak; and the guard's own only in its sector, with no reserve to send.
     state["logbook"] += [[1010.0, "[x4-agent] ATTACKED: TRA-001 by XEN-001 (Xenon) [xenon]"],
                          [1010.5, "[x4-agent] ATTACKED: TRA-001 by KHA-001 (Kha'ak) [khaak]"],
                          [1010.7, "[x4-agent] ATTACKED: TRA-002 by PAC-007 (Scale Plate Pact) [scaleplate]"],
@@ -499,6 +499,27 @@ def test_a_guard_hunts_a_ship_that_attacked_a_freighter_on_its_way_once(small_st
     state["assets"] = [a for a in state["assets"] if a["code"] != "TRA-001"]
     state["logbook"].append([1030.0, "[x4-agent] DESTROYED: TRA-001 by PAC-010 (Scale Plate Pact) [scaleplate]"])
     assert standing.hunts(state, data) == ["hunt DES-001 PAC-010 scaleplate", "hunt DES-002 PAC-010 scaleplate"]
+
+
+def test_the_home_reserve_above_its_floor_hunts_before_the_guard(small_state):
+    """start9j: six of the guard went after the Pact's KET-043 one sector away and were back
+    on Escort while it shot two more freighters; three of the reserve killed it."""
+    state, data = _raid_ready(small_state, destroyers=5)
+    home = _station(state)["place"]["sector"]
+    for code in ("DES-000", "DES-001"):
+        next(a for a in state["assets"] if a["code"] == code)["place"] = {"sector": XEN_SECTOR}
+    aso = next(a for a in state["assets"] if a["code"] == "ASO-629")
+    state["assets"].append(dict(copy.deepcopy(aso), code="TRA-002", macro="ship_tel_m_trans_container_01_a_macro",
+                                place={"sector": home}))
+    data["strategy"]["plan"]["stations"]["KYV-745"]["raid_home"] = 2
+    data["standing"] = {"raid": {"sector": XEN_SECTOR, "home": "KYV-745", "home_sector": home,
+                                 "leader": "DES-000", "ships": ["DES-000", "DES-001"], "phase": "out",
+                                 "since": 0, "arrived": True, "guard": True, "faction": "scaleplate"},
+                        "hunt_seen": 900.0}
+    state["meta"]["playtime_s"] = 1020
+    state["logbook"] = [[1010.0, "[x4-agent] ATTACKED: TRA-002 by PAC-007 (Scale Plate Pact) [scaleplate]"]]
+    # Three at home, two of them the floor: one goes, at home too.
+    assert standing.hunts(state, data) == ["hunt DES-002 PAC-007 scaleplate"]
 
 
 def _fighters_ready(small_state, fighters=4):
@@ -667,6 +688,25 @@ def test_fleet_counts_a_raids_ships_at_its_home_only(small_state):
     finally:
         strategy.own_build = real
     assert "ship_{race}_l_destroyer_01_a_macro" in calls
+
+
+def test_fleet_counts_ships_on_order_before_it_orders_another(small_state):
+    """start9m: three L bays took a destroyer each for ZLR-942's three short, four in all."""
+    import strategy
+    state, data = _raid_ready(small_state, destroyers=2)
+    state["ships_on_order"] = [{"macro": "ship_tel_l_destroyer_01_a_macro", "wharf": "KYV-745",
+                                "since": state["meta"]["playtime_s"]}]
+    calls = []
+    real = strategy.own_build
+    strategy.own_build = lambda state, pattern, size="m", brake=True: calls.append(pattern) or None
+    try:
+        strategy.fleet(state, data)
+        assert "ship_{race}_l_destroyer_01_a_macro" not in calls      # two and one coming: three
+        state["ships_on_order"] = []
+        strategy.fleet(state, data)
+        assert "ship_{race}_l_destroyer_01_a_macro" in calls
+    finally:
+        strategy.own_build = real
 
 
 def test_a_sector_patrol_is_known_again_from_the_save(small_state):
