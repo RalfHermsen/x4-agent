@@ -42,3 +42,19 @@ def test_orders_go_before_settings_each_in_its_own_order():
     assert agent.orders_first(commands) == ["release FIG-001", "command FIG-001 FIG-000 attack", "raid FIG-000 X stay",
                                             "tradeware ZLR-942 water sell on", "limit ZLR-942 water sell 2000",
                                             "shiprespond TRA-001 attacked flee"]
+
+
+def test_a_new_run_takes_what_the_save_cannot_tell_from_the_run_before(tmp_path):
+    """tasks/plan-2026-11.md 0.2: not what the save shows, nor the marks of things done once a run."""
+    before = tmp_path / "before.json"
+    before.write_text(json.dumps({
+        "sent_at": {"buyship": 5.0}, "logbook_seen": 9.0, "pending": [{"command": "x"}],
+        "standing": {"where": {"FIG-000": ["S1", "fighter"]}, "swept": ["S1"], "raid": {"leader": "D"},
+                     "once": ["turrets ZLR-942"], "sector_patrol": {"F": "S1"}}}), encoding="utf-8")
+    store = tmp_path / "memory.json"
+    carried = memory.carry(before, store)
+    data = memory.load(store)
+    assert data["sent_at"] == {"buyship": 5.0} and data["logbook_seen"] == 9.0 and data["pending"] == []
+    assert data["standing"] == {"where": {"FIG-000": ["S1", "fighter"]}, "swept": ["S1"]}
+    assert set(carried) == {"sent_at", "logbook_seen", "standing.where", "standing.swept"}
+    assert memory.carry(tmp_path / "missing.json", store) == []

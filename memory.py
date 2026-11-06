@@ -71,6 +71,35 @@ DID_KEYS = ("pending", "applied", "funded", "expansions", "purchases", "feeders"
 # The path is looked up at call time rather than bound as a default, so a test
 # can point STORE at a temp file. Bound at import, every test that ran a cycle
 # would have written into the live agent's memory.
+# What a new run takes from the run before (tasks/plan-2026-11.md, 0.2): what the save
+# cannot tell and the game's clock keeps true. Not what the save shows (a guard, a route,
+# patrols, builds: the rules find those there), nor the marks of things a run does once,
+# since some settings are not in the save and go out again each run (lessons L11).
+CARRIED = ("refused", "explore_retried", "ledger", "blueprint_factions", "offered", "logbook_seen",
+           "reserved", "sent_at")
+# From `standing`: where our ships were (a ship lost in a new run's first cycle is placed),
+# the logbook a hunt has read, swept sectors, the scouts' sectors, satellite rounds,
+# sold scouts, seminars and builder hiring.
+STANDING_CARRIED = ("where", "hunt_seen", "swept", "scouts_visited", "scouts_most", "watch",
+                    "watch_scouts", "sold", "seminar_at", "hired_at", "hire_tried")
+
+
+def carry(previous: Path, store: Path) -> list[str]:
+    """Start `store` with what `previous` holds of CARRIED and STANDING_CARRIED; the keys
+    carried. Each run used to start empty, and what only the memory knew went with
+    every restart: five that morning (start9i to start9m)."""
+    try:
+        old = json.loads(previous.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        old = {}
+    new = {k: old[k] for k in CARRIED if old.get(k)}
+    held = {k: v for k, v in (old.get("standing") or {}).items() if k in STANDING_CARRIED and v}
+    if held:
+        new["standing"] = held
+    store.write_text(json.dumps(new, indent=2), encoding="utf-8")
+    return [k for k in new if k != "standing"] + [f"standing.{k}" for k in held]
+
+
 def load(path: Path | None = None) -> dict:
     path = path or STORE
     if not path.exists():

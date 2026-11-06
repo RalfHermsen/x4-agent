@@ -42,6 +42,7 @@ from datetime import datetime
 from pathlib import Path
 
 import launch_game
+import memory
 import score
 from save_parser import documents_dir, parse_save
 
@@ -284,9 +285,15 @@ def main() -> int:
         log(run_dir, f"could not deploy the bridge: {deployed.stderr.strip()}")
         return 1
     log(run_dir, "bridge deployed from this checkout")
+    # A run from another run's final save goes on with what that run's memory knew and the
+    # save cannot tell (memory.carry).
+    if args.baseline_file and (Path(args.baseline_file).parent / "memory.json").exists():
+        carried = memory.carry(Path(args.baseline_file).parent / "memory.json", run_dir / "memory.json")
+        log(run_dir, f"memory carried from {Path(args.baseline_file).parent.name}: {', '.join(carried) or 'nothing'}")
     # The first cycle on paper, sending nothing (dryrun.py): start9k's assigned the guard
     # of 30 home, and that was seen only after the restart.
-    dry = subprocess.run([sys.executable, "dryrun.py", str(baseline), "--out", str(run_dir / "dryrun.txt")],
+    dry = subprocess.run([sys.executable, "dryrun.py", str(baseline), "--out", str(run_dir / "dryrun.txt"),
+                          "--memory", str(run_dir / "memory.json")],
                          cwd=REPO, capture_output=True, text=True, encoding="utf-8", errors="replace")
     if dry.returncode not in (0, 3):
         log(run_dir, f"the dry run failed: {(dry.stderr or '').strip()[-300:]}")
