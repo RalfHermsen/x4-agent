@@ -61,6 +61,8 @@ STALL_AFTER = 600
 # never came; the game said nothing of why. The bridge asks every three minutes,
 # so fifteen without any save means it will not. A reload ends whatever blocks
 # it (a conversation, a cutscene) at the cost of the minutes since that save.
+# X4Mcp 1.0.6 has no screenshot tool (tools/list, 2026-11-06), so the bridge's
+# `lua unsaved` line is the only account of what blocked it.
 SAVE_STALL = 900
 MAX_RELOADS = 3
 PROTECTED = ("autosave_01", "autosave_02", "autosave_03", "quicksave")
@@ -380,10 +382,6 @@ def main() -> int:
                     why = [line.strip() for line in handle if "received: lua unsaved" in line][-1:]
                 log(run_dir, f"no save for {unsaved / 60:.0f} min while the game runs"
                              + (f" ({why[0].removeprefix('[x4-agent] received: lua ')})" if why else ""))
-                try:
-                    log(run_dir, f"screenshot: {launch_game.call('capture_screenshot')[:200]}")
-                except Exception as exc:  # noqa: BLE001 - a picture must never end the run
-                    log(run_dir, f"screenshot failed: {exc}")
                 if save is None:
                     log(run_dir, "no save of this run to reload")
                 else:

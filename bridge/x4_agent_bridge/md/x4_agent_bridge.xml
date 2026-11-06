@@ -1304,7 +1304,13 @@
 
   <!-- One leg of a sweep: to the undiscovered spot of $target nearest to $ship, on a
        MoveWait that ends 2 s after arrival. With none left anywhere in the sector its
-       orders go, it is back on its default, and $swept says the sweep is over. -->
+       orders go, it is back on its default, and $swept says the sweep is over.
+       A Wait stands behind each leg. A MoveWait that arrives with no next order has
+       the pilot say "Awaiting orders" (aiscripts/order.move.wait.xml), and that line
+       plays as a cutscene on the monitor, during which the game cannot save. Five
+       scouts arriving every few seconds kept one playing without a break: start9o and
+       start9p stopped saving within half an hour (tasks/lessons.md L8j). The Wait
+       ends by itself after a minute, should a leg ever not be followed by the next. -->
   <library name="Agent_Sweep_Leg">
     <actions>
       <do_if value="$ship.sector == $target">
@@ -1321,6 +1327,9 @@
         <create_order object="$ship" id="'MoveWait'" immediate="true" name="$leg">
           <param name="destination" value="[$target, $spot]"/>
           <param name="timeout" value="2s"/>
+        </create_order>
+        <create_order object="$ship" id="'Wait'">
+          <param name="timeout" value="60s"/>
         </create_order>
       </do_if>
       <do_else>

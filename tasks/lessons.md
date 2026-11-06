@@ -226,11 +226,17 @@ hours: state every 30 seconds, SETA on, no save, no plan, and eight ships
 lost while nothing answered. `SaveGame` does nothing while the game says
 saving is not possible (texts 1026 400-406: dead, a conversation, a
 cutscene), and the game's own autosave stops too. The reason is
-`GetSaveInquiryReason()`, as the save menu's mouse-over shows it. The state
+`GetSaveInquiryReason()`, as the save menu's mouse-over shows it. In start9p
+the first refusal said `cutscene`: the comm window an NPC opens to speak to
+the player is one (`aiscripts/player.interaction.xml`, `play_cutscene` on
+the target monitor, stopped after its Duration, 10 s by default), so with
+230 ships `save` flickers to 0 for seconds at a time. Which cutscene held
+start9o's game for four hours is not known. The state
 line now carries `save=` (`player.autosave.available`), a refused
 `savegame` sends `lua unsaved <reason>` over the pipe instead of only to the
-logbook (which arrives with a save, so never), and `experiment.py` takes a
-screenshot and reloads after fifteen minutes without a save. Whatever only
+logbook (which arrives with a save, so never), and `experiment.py` reloads
+after fifteen minutes without a save. X4Mcp 1.0.6 has no screenshot tool,
+whatever tasks/plan-2026-10.md 2.0 lists: ask it `tools/list`. Whatever only
 shows up in a save cannot report that saving stopped.
 
 ## About the model
