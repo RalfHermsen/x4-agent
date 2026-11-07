@@ -2016,15 +2016,26 @@ def sell_runs(state: dict, data: dict) -> list[str]:
     now = (state.get("meta") or {}).get("playtime_s") or 0
     stations = {a.get("code"): a for a in catalog._stations(state)}
     # A buyer whose offer the bridge did not find for our ship, though the save lists it
-    # (start9u: CFK-259 for refined metals, four times), is passed over a while.
-    shunned, proven = collections.defaultdict(set), collections.defaultdict(set)
+    # (start9u: CFK-259 for refined metals, four times), is passed over a while; one that
+    # took a sale goes first. Kept in memory, {ware: {buyer: game time}}: the save's
+    # logbook holds two game hours, and start9v tried buyers closed to us again within one.
+    passed = held.setdefault("sell_passed", {})
+    took = held.setdefault("sell_took", {})
     for when, text in state.get("logbook") or []:
         found = re.search(r"REFUSED: sellrun: (\S+) (?:has no buy offer of|pays \d+ for) (\w+)", text or "")
-        if found and now - when < (SELL_SHUN_CLOSED if "closed to us" in text else SELL_SHUN):
-            shunned[found.group(2)].add(found.group(1))
+        if found:
+            until = when + (SELL_SHUN_CLOSED if "closed to us" in text else SELL_SHUN)
+            by_ware = passed.setdefault(found.group(2), {})
+            by_ware[found.group(1)] = max(by_ware.get(found.group(1), 0), until)
         sold = re.search(r"ORDER: \S+ sells \d+ (\w+) at (\S+)", text or "")
-        if sold and now - when < SELL_SHUN_CLOSED:
-            proven[sold.group(1)].add(sold.group(2))
+        if sold:
+            by_ware = took.setdefault(sold.group(1), {})
+            by_ware[sold.group(2)] = max(by_ware.get(sold.group(2), 0), when)
+    for table, alive in ((passed, lambda t: t > now), (took, lambda t: now - t < SELL_SHUN_CLOSED)):
+        for ware in list(table):
+            table[ware] = {b: t for b, t in table[ware].items() if alive(t)}
+    shunned = collections.defaultdict(set, {w: set(d) for w, d in passed.items()})
+    proven = collections.defaultdict(set, {w: set(d) for w, d in took.items()})
     out = []
     for code, goal in plan.items():
         home = stations.get(code)

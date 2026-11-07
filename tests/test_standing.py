@@ -1966,6 +1966,10 @@ def test_a_sell_run_takes_our_goods_to_the_best_bid_in_reach(small_state):
     state["logbook"] = [[9_000.0, "[x4-agent lua] REFUSED: sellrun: NEA-001 has no buy offer of refinedmetals "
                                   "for VUL-001 (one closed to us, 21964 at 195.28)"]]
     assert standing.sell_runs(state, data)[0].split()[4] == "HOM-001"
+    # And still once the line has left the save's logbook, which holds two game hours.
+    state["logbook"], data["standing"]["sell_sent"] = [], {}
+    state["meta"]["playtime_s"] += 5 * 3600
+    assert standing.sell_runs(state, data)[0].split()[4] == "HOM-001"
 
 
 def test_a_runner_on_its_run_or_with_little_to_sell_waits(small_state):

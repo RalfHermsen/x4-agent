@@ -85,7 +85,8 @@ CARRIED = ("refused", "explore_retried", "ledger", "blueprint_factions", "offere
 # drop what the save no longer bears out.
 STANDING_CARRIED = ("where", "hunt_seen", "swept", "scouts_visited", "scouts_most", "watch",
                     "watch_scouts", "sold", "seminar_at", "hired_at", "hire_tried",
-                    "sector_patrol", "sector_leader", "escorting", "guarding", "route", "sell_runs")
+                    "sector_patrol", "sector_leader", "escorting", "guarding", "route", "sell_runs",
+                    "sell_passed", "sell_took")
 
 
 def carry(previous: Path, store: Path) -> list[str]:
