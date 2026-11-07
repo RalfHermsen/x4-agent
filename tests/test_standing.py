@@ -1962,9 +1962,12 @@ def test_the_bridge_sells_a_run_whole():
     lua = (Path(__file__).parent.parent / "bridge/x4_agent_bridge/ui/x4agent.lua").read_text(encoding="utf-8")
     table = lua.split("local BARE_HANDLERS = {", 1)[1].split("}", 1)[0]
     assert "sellrun = sell_run" in table
-    assert 'trade_order(ship, "SingleSell", ware, buyer, 0, cents)' in lua
+    assert 'trade_order(ship, "SingleSell", ware, buyer, 0, math.floor(floor * 100))' in lua
     # No more than the hold takes, and an order the game would not enable is not left behind.
     run = lua.split("local function sell_run(args)", 1)[1].split("\nend\n", 1)[0]
     assert "amount = math.min(amount, fits)" in run
+    # The buy at our own station is its offer queued, as the map menu does: the game did not
+    # enable a SingleBuy there (start9s).
+    assert "AddTradeToShipQueue(" in run and '"SingleBuy"' not in run
     trade = lua.split("local function trade_order(", 1)[1].split("\nend\n", 1)[0]
     assert "if not C.EnableOrder(ship, index) then" in trade

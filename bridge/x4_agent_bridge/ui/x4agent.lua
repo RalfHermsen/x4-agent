@@ -1012,16 +1012,33 @@ local function sell_run(args)
         return refuse("sellrun: " .. shipcode .. " cannot carry " .. ware)
     end
     amount = math.min(amount, fits)
-    local cents = math.floor(floor * 100)
-    local buy = trade_order(ship, "SingleBuy", ware, home, amount, cents)
-    local sell = buy > 0 and trade_order(ship, "SingleSell", ware, buyer, 0, cents) or 0
-    if buy == 0 or sell == 0 then
-        if buy > 0 then
-            C.RemoveOrder(ship, buy, false, false)
+    -- The buy takes our station's own sell offer into the queue, as the map menu's trade
+    -- does (menu_map.lua: GetTradeList, then AddTradeToShipQueue with the offer's id):
+    -- the game does not enable a SingleBuy at a station of our own (start9s, eight refusals).
+    local ship64 = ConvertStringTo64Bit(tostring(ship))
+    local offer
+    for _, trade in pairs(GetTradeList(ConvertStringTo64Bit(tostring(home)), ship64) or {}) do
+        if trade.ware == ware and trade.isselloffer then
+            offer = trade
+            break
         end
-        return refuse(string.format("sellrun: the game would not enable the %s order for %s (%d %s, %d Cr)",
-                                    buy == 0 and "buy" or "sell", shipcode, amount, ware, floor))
     end
+    if not offer then
+        return refuse("sellrun: " .. homecode .. " offers " .. shipcode .. " no " .. ware)
+    end
+    amount = math.min(amount, offer.amount or amount)
+    local before = tonumber(C.GetNumOrders(ship))
+    AddTradeToShipQueue(ConvertStringToLuaID(tostring(ConvertIDTo64Bit(offer.id))), ship64, amount, false)
+    local queued = tonumber(C.GetNumOrders(ship)) > before and tonumber(C.GetNumOrders(ship)) or 0
+    local sell = queued > 0 and trade_order(ship, "SingleSell", ware, buyer, 0, math.floor(floor * 100)) or 0
+    if queued == 0 or sell == 0 then
+        for i = tonumber(C.GetNumOrders(ship)), 1, -1 do
+            C.RemoveOrder(ship, i, false, false)
+        end
+        return refuse(string.format("sellrun: the game would not take the %s for %s (%d %s, %d Cr)",
+                                    queued == 0 and "buy" or "sell order", shipcode, amount, ware, floor))
+    end
+    local buy = queued
     log(string.format("ORDER: %s sells up to %d %s from %s at %s for at least %d Cr (orders %d, %d)",
                       shipcode, amount, ware, homecode, buyercode, floor, buy, sell))
     return true
