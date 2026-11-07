@@ -2154,3 +2154,43 @@ the reserve, destroyers leading patrols), a yardstick, then campaigns against on
 worth at cost +5.36 M a game hour, credits +3.87 M; 6 fighters and 2 frigates lost to the Kha'ak,
 no freighter or miner lost; 30 Kha'ak, 2 Fallen Families and 1 Pact ship killed; 46 of 94
 production lines running at the end.
+
+## 2026-11-06/07: start9o to start9w, saves that stopped, sell runs, Hatikvah's Choice I opened
+
+**What happened.** The first campaign began: the Pact, Heretic's End first, in its scout phase. Plan
+1.5 was measured (tasks/plan-2026-11.md): station managers priced refined metals at 92 to 98 Cr while
+buyers paid 200 and more, and Silent Witness and Argon Prime were not connected at all outside the
+avoided sectors. Both remedies were built: sell runs, freighters of our own that take a ware from a
+station to a buyer, and Hatikvah's Choice I taken off the avoided list with four of ZLR-942's
+destroyers patrolling it.
+
+**Saves that stopped.** start9o wrote its last save twelve minutes in and ran four hours without one;
+start9p did the same. The bridge now sends `save=` in its state line and, when the game refuses a
+save, the reason (`lua unsaved cutscene`). The reason was ours: a MoveWait that arrives with no next
+order has the pilot say "Awaiting orders", played as a cutscene on the monitor, and five sweeping
+scouts on legs of a few seconds kept one playing without a break. A Wait now stands behind each leg;
+start9q then had no refused sample in its first 135. The run reloads its newest save after fifteen
+minutes without one.
+
+**Sell runs.** Five restarts to learn what the game takes (tasks/lessons.md L8k): no Single trade
+order above the hold, none at a station of our own, and no SingleSell to a foreign buyer at all. A
+trade goes as the map menu's does, the station's offer queued (`GetTradeList`,
+`AddTradeToShipQueue`), one leg at a time by what is aboard. Of nine buyers tried, eight had their
+offer for refined metals closed to our ships, which the save does not show; the one open bought
+2,586 in the first hour. The rule now keeps, across runs, which buyers took a sale and which were
+closed.
+
+**Other fixes.** Each destroyer ZXX-974's bay built for its own number went to ZLR-942, first in the
+plan, because an idle warship past a station's number stayed at the first station that looked. The
+hunts rule now also hunts an attacker of ours one jump from home. Sweeps of our five sectors ran 43
+game hours and none was ever done, so no scout came free for Heretic's End; a sector now counts as
+swept after six game hours.
+
+**Losses, start9q to start9v.** Freighters: JUJ-718, VVH-982, DZK-868 and UNH-883 to the Pact in
+start9r, ICK-764 to the Pact in start9s, JQZ-336 to Duke's Buccaneers in start9v. The frigate PAX-426
+and the fighter COQ-984 to the Kha'ak. Four ships of no known type left the fleet without a
+destruction report. The Pact's SHH-527, which shot two of them, was hunted by hand from the home
+reserve.
+
+**Score, start9v.** 469.7 to 491.4 game hours: credits +3.86 M a game hour, against +3.87 M in the
+yardstick; net worth at cost +3.95 M, against +5.36 M, with stock down 2.3 M and four ships added.
