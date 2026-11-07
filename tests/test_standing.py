@@ -1935,13 +1935,13 @@ def _sell_ready(small_state):
 def test_a_sell_run_takes_our_goods_to_the_best_bid_in_reach(small_state):
     """Plan 1.5: ZXX-974 offered refined metals at 92 to 95 while buyers in reach paid 207."""
     state, data, near = _sell_ready(small_state)
-    assert standing.sell_runs(state, data) == ["sellrun VUL-001 refinedmetals KYV-745 NEA-001 argon 5000 186"]
+    assert standing.sell_runs(state, data) == ["sellrun VUL-001 refinedmetals KYV-745 NEA-001 argon 5000 165"]
     assert data["standing"]["sell_runs"] == {"VUL-001": ["KYV-745", "refinedmetals"]}
     assert standing.sell_runs(state, data) == []                     # the save has not caught up yet
     # Behind an avoided sector the best bid is out of reach: the best in reach is at home.
     state, data, near = _sell_ready(small_state)
     data["strategy"]["plan"]["stations"]["KYV-745"]["avoid_sectors"] = [near]
-    assert standing.sell_runs(state, data) == ["sellrun VUL-001 refinedmetals KYV-745 HOM-001 argon 3000 162"]
+    assert standing.sell_runs(state, data) == ["sellrun VUL-001 refinedmetals KYV-745 HOM-001 argon 3000 144"]
     # Opened again, it is in reach once more.
     state, data, near = _sell_ready(small_state)
     data["strategy"]["plan"]["stations"]["KYV-745"].update(avoid_sectors=[near], open_sectors=[near])

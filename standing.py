@@ -1937,7 +1937,8 @@ SELL_AGAIN = 600       # game seconds before an idle runner is sent again: the s
 SELL_FROM = 1000       # units a station offers before a run is worth it
 SELL_PROFIT = 1.2      # a bid this far above our own price is worth the trip
 SELL_NEAR = 0.95       # bids this close to the best count as the best, and the nearest goes
-SELL_FLOOR = 0.9       # the sell order's minimum against the bid seen
+SELL_FLOOR = 0.8       # the sell order's minimum against the bid seen: start9u's FAA-628 paid 175 by
+                       # the time the runner asked, against 195 in the save, and 186 turned it down
 SELL_SHUN = 3 * 3600   # game seconds a buyer the bridge found no offer at is passed over
 
 
