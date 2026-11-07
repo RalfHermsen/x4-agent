@@ -242,6 +242,21 @@ after fifteen minutes without a save. X4Mcp 1.0.6 has no screenshot tool,
 whatever tasks/plan-2026-10.md 2.0 lists: ask it `tools/list`. Whatever only
 shows up in a save cannot report that saving stopped.
 
+**L8k. Trade by queuing an offer, not by a Single order.** The sell runs of
+start9r to start9v (2026-11-07) took five restarts. What the game would not
+do: enable a SingleBuy or SingleSell whose amount is above the hold
+(`this.ship.cargo.{$ware}.max`), enable a SingleBuy at a station of our own
+at all, or enable a SingleSell to a foreign buyer, empty or loaded. A trade
+order's amount is what is to stay aboard afterwards, not what to trade
+(`order.trade.single.sell.xml`). What works is what the map menu's trade does:
+`GetTradeList(station, ship)` and `AddTradeToShipQueue` with the offer's id,
+one leg at a time by what is aboard. `GetTradeList(station, ship, false)`
+lists the offers closed to that ship: CFK-259's bid for 21,964 refined
+metals at 195 was one, FAA-628's at 175 was open. `C.EnableOrder` says
+whether an order will run; an order it refuses stays in "setup" for ever.
+And a Lua log line reaches the run only through the logbook: an ORDER line
+is in the save, not in agent.log.
+
 ## About the model
 
 **L12. Put `type` first in a discriminated union, and give it no default.** With
