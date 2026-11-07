@@ -1931,6 +1931,10 @@ def test_a_runner_on_its_run_or_with_little_to_sell_waits(small_state):
     ship = next(a for a in state["assets"] if a["code"] == "VUL-001")
     ship["orders"].append({"order": "SingleSell", "state": "started"})
     assert standing.sell_runs(state, data) == []
+    # One the game never enabled (start9r): the runner goes again.
+    ship["orders"][-1]["state"] = "setup"
+    data["standing"]["sell_sent"] = {}
+    assert standing.sell_runs(state, data)[0].startswith("sellrun VUL-001 ")
     ship["orders"].pop()
     _station(state)["offers"][0]["amount"] = standing.SELL_FROM - 1
     assert standing.sell_runs(state, data) == []
@@ -1959,3 +1963,8 @@ def test_the_bridge_sells_a_run_whole():
     table = lua.split("local BARE_HANDLERS = {", 1)[1].split("}", 1)[0]
     assert "sellrun = sell_run" in table
     assert 'trade_order(ship, "SingleSell", ware, buyer, 0, cents)' in lua
+    # No more than the hold takes, and an order the game would not enable is not left behind.
+    run = lua.split("local function sell_run(args)", 1)[1].split("\nend\n", 1)[0]
+    assert "amount = math.min(amount, fits)" in run
+    trade = lua.split("local function trade_order(", 1)[1].split("\nend\n", 1)[0]
+    assert "if not C.EnableOrder(ship, index) then" in trade

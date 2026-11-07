@@ -939,7 +939,13 @@ local function trade_order(ship, orderid, ware, location, amount, cents)
     SetOrderParam(ship, index, 4, nil, ConvertStringToLuaID(tostring(location)))
     SetOrderParam(ship, index, 5, nil, amount)
     SetOrderParam(ship, index, 7, nil, cents)
-    C.EnableOrder(ship, index)
+    -- An order the game will not enable stays in "setup" and never runs: start9r's four
+    -- runners sat docked under theirs, asked for more than their holds take (an amount
+    -- above the order's maximum, this.ship.cargo.{$ware}.max). It goes again.
+    if not C.EnableOrder(ship, index) then
+        C.RemoveOrder(ship, index, false, false)
+        return 0
+    end
     return index
 end
 
@@ -994,11 +1000,27 @@ local function sell_run(args)
     if not GetComponentData(ConvertStringToLuaID(tostring(ship)), "assignedpilot") then
         return refuse("sellrun: " .. shipcode .. " has no pilot")
     end
+    -- The runner is the rule's alone: what its queue holds goes first, last to first as
+    -- `undock` does, or a run that never started would stand in front of the next.
+    for i = tonumber(C.GetNumOrders(ship)), 1, -1 do
+        C.RemoveOrder(ship, i, false, false)
+    end
+    -- No more than the hold takes: the order's maximum is the cargo space for the ware,
+    -- and the map menu's slider stops at GetWareCapacity.
+    local fits = GetWareCapacity(ConvertStringTo64Bit(tostring(ship)), ware) or 0
+    if fits <= 0 then
+        return refuse("sellrun: " .. shipcode .. " cannot carry " .. ware)
+    end
+    amount = math.min(amount, fits)
     local cents = math.floor(floor * 100)
     local buy = trade_order(ship, "SingleBuy", ware, home, amount, cents)
     local sell = buy > 0 and trade_order(ship, "SingleSell", ware, buyer, 0, cents) or 0
     if buy == 0 or sell == 0 then
-        return refuse("sellrun: the game would not create the trade orders for " .. shipcode)
+        if buy > 0 then
+            C.RemoveOrder(ship, buy, false, false)
+        end
+        return refuse(string.format("sellrun: the game would not enable the %s order for %s (%d %s, %d Cr)",
+                                    buy == 0 and "buy" or "sell", shipcode, amount, ware, floor))
     end
     log(string.format("ORDER: %s sells up to %d %s from %s at %s for at least %d Cr (orders %d, %d)",
                       shipcode, amount, ware, homecode, buyercode, floor, buy, sell))

@@ -2023,8 +2023,10 @@ def sell_runs(state: dict, data: dict) -> list[str]:
             buyer, price, wanted = found
             for c in mine:
                 ship = ships[c]
+                # An order left in "setup" never runs (start9r: four runners docked under
+                # theirs); the bridge clears the queue before the next run.
                 if (c in lent or (ship.get("assignment") or {}).get("group") is not None
-                        or [o for o in ship.get("orders") or [] if not o.get("default")]
+                        or [o for o in ship.get("orders") or [] if not o.get("default") and o.get("state") != "setup"]
                         or now - sent.get(c, -1e9) < SELL_AGAIN):
                     continue
                 sent[c] = now
