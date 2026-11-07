@@ -2017,24 +2017,26 @@ def sell_runs(state: dict, data: dict) -> list[str]:
                 free.remove(ship)
                 mine.append(ship["code"])
             offer = next((o for o in home.get("offers") or [] if o.get("ware") == ware and o.get("side") == "sell"), None)
-            if not offer or (offer.get("amount") or 0) < SELL_FROM:
-                continue
-            found = _best_buyer(state, ware, offer.get("price") or 0, (home.get("place") or {}).get("sector"),
+            found = _best_buyer(state, ware, (offer or {}).get("price") or 0, (home.get("place") or {}).get("sector"),
                                 blocked, graph)
             if not found:
                 continue
             buyer, price, wanted = found
             for c in mine:
                 ship = ships[c]
+                # The bridge flies one leg a call, by what is aboard: an empty runner buys,
+                # a loaded one sells, whatever its station still offers.
+                aboard = (ship.get("cargo") or {}).get(ware) or 0
                 # An order left in "setup" never runs (start9r: four runners docked under
                 # theirs); the bridge clears the queue before the next run.
                 if (c in lent or (ship.get("assignment") or {}).get("group") is not None
                         or [o for o in ship.get("orders") or [] if not o.get("default") and o.get("state") != "setup"]
-                        or now - sent.get(c, -1e9) < SELL_AGAIN):
+                        or now - sent.get(c, -1e9) < SELL_AGAIN
+                        or (not aboard and (offer or {}).get("amount", 0) < SELL_FROM)):
                     continue
                 sent[c] = now
                 out.append(f"sellrun {c} {ware} {code} {buyer['code']} {buyer.get('owner')} "
-                           f"{int(min(offer['amount'], wanted))} {int(price * SELL_FLOOR)}")
+                           f"{int(min((offer or {}).get('amount') or aboard, wanted))} {int(price * SELL_FLOOR)}")
     return out
 
 

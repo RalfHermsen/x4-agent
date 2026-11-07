@@ -1959,8 +1959,12 @@ def test_a_runner_on_its_run_or_with_little_to_sell_waits(small_state):
     assert standing.sell_runs(state, data)[0].startswith("sellrun VUL-001 ")
     ship["orders"].pop()
     _station(state)["offers"][0]["amount"] = standing.SELL_FROM - 1
+    data["standing"]["sell_sent"] = {}
     assert standing.sell_runs(state, data) == []
     assert data["standing"]["sell_runs"] == {"VUL-001": ["KYV-745", "refinedmetals"]}
+    # Loaded, it goes to sell whatever the station still offers: one leg a call.
+    ship["cargo"] = {"refinedmetals": 862}
+    assert standing.sell_runs(state, data)[0].startswith("sellrun VUL-001 refinedmetals KYV-745 NEA-001 ")
 
 
 def test_a_runner_is_no_trader_to_hand_out(small_state):
@@ -1985,6 +1989,7 @@ def test_the_bridge_sells_a_run_whole():
     table = lua.split("local BARE_HANDLERS = {", 1)[1].split("}", 1)[0]
     assert "sellrun = sell_run" in table
     assert 'trade_order(ship, "SingleSell", ware, buyer, 0, math.floor(floor * 100))' in lua
+    assert "trade.isbuyoffer" in lua and "below %d" in lua             # the fallback sale keeps the floor
     # No more than the hold takes, and an order the game would not enable is not left behind.
     run = lua.split("local function sell_run(args)", 1)[1].split("\nend\n", 1)[0]
     assert "amount = math.min(amount, fits)" in run

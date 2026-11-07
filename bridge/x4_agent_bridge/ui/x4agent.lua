@@ -1012,35 +1012,44 @@ local function sell_run(args)
         return refuse("sellrun: " .. shipcode .. " cannot carry " .. ware)
     end
     amount = math.min(amount, fits)
-    -- The buy takes our station's own sell offer into the queue, as the map menu's trade
-    -- does (menu_map.lua: GetTradeList, then AddTradeToShipQueue with the offer's id):
-    -- the game does not enable a SingleBuy at a station of our own (start9s, eight refusals).
     local ship64 = ConvertStringTo64Bit(tostring(ship))
-    local offer
-    for _, trade in pairs(GetTradeList(ConvertStringTo64Bit(tostring(home)), ship64) or {}) do
-        if trade.ware == ware and trade.isselloffer then
-            offer = trade
-            break
+    -- One leg a call, by what is aboard. An empty runner buys: our station's own sell
+    -- offer goes into the queue, as the map menu's trade does (menu_map.lua: GetTradeList,
+    -- then AddTradeToShipQueue with the offer's id); the game does not enable a SingleBuy
+    -- at a station of our own (start9s, eight refusals). A loaded one sells: a SingleSell,
+    -- or, should the game not enable that, the buyer's own offer queued the same way. A
+    -- SingleSell queued behind the buy was refused all four times while the hold was empty.
+    local aboard = (GetComponentData(ship64, "cargo") or {})[ware] or 0
+    local station = aboard > 0 and buyer or home
+    local leg = aboard > 0 and trade_order(ship, "SingleSell", ware, buyer, 0, math.floor(floor * 100)) or 0
+    local how = "SingleSell"
+    if leg == 0 then
+        how = "queued offer"
+        local offer
+        for _, trade in pairs(GetTradeList(ConvertStringTo64Bit(tostring(station)), ship64) or {}) do
+            if trade.ware == ware and ((aboard > 0 and trade.isbuyoffer) or (aboard == 0 and trade.isselloffer)) then
+                offer = trade
+                break
+            end
         end
-    end
-    if not offer then
-        return refuse("sellrun: " .. homecode .. " offers " .. shipcode .. " no " .. ware)
-    end
-    amount = math.min(amount, offer.amount or amount)
-    local before = tonumber(C.GetNumOrders(ship))
-    AddTradeToShipQueue(ConvertStringToLuaID(tostring(ConvertIDTo64Bit(offer.id))), ship64, amount, false)
-    local queued = tonumber(C.GetNumOrders(ship)) > before and tonumber(C.GetNumOrders(ship)) or 0
-    local sell = queued > 0 and trade_order(ship, "SingleSell", ware, buyer, 0, math.floor(floor * 100)) or 0
-    if queued == 0 or sell == 0 then
-        for i = tonumber(C.GetNumOrders(ship)), 1, -1 do
-            C.RemoveOrder(ship, i, false, false)
+        if not offer then
+            return refuse(string.format("sellrun: %s has no %s offer of %s for %s", aboard > 0 and buyercode or homecode,
+                                        aboard > 0 and "buy" or "sell", ware, shipcode))
         end
-        return refuse(string.format("sellrun: the game would not take the %s for %s (%d %s, %d Cr)",
-                                    queued == 0 and "buy" or "sell order", shipcode, amount, ware, floor))
+        if aboard > 0 and (offer.price or 0) < floor then
+            return refuse(string.format("sellrun: %s pays %d for %s, below %d", buyercode, offer.price or 0, ware, floor))
+        end
+        local before = tonumber(C.GetNumOrders(ship))
+        AddTradeToShipQueue(ConvertStringToLuaID(tostring(ConvertIDTo64Bit(offer.id))), ship64,
+                            math.min(aboard > 0 and aboard or amount, offer.amount or amount), false)
+        leg = tonumber(C.GetNumOrders(ship)) > before and tonumber(C.GetNumOrders(ship)) or 0
     end
-    local buy = queued
-    log(string.format("ORDER: %s sells up to %d %s from %s at %s for at least %d Cr (orders %d, %d)",
-                      shipcode, amount, ware, homecode, buyercode, floor, buy, sell))
+    if leg == 0 then
+        return refuse(string.format("sellrun: the game would not take the %s for %s (%d %s)",
+                                    aboard > 0 and "sale" or "buy", shipcode, aboard > 0 and aboard or amount, ware))
+    end
+    log(string.format("ORDER: %s %s %d %s at %s (%s, order %d)", shipcode, aboard > 0 and "sells" or "buys",
+                      aboard > 0 and aboard or amount, ware, aboard > 0 and buyercode or homecode, how, leg))
     return true
 end
 
