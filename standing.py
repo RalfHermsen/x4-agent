@@ -1940,6 +1940,8 @@ SELL_NEAR = 0.95       # bids this close to the best count as the best, and the 
 SELL_FLOOR = 0.8       # the sell order's minimum against the bid seen: start9u's FAA-628 paid 175 by
                        # the time the runner asked, against 195 in the save, and 186 turned it down
 SELL_SHUN = 3 * 3600   # game seconds a buyer the bridge found no offer at is passed over
+SELL_SHUN_CLOSED = 24 * 3600   # and one whose offer is there but closed to our ships: start9v,
+                               # CFK-259 bought 21,964 refined metals at 195 from anyone but us
 
 
 def _hops(graph: dict, start: str | None, goal: str | None, blocked: set) -> int | None:
@@ -2015,7 +2017,7 @@ def sell_runs(state: dict, data: dict) -> list[str]:
     shunned = collections.defaultdict(set)
     for when, text in state.get("logbook") or []:
         found = re.search(r"REFUSED: sellrun: (\S+) (?:has no buy offer of|pays \d+ for) (\w+)", text or "")
-        if found and now - when < SELL_SHUN:
+        if found and now - when < (SELL_SHUN_CLOSED if "closed to us" in text else SELL_SHUN):
             shunned[found.group(2)].add(found.group(1))
     out = []
     for code, goal in plan.items():
