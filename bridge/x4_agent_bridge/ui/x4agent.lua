@@ -1033,8 +1033,17 @@ local function sell_run(args)
             end
         end
         if not offer then
-            return refuse(string.format("sellrun: %s has no %s offer of %s for %s", aboard > 0 and buyercode or homecode,
-                                        aboard > 0 and "buy" or "sell", ware, shipcode))
+            -- The menu lists what a ship cannot trade apart (GetTradeList with false): say
+            -- whether the offer is there and closed to us, or not there at all.
+            local closed = "none"
+            for _, trade in pairs(GetTradeList(ConvertStringTo64Bit(tostring(station)), ship64, false) or {}) do
+                if trade.ware == ware and ((aboard > 0 and trade.isbuyoffer) or (aboard == 0 and trade.isselloffer)) then
+                    closed = string.format("one closed to us, %s at %s", tostring(trade.amount), tostring(trade.price))
+                    break
+                end
+            end
+            return refuse(string.format("sellrun: %s has no %s offer of %s for %s (%s)", aboard > 0 and buyercode or homecode,
+                                        aboard > 0 and "buy" or "sell", ware, shipcode, closed))
         end
         if aboard > 0 and (offer.price or 0) < floor then
             return refuse(string.format("sellrun: %s pays %d for %s, below %d", buyercode, offer.price or 0, ware, floor))
