@@ -252,7 +252,11 @@ order's amount is what is to stay aboard afterwards, not what to trade
 `GetTradeList(station, ship)` and `AddTradeToShipQueue` with the offer's id,
 one leg at a time by what is aboard. `GetTradeList(station, ship, false)`
 lists the offers closed to that ship: CFK-259's bid for 21,964 refined
-metals at 195 was one, FAA-628's at 175 was open. `C.EnableOrder` says
+metals at 195 was one, FAA-628's at 175 was open, and eight of the nine
+buyers tried were closed. Not by us: the save's one player trade rule is
+applied to nothing, and the blacklist is for sector travel only. Station
+trade rules of the buyers are the documented mechanism, and the player has
+no say in them, so the rule learns which buyers take our sales. `C.EnableOrder` says
 whether an order will run; an order it refuses stays in "setup" for ever.
 And a Lua log line reaches the run only through the logbook: an ORDER line
 is in the save, not in agent.log.
