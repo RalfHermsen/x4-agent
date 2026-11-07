@@ -1955,6 +1955,11 @@ def test_a_sell_run_takes_our_goods_to_the_best_bid_in_reach(small_state):
     state["meta"]["playtime_s"] = 9_000 + standing.SELL_SHUN + 1
     state["logbook"] = [[9_000.0, "[x4-agent lua] REFUSED: sellrun: NEA-001 pays 150 for refinedmetals, below 186"]]
     assert standing.sell_runs(state, data)[0].split()[4] == "NEA-001"             # long enough ago
+    # One that took a sale of ours lately goes first, though it pays less (start9v: FAA-628).
+    state, data, near = _sell_ready(small_state)
+    state["meta"]["playtime_s"] = 10_000
+    state["logbook"] = [[9_000.0, "[x4-agent lua] ORDER: VUL-002 sells 862 refinedmetals at HOM-001 (queued offer, order 1)"]]
+    assert standing.sell_runs(state, data)[0].split()[4] == "HOM-001"
     # One whose offer is there but closed to our ships (start9v: CFK-259) is passed over longer.
     state, data, near = _sell_ready(small_state)
     state["meta"]["playtime_s"] = 9_000 + standing.SELL_SHUN + 1

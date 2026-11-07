@@ -1961,9 +1961,11 @@ def _hops(graph: dict, start: str | None, goal: str | None, blocked: set) -> int
 
 
 def _best_buyer(state: dict, ware: str, ours: float, sector: str, blocked: set,
-                graph: dict, shunned: set = frozenset()) -> tuple[dict, float, int] | None:
+                graph: dict, shunned: set = frozenset(), proven: set = frozenset()) -> tuple[dict, float, int] | None:
     """(station, price, wanted) of the nearest buyer paying within SELL_NEAR of the best bid
-    in reach, the bid SELL_PROFIT above our price; None if there is none."""
+    in reach, the bid SELL_PROFIT above our price; None if there is none. A buyer that took a
+    sale of ours lately goes first: most bids are closed to our ships, and which only shows
+    when a runner asks (start9v: CFK-259 and SMI-484 closed, FAA-628 open)."""
     bids = []
     for station in state.get("known_stations") or []:
         if station.get("code") in shunned:
@@ -1976,6 +1978,7 @@ def _best_buyer(state: dict, ware: str, ours: float, sector: str, blocked: set,
                     bids.append((offer["price"], hops, station, offer["desired"]))
     if not bids:
         return None
+    bids = [b for b in bids if b[2].get("code") in proven] or bids
     best = max(b[0] for b in bids)
     price, _, station, wanted = min((b for b in bids if b[0] >= best * SELL_NEAR), key=lambda b: (b[1], -b[0]))
     return station, price, wanted
@@ -2014,11 +2017,14 @@ def sell_runs(state: dict, data: dict) -> list[str]:
     stations = {a.get("code"): a for a in catalog._stations(state)}
     # A buyer whose offer the bridge did not find for our ship, though the save lists it
     # (start9u: CFK-259 for refined metals, four times), is passed over a while.
-    shunned = collections.defaultdict(set)
+    shunned, proven = collections.defaultdict(set), collections.defaultdict(set)
     for when, text in state.get("logbook") or []:
         found = re.search(r"REFUSED: sellrun: (\S+) (?:has no buy offer of|pays \d+ for) (\w+)", text or "")
         if found and now - when < (SELL_SHUN_CLOSED if "closed to us" in text else SELL_SHUN):
             shunned[found.group(2)].add(found.group(1))
+        sold = re.search(r"ORDER: \S+ sells \d+ (\w+) at (\S+)", text or "")
+        if sold and now - when < SELL_SHUN_CLOSED:
+            proven[sold.group(1)].add(sold.group(2))
     out = []
     for code, goal in plan.items():
         home = stations.get(code)
@@ -2031,7 +2037,7 @@ def sell_runs(state: dict, data: dict) -> list[str]:
                 mine.append(ship["code"])
             offer = next((o for o in home.get("offers") or [] if o.get("ware") == ware and o.get("side") == "sell"), None)
             found = _best_buyer(state, ware, (offer or {}).get("price") or 0, (home.get("place") or {}).get("sector"),
-                                blocked, graph, shunned[ware])
+                                blocked, graph, shunned[ware], proven[ware] - shunned[ware])
             if not found:
                 continue
             buyer, price, wanted = found
