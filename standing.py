@@ -749,6 +749,11 @@ def campaign(state: dict, data: dict) -> list[str]:
 
 
 SWEEP_AGAIN = 600          # game seconds before a sweep cut short is started again
+# Game seconds a sector is swept before it counts as swept anyway: from start9o to start9v
+# five scouts swept our five sectors for 43 game hours and none was ever SWEPT (spots the
+# game calls undiscovered and a scout does not discover), so no scout came free for
+# Heretic's End and the campaign stood in its scout phase.
+SWEEP_FOR = 6 * 3600
 
 
 def sweeps(state: dict, data: dict) -> list[str]:
@@ -768,6 +773,12 @@ def sweeps(state: dict, data: dict) -> list[str]:
         found = re.search(r"SWEPT: (\S+) by", text or "")
         if found and found.group(1) not in swept:
             swept.append(found.group(1))
+    now = (state.get("meta") or {}).get("playtime_s") or 0
+    begun = held.setdefault("sweep_begun", {})
+    for code, sector in list(sweeping.items()):
+        begun.setdefault(sector, now)
+        if now - begun[sector] >= SWEEP_FOR and sector not in swept:
+            swept.append(sector)
     occupied = (state.get("player") or {}).get("occupied_ship")
     scouts = [s for s in catalog._ships(state) if sitrep.ship_type(s.get("macro")) == "scout"
               and s.get("code") != occupied]
@@ -783,11 +794,12 @@ def sweeps(state: dict, data: dict) -> list[str]:
         scout = min(free, key=lambda s: (jumps(graph, (s.get("place") or {}).get("sector"), sector), s["code"]))
         free.remove(scout)
         sweeping[scout["code"]] = sector
+        begun.setdefault(sector, now)
+        held.setdefault("sweep_sent", {}).pop(scout["code"], None)    # a new sector goes at once
     # The bridge flies the legs one after the other; `sweep` again only for a scout on none,
     # its sweep cut short, and not before the last had time to start. A scout on a leg this
     # run did not start gets one too: a leg of the bridge before 4bfb818 waits for ever, and
     # the new `sweep` takes its place.
-    now = (state.get("meta") or {}).get("playtime_s") or 0
     sent = held.setdefault("sweep_sent", {})
     ours = {s["code"]: s for s in scouts}
     out = []

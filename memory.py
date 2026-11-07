@@ -86,7 +86,7 @@ CARRIED = ("refused", "explore_retried", "ledger", "blueprint_factions", "offere
 STANDING_CARRIED = ("where", "hunt_seen", "swept", "scouts_visited", "scouts_most", "watch",
                     "watch_scouts", "sold", "seminar_at", "hired_at", "hire_tried",
                     "sector_patrol", "sector_leader", "escorting", "guarding", "route", "sell_runs",
-                    "sell_passed", "sell_took")
+                    "sell_passed", "sell_took", "sweep_begun")
 
 
 def carry(previous: Path, store: Path) -> list[str]:

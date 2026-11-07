@@ -1648,6 +1648,24 @@ def test_scouts_sweep_the_plans_sectors_to_their_edges_one_each(small_state):
     assert "sweep = sweep_sector," in lua
 
 
+def test_a_sweep_that_never_ends_counts_as_done_after_a_while(small_state):
+    """start9o to start9v: five sweeps ran 43 game hours and none was SWEPT, so no scout came
+    free for Heretic's End and the campaign stood in its scout phase."""
+    state = copy.deepcopy(small_state)
+    here = _station(state)["place"]["sector"]
+    _add_ship(state, "SCO-000", "ship_tel_s_scout_01_a_macro", place={"sector": here}, satellites_aboard=0,
+              orders=[{"order": "Explore", "default": True}])
+    data = {"strategy": {"plan": {"stations": {"KYV-745": {"build": {}, "miners": {}, "traders": 0, "defenders": 0,
+                                                           "destroyers": 0, "raid_sector": "",
+                                                           "sweep_sectors": [here, "S2"]}}}}}
+    assert standing.sweeps(state, data) == [f"sweep SCO-000 {here}"]
+    state["meta"]["playtime_s"] += standing.SWEEP_FOR - 1
+    assert standing.sweeps(state, data) == [f"sweep SCO-000 {here}"]          # still on it, sent again
+    state["meta"]["playtime_s"] += 1
+    assert standing.sweeps(state, data) == ["sweep SCO-000 S2"]               # given up: on to the next
+    assert data["standing"]["swept"] == [here]
+
+
 def test_empty_scouts_beyond_the_plan_are_sold_at_a_wharf_of_their_race(small_state):
     """The player's call: 31 scouts flew at 363 game hours, 30 of them empty, for a plan of five."""
     state = copy.deepcopy(small_state)
