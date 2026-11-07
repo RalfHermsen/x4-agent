@@ -522,6 +522,28 @@ def test_the_home_reserve_above_its_floor_hunts_before_the_guard(small_state):
     assert standing.hunts(state, data) == ["hunt DES-002 PAC-007 scaleplate"]
 
 
+def test_a_ship_that_attacked_a_freighter_next_to_home_is_hunted(small_state):
+    """start9r: the Pact's SHH-527 shot DZK-868 in Silent Witness I, one jump from home and off
+    the guard's way, and no hunt went."""
+    from purchases import _graph
+    state, data = _raid_ready(small_state, destroyers=5)
+    home = _station(state)["place"]["sector"]
+    beside = next(s for s in _graph()[home] if s != XEN_SECTOR)
+    for code in ("DES-000", "DES-001"):
+        next(a for a in state["assets"] if a["code"] == code)["place"] = {"sector": XEN_SECTOR}
+    aso = next(a for a in state["assets"] if a["code"] == "ASO-629")
+    state["assets"].append(dict(copy.deepcopy(aso), code="TRA-003", macro="ship_tel_m_trans_container_01_a_macro",
+                                place={"sector": beside}))
+    data["strategy"]["plan"]["stations"]["KYV-745"]["raid_home"] = 2
+    data["standing"] = {"raid": {"sector": XEN_SECTOR, "home": "KYV-745", "home_sector": home,
+                                 "leader": "DES-000", "ships": ["DES-000", "DES-001"], "phase": "out",
+                                 "since": 0, "arrived": True, "guard": True, "faction": "scaleplate"},
+                        "hunt_seen": 900.0}
+    state["meta"]["playtime_s"] = 1020
+    state["logbook"] = [[1010.0, "[x4-agent] DESTROYED: TRA-003 by PAC-011 (Scale Plate Pact) [scaleplate]"]]
+    assert standing.hunts(state, data) == ["hunt DES-002 PAC-011 scaleplate"]
+
+
 def _fighters_ready(small_state, fighters=4):
     """KYV-745 with one trader of its own and this many free fighters."""
     state, data = _raid_ready(small_state, destroyers=0)

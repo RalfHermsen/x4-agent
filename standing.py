@@ -1733,9 +1733,12 @@ def hunts(state: dict, data: dict) -> list[str]:
         return []
     graph = purchases._graph()
     route = purchases.jumps(graph, raid["home_sector"], raid["sector"])
+    # A sector next to home counts too: in start9r the Pact's SHH-527 shot two of ZXX-974's
+    # freighters, DZK-868 in Silent Witness I, one jump from home and off the guard's way.
+    beside = set(graph.get(raid["home_sector"]) or [])
 
     def near(sector):
-        return sector is not None and (sector in (raid["sector"], raid["home_sector"]) or (
+        return sector is not None and (sector in (raid["sector"], raid["home_sector"]) or sector in beside or (
             purchases.jumps(graph, raid["home_sector"], sector) + purchases.jumps(graph, sector, raid["sector"])
             == route))
 
