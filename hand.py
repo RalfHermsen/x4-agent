@@ -25,7 +25,10 @@ def send(commands: list[str], why: str, outbox: Path = OUTBOX, runs: Path = RUNS
     outbox.parent.mkdir(parents=True, exist_ok=True)
     with outbox.open("a", encoding="utf-8") as handle:
         handle.writelines(c + "\n" for c in commands)
-    newest = max((d for d in runs.glob("*") if d.is_dir()), key=lambda d: d.name, default=None)
+    # Run folders start with their date; "seta-baseline-session" sorts after them all
+    # and took start9r's first hand line.
+    newest = max((d for d in runs.glob("*") if d.is_dir() and d.name[:8].isdigit()),
+                 key=lambda d: d.name, default=None)
     if newest is None:
         return None
     log = newest / "hand.log"

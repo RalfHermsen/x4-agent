@@ -66,6 +66,7 @@ def test_a_hand_command_goes_out_and_on_record(tmp_path):
     runs = tmp_path / "runs"
     (runs / "20261106-100000-execute-a").mkdir(parents=True)
     (runs / "20261106-110000-execute-b").mkdir()
+    (runs / "seta-baseline-session").mkdir()
     outbox = tmp_path / "outbox.txt"
     log = hand.send(["release X", " raid X S go khaak "], "a test", outbox=outbox, runs=runs)
     assert outbox.read_text(encoding="utf-8") == "release X\nraid X S go khaak\n"
