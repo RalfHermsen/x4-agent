@@ -470,6 +470,26 @@ def test_a_guard_goes_on_until_the_build_storages_are_gone_too(small_state):
     assert standing.raids(state, data) == []                    # only the patrol stays
 
 
+def test_a_sector_patrols_leader_on_the_way_is_not_taken_for_the_guards(small_state):
+    """start9w: MLX-818, leading Hatikvah's Choice I's patrol on the way to Heretic's End, was
+    taken for the guard's leader; the 30 went under it and it fell to a Pact station."""
+    state, data = _raid_ready(small_state)
+    data["strategy"]["plan"]["stations"]["KYV-745"]["raid_guard"] = True
+    patrol = next(a for a in state["assets"] if a["code"] == "DES-000")
+    patrol.update(place={"sector": XEN_SECTOR}, orders=[{"order": "Patrol"}])
+    data["standing"] = {"sector_patrol": {"DES-000": XEN_SECTOR}}
+    out = standing.raids(state, data)
+    assert (data["standing"].get("raid") or {}).get("leader") != "DES-000"
+    assert f"raid DES-000 {XEN_SECTOR} stay xenon" not in out
+    # Not on a patrol, the same ship is the guard taken over.
+    state, data = _raid_ready(small_state)
+    data["strategy"]["plan"]["stations"]["KYV-745"]["raid_guard"] = True
+    next(a for a in state["assets"] if a["code"] == "DES-000").update(place={"sector": XEN_SECTOR},
+                                                                      orders=[{"order": "Patrol"}])
+    standing.raids(state, data)
+    assert data["standing"]["raid"]["leader"] == "DES-000"
+
+
 def test_a_guard_hunts_a_ship_that_attacked_a_freighter_on_its_way_once(small_state):
     """start9a: the Pact's scout QRJ-271 shot five freighters in Silent Witness XI past the guard."""
     state, data = _raid_ready(small_state)

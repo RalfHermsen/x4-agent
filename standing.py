@@ -1636,7 +1636,11 @@ def raids(state: dict, data: dict) -> list[str]:
             led = {executor.serves(s, state)[0] for s in ours.values()
                    if sitrep.ship_type(s.get("macro")) == "destroyer" and s["code"] not in on_route
                    and executor.serves(s, state)[1] == "attack"}
+            # Never a sector patrol's or the route's: start9w took MLX-818, leading the patrol of
+            # Hatikvah's Choice I on the way to Heretic's End, for the guard's leader, put the 30
+            # under it, and lost it and its three to a Pact station, then EZE-828's route the same.
             leader = next((s for s in ours.values() if sitrep.ship_type(s.get("macro")) == "destroyer"
+                           and s["code"] not in on_route
                            and (s.get("place") or {}).get("sector") not in (None, home_sector)
                            and purchases.jumps(graph, home_sector, s["place"]["sector"])
                            + purchases.jumps(graph, s["place"]["sector"], sector) == route
