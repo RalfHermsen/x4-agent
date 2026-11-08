@@ -2194,3 +2194,26 @@ reserve.
 
 **Score, start9v.** 469.7 to 491.4 game hours: credits +3.86 M a game hour, against +3.87 M in the
 yardstick; net worth at cost +3.95 M, against +5.36 M, with stock down 2.3 M and four ships added.
+
+## 2026-11-07/08: start9w and start9x, Heretic's End taken
+
+**start9w (491.4 to 512.8 game hours).** With the sweeps capped, the campaign went from scout to
+siege, claim and base in one run: both Pact stations in Heretic's End (KRU-287 and GVZ-136) fell,
+a plot was bought and VJA-376 began. The price was eight destroyers, all to KRU-287. With no raid in
+memory, `raids` takes over a guard left on its post on the way, and it took MLX-818, leading the
+patrol of Hatikvah's Choice I on the way to Heretic's End, for the guard's leader; the 30 were put
+under it, and later EZE-828's route patrol was taken the same way. A sector patrol or the route is
+no longer a candidate (d9a8579). Five freighters were lost as well, to the Pact, the Free Families,
+the Vigor Syndicate and Duke's Buccaneers. The run was not watched for three hours while a question
+to the player waited for its answer. Credits +2.76 M a game hour, net worth at cost +2.74 M.
+
+**Where the freighters die.** The game's own logbook says it (category upkeep, "was destroyed.",
+with the sector): 118 freighters and miners lost in the game, 52 since 361 game hours. The sectors
+with a loss since 456 game hours or two since 361 that are not ours or patrolled joined the avoided
+list: Profit Center Alpha, Black Hole Sun IV and V, Eighteen Billion, Scale Plate Green I, Trinity
+Sanctum III and VII, Heart of Acrimony II and Morning Star IV. Heretic's End came off it, for the
+base's traders and miners.
+
+**start9x (512.8 to 535.1 game hours).** No ship lost. The base stood, its garrison held Heretic's
+End for ten game hours, and the campaign counts it taken and is scouting Nopileos' Fortune VI. Net
+worth at cost +3.19 M a game hour and credits +1.35 M, with fifteen modules and eight ships bought.
