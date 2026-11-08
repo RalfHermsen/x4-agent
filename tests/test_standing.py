@@ -562,6 +562,10 @@ def test_a_ship_that_attacked_a_freighter_next_to_home_is_hunted(small_state):
     state["meta"]["playtime_s"] = 1020
     state["logbook"] = [[1010.0, "[x4-agent] DESTROYED: TRA-003 by PAC-011 (Scale Plate Pact) [scaleplate]"]]
     assert standing.hunts(state, data) == ["hunt DES-002 PAC-011 scaleplate"]
+    # One shot down before the hunt goes is no prey (start9y: ZXR-504).
+    data["standing"].update(hunt=[], prey={}, hunt_seen=900.0)
+    state["logbook"].append([1012.0, "[x4-agent] KILLED: PAC-011 ship_arg_m_bomber_02_a_macro (Scale Plate Pact) by ESC-001"])
+    assert standing.hunts(state, data) == []
 
 
 def _fighters_ready(small_state, fighters=4):

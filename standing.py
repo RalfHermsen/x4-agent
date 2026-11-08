@@ -1770,7 +1770,10 @@ def hunts(state: dict, data: dict) -> list[str]:
         sector, kind = where.get(victim) or (None, None)
         if faction not in save_parser.ALWAYS_HOSTILE and kind in HUNTED_FOR and near(sector):
             prey.setdefault(attacker, {"faction": faction, "since": when, "sector": sector})
-    for code in [c for c, p in prey.items() if now - p["since"] > HUNT_FOR]:
+    # One already shot down is no prey: start9y sent three after ZXR-504 a cycle after PJR-087
+    # had killed it, and the bridge refused each.
+    killed = {m.group(1) for _, text in logbook for m in [re.search(r"KILLED: (\S+) ", text or "")] if m}
+    for code in [c for c, p in prey.items() if now - p["since"] > HUNT_FOR or c in killed]:
         del prey[code]
     busy = (set(raid["ships"]) | set(held.get("repairing") or {})
             | set((held.get("route") or {}).get("ships") or []) | set(held.get("sector_patrol") or {}))
