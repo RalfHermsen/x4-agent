@@ -26,6 +26,22 @@ def _ship(state, code, sector, **extra):
     state["assets"].append(base)
 
 
+def test_a_base_goes_on_with_its_claim_and_one_disc(small_state):
+    """start9y/9z: DBA-060 waited for 76 turret components with 1 of 4 discs, and the campaign
+    stood in its base phase."""
+    state = copy.deepcopy(small_state)
+    home, data = _plan(state)
+    data["strategy"]["plan"]["campaign"]["base"] = dict(BASE, build={"wharf_l": 1, "dock": 1, "defence": 4})
+    data["campaign"] = {"faction": "scaleplate", "sector": "S1", "phase": "base", "base": "KYV-745",
+                        "taken": [], "bases": {"KYV-745": "S1"}, "since": 0}
+    home["modules"] = [*home["modules"], executor.EXPANSION_MODULES["wharf_l"][0]]
+    standing.campaign(state, data)
+    assert data["campaign"]["phase"] == "base"                         # no disc yet
+    home["modules"].append(executor.EXPANSION_MODULES["defence"][0])
+    standing.campaign(state, data)
+    assert data["campaign"]["phase"] == "patrol"
+
+
 def test_the_goals_follow_the_phase(small_state):
     state = copy.deepcopy(small_state)
     _, data = _plan(state)

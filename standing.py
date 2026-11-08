@@ -650,7 +650,7 @@ def campaign(state: dict, data: dict) -> list[str]:
             another's stands (Egosoft wiki, Sector Ownership).
     claim:  the guard's leader buys a plot there, until a station of ours stands in it.
     base:   that station builds the plan's template, its first module the claim, under
-            the guard, until that module and its defence discs stand.
+            the guard, until that module and one defence disc stand; the rest builds on.
     patrol: the guard goes home and a garrison of the home's destroyers takes the sector.
     gate:   no ship of ours lost there for `hold_hours`, and net worth at cost not below
             where the campaign began; then the next sector. A loss starts the clock again.
@@ -722,8 +722,11 @@ def campaign(state: dict, data: dict) -> list[str]:
         st = next((s for s in catalog._stations(state) if s.get("code") == at.get("base")), None)
         build = (spec.get("base") or {}).get("build") or {}
         first = next(iter(build), None)
+        # One disc, not the template's four: DBA-060's build waited 29 game hours for 76 turret
+        # components no seller brought, the game does not cancel such a build, and the campaign
+        # stood in Nopileos' Fortune VI with the claim long made (start9y and start9z).
         if st and (not first or strategy.built(st, first) >= build[first]) and (
-                strategy.built(st, "defence") >= (build.get("defence") or 0)):
+                strategy.built(st, "defence") >= min(1, build.get("defence") or 0)):
             advance("patrol")
         return []
     if phase == "patrol":
