@@ -2240,3 +2240,21 @@ lost to the Kha'ak. Net worth at cost +4.51 M a game hour, credits +2.87 M, stat
 **Ships that are not ships.** Most runs list ships of no known type leaving the fleet without a
 destruction report, up to 28 in start10a. The ones still in a save are a generic M corvette and XS
 distress beacons: objects that come and go, not losses.
+
+## 2026-11-09: start10b and start10c, the guard lost at Loomanckstrat's Legacy
+
+**start10b (596.4 to 616.1 game hours).** The siege of Loomanckstrat's Legacy began at 599.2 game
+hours. One freighter and two fighters lost. Net worth at cost +4.20 M a game hour, credits +5.37 M.
+
+**start10c (616.1 to 635.7).** The guard of 31 destroyed five of the Pact's stations in
+Loomanckstrat's Legacy without a loss (WWF-212, WPZ-699, OIB-795, WKZ-872 and JQS-891) and then
+turned on the sixth, the Anarchy Port ZTU-930: 30 defence modules, 467 turrets, 204 shield
+generators. JQS-891 had 5 defence modules and 21 turrets. ZTU-930 killed all 31 within 450 game
+seconds, at 629 game hours, faster than any rule could act on a loss. The sector came out of the
+plan, which reset the campaign to its first sector; a sector the plan drops is now skipped with what
+was taken kept (65cf7fa). And the campaign passes by a sector where one of the target's stations has
+more than 10 defence modules, calling a guard under way home (0eefea6): the save lists the modules
+of every station we know, also out of sight. The campaign scouts Moo-Kye's Revenge, two Pact
+stations with 5 defence modules each. Lost besides: two freighters to the Pact's EYB-436, one of
+them on a sell run sent before Pious Mists IV joined the avoided list, a miner and five fighters to
+the Kha'ak. Net worth at cost +3.14 M a game hour, credits +2.86 M.
