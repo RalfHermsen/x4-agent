@@ -1766,8 +1766,17 @@ def hunts(state: dict, data: dict) -> list[str]:
     held["hunt_seen"] = max([seen or 0.0] + [when for when, _ in logbook])
     raid = held.get("raid")
     # The first cycle reads no lines: those were before this run, their attackers long gone.
-    if seen is None or not (raid and raid.get("guard") and raid.get("arrived") and raid.get("phase") == "out"):
+    if seen is None:
         return []
+    if not (raid and raid.get("guard") and raid.get("arrived") and raid.get("phase") == "out"):
+        # With no guard out, round its home: in start10d, the guard lost to ZTU-930, the Pact's
+        # LCV-670 shot three freighters in Silent Witness XII past its patrol and none went.
+        code = next((c for c, g in strategy.goals(data).items() if g.get("raid_guard")), None)
+        home = next((a for a in state.get("assets", []) if a.get("code") == code), None)
+        if not home:
+            return []
+        sector = (home.get("place") or {}).get("sector")
+        raid = {"home": code, "home_sector": sector, "sector": sector, "ships": [], "leader": None}
     graph = purchases._graph()
     route = purchases.jumps(graph, raid["home_sector"], raid["sector"])
     # A sector next to home counts too: in start9r the Pact's SHH-527 shot two of ZXX-974's
@@ -1781,6 +1790,8 @@ def hunts(state: dict, data: dict) -> list[str]:
 
     def attacking(ship):
         return "Attack" in [o.get("order") for o in ship.get("orders") or [] if not o.get("default")]
+    # A sector patrol's destroyers hunt in their own sector, its leader kept on its Patrol.
+    patrols = held.get("sector_patrol") or {}
     now =(state.get("meta") or {}).get("playtime_s") or 0
     prey = held.setdefault("prey", {})
     for when, text in logbook:
@@ -1789,7 +1800,7 @@ def hunts(state: dict, data: dict) -> list[str]:
             continue
         victim, attacker, faction = found.groups()
         sector, kind = where.get(victim) or (None, None)
-        if faction not in save_parser.ALWAYS_HOSTILE and kind in HUNTED_FOR and near(sector):
+        if faction not in save_parser.ALWAYS_HOSTILE and kind in HUNTED_FOR and (near(sector) or sector in patrols.values()):
             prey.setdefault(attacker, {"faction": faction, "since": when, "sector": sector})
     # One already shot down is no prey: start9y sent three after ZXR-504 a cycle after PJR-087
     # had killed it, and the bridge refused each.
@@ -1810,7 +1821,12 @@ def hunts(state: dict, data: dict) -> list[str]:
             continue
         guard = [c for c in raid["ships"] if c in ours and c != raid["leader"]
                  and (ours[c].get("place") or {}).get("sector") == raid["sector"] and not attacking(ours[c])]
-        hunters = spare or (guard if p.get("sector", raid["sector"]) == raid["sector"] else [])
+        patrol = [c for c, s in patrols.items() if s == p.get("sector") and c in ours
+                  and sitrep.ship_type(ours[c].get("macro")) == "destroyer"
+                  and (ours[c].get("place") or {}).get("sector") == s and not attacking(ours[c])
+                  and "Patrol" not in [o.get("order") for o in ours[c].get("orders") or []]]
+        hunters = ((spare if near(p.get("sector")) else [])
+                   or (guard if p.get("sector", raid["sector"]) == raid["sector"] else []) or patrol)
         if not hunters:
             continue
         _mark(data, "hunt", code)

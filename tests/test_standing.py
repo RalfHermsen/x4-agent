@@ -568,6 +568,27 @@ def test_a_ship_that_attacked_a_freighter_next_to_home_is_hunted(small_state):
     assert standing.hunts(state, data) == []
 
 
+def test_with_no_guard_out_a_sector_patrol_hunts_in_its_sector(small_state):
+    """start10d: the guard lost to ZTU-930, the Pact's LCV-670 shot three freighters in Silent
+    Witness XII past its patrol of five, and no hunt went."""
+    state, data = _raid_ready(small_state)
+    for code, order in (("DES-000", "Patrol"), ("DES-001", "Escort"), ("DES-002", "Escort")):
+        next(a for a in state["assets"] if a["code"] == code).update(place={"sector": XEN_SECTOR},
+                                                                      orders=[{"order": order}])
+    aso = next(a for a in state["assets"] if a["code"] == "ASO-629")
+    state["assets"].append(dict(copy.deepcopy(aso), code="TRA-001", macro="ship_tel_m_trans_container_01_a_macro",
+                                place={"sector": XEN_SECTOR}))
+    data["standing"] = {"sector_patrol": {c: XEN_SECTOR for c in ("DES-000", "DES-001", "DES-002")},
+                        "hunt_seen": 900.0}
+    state["meta"]["playtime_s"] = 1020
+    state["logbook"] = [[1010.0, "[x4-agent] DESTROYED: TRA-001 by PAC-012 (Scale Plate Pact) [scaleplate]"]]
+    assert standing.hunts(state, data) == []                    # no station keeps a guard
+    data["strategy"]["plan"]["stations"]["KYV-745"]["raid_guard"] = True
+    data["standing"].update(hunt_seen=900.0, prey={})
+    # The leader keeps its Patrol; the two under it go.
+    assert standing.hunts(state, data) == ["hunt DES-001 PAC-012 scaleplate", "hunt DES-002 PAC-012 scaleplate"]
+
+
 def _fighters_ready(small_state, fighters=4):
     """KYV-745 with one trader of its own and this many free fighters."""
     state, data = _raid_ready(small_state, destroyers=0)
