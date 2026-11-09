@@ -2217,3 +2217,26 @@ base's traders and miners.
 **start9x (512.8 to 535.1 game hours).** No ship lost. The base stood, its garrison held Heretic's
 End for ten game hours, and the campaign counts it taken and is scouting Nopileos' Fortune VI. Net
 worth at cost +3.19 M a game hour and credits +1.35 M, with fifteen modules and eight ships bought.
+
+## 2026-11-08/09: start9y to start10a, Nopileos' Fortune VI taken
+
+**start9y (535.1 to 557.3 game hours).** The guard went to Nopileos' Fortune VI under IVB-214, a
+destroyer of the home reserve, so the leader fix held; it destroyed the Pact's OTX-938, a plot was
+bought and DBA-060 began. One freighter lost, to a Pact bomber that the hunts rule's ships then
+killed. Net worth at cost +3.92 M a game hour, credits +3.74 M.
+
+**start9z (557.3 to 578.6).** No module was built in the whole run: DBA-060's running build had
+all its modules standing and waited from game hour 549 for 76 turret components that no seller
+brought, and the game does not cancel such a build. The campaign waited in its base phase for the
+template's four defence discs; it now goes on with the claim and one disc (4568d58). Silent Witness
+XII, left to a patrol of three while the guard is out on the campaign, had Kha'ak back; the patrol
+became five. One freighter lost, in Second Contact VII, which joined the avoided list. Net worth at
+cost +3.90 M a game hour, credits +4.24 M.
+
+**start10a (578.6 to 596.4).** The base went on, its garrison held Nopileos' Fortune VI for ten
+game hours, and the campaign counts it taken and is scouting Loomanckstrat's Legacy. Two fighters
+lost to the Kha'ak. Net worth at cost +4.51 M a game hour, credits +2.87 M, station accounts +27.9 M.
+
+**Ships that are not ships.** Most runs list ships of no known type leaving the fleet without a
+destruction report, up to 28 in start10a. The ones still in a save are a generic M corvette and XS
+distress beacons: objects that come and go, not losses.
