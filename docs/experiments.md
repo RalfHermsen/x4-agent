@@ -2276,3 +2276,12 @@ patrol on Patrol at its first stop, Second Contact II Flashpoint, and the dry ru
 put all twelve under that sector's patrol, an invariant the dry run flags: `fighter_posts` ran
 before `route_patrol` could take the route back. It runs first now, and takes over no sector
 patrol's ship (8e894e9). Net worth at cost +3.71 M a game hour, credits +3.46 M.
+
+**start10f (679.5 to 701.5).** The route was taken back at the start and went on, and the first
+hunt with no guard out went (two of a patrol after the Pact's FEH-009). No freighter lost; a
+miner in Second Contact II Flashpoint, the fifth there in three runs, and three fighters, all to
+the Kha'ak, while PTJ-289 of that sector's patrol destroyed a Kha'ak nest. The run ended well and
+then failed: the scorecard parsed both saves beside a running X4, the machine was out of memory
+(WinError 1455, a Windows service holding 10 GB), and the check whether X4 still ran failed, so no
+player save was put back. The game was closed and autosave_01 restored by hand; the scorecard now
+comes after the game is closed (951e80c). Net worth at cost +3.49 M a game hour, credits +3.75 M.
