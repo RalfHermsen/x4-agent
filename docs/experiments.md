@@ -2258,3 +2258,13 @@ of every station we know, also out of sight. The campaign scouts Moo-Kye's Reven
 stations with 5 defence modules each. Lost besides: two freighters to the Pact's EYB-436, one of
 them on a sell run sent before Pious Mists IV joined the avoided list, a miner and five fighters to
 the Kha'ak. Net worth at cost +3.14 M a game hour, credits +2.86 M.
+
+**start10d (635.7 to 657.5).** The campaign scouted Moo-Kye's Revenge and stands in its siege,
+waiting for 30 whole destroyers at home: ZXX-974 had 18. Seven freighters, two miners and three
+fighters lost, all in our own sectors and all to the Kha'ak but three freighters: Silent Witness XI
+and XII, and the two miners in Second Contact II Flashpoint. Silent Witness XI's patrol stood in its sector, three
+destroyers, four frigates and twelve fighters, and went to five destroyers. The Pact's LCV-670
+shot three freighters in Silent Witness XII and no hunt went: `hunts` ran only while a guard was
+out. With none, it now hunts round the guard's home, and a sector patrol's destroyers hunt in
+their own sector, its leader kept on its Patrol (cddab74). Net worth at cost +1.79 M a game hour,
+credits +1.72 M, the weakest run since start9w.
