@@ -42,6 +42,18 @@ def test_a_base_goes_on_with_its_claim_and_one_disc(small_state):
     assert data["campaign"]["phase"] == "patrol"
 
 
+def test_a_sector_the_plan_drops_is_skipped(small_state):
+    """start10c: ZTU-930 killed the guard of 31 in Loomanckstrat's Legacy; the plan dropped it."""
+    state = copy.deepcopy(small_state)
+    _, data = _plan(state)
+    data["strategy"]["plan"]["campaign"]["sectors"] = ["S0", "S2"]
+    data["campaign"] = {"faction": "scaleplate", "sector": "S1", "phase": "siege", "since": 0,
+                        "taken": ["S0"], "bases": {"KYV-745": "S0"}, "worth": 1}
+    standing.campaign(state, data)
+    at = data["campaign"]
+    assert (at["sector"], at["phase"], at["taken"], at["bases"]) == ("S2", "scout", ["S0"], {"KYV-745": "S0"})
+
+
 def test_the_goals_follow_the_phase(small_state):
     state = copy.deepcopy(small_state)
     _, data = _plan(state)

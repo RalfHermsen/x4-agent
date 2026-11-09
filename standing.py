@@ -665,9 +665,14 @@ def campaign(state: dict, data: dict) -> list[str]:
     held = data.setdefault("standing", {})
     now = (state.get("meta") or {}).get("playtime_s") or 0
     at = data.get("campaign") or {}
-    if at.get("faction") != spec["faction"] or at.get("sector") not in spec["sectors"] + [None]:
+    if at.get("faction") != spec["faction"]:
         at = {"faction": spec["faction"], "sector": None, "taken": [], "bases": {},
               "worth": score.score(state).get("net_worth_cost")}
+    elif at.get("sector") not in spec["sectors"] + [None]:
+        # The plan dropped the sector under way: on to the next, with what was taken kept. In
+        # start10c the Pact's Anarchy Port ZTU-930 killed all 31 of the guard in Loomanckstrat's
+        # Legacy within 450 game seconds, and dropping it would have begun at Heretic's End again.
+        at.update(sector=None, phase=None)
     if at.get("sector") is None:
         left = [s for s in spec["sectors"] if s not in at["taken"]]
         if not left:
