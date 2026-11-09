@@ -418,9 +418,6 @@ def main() -> int:
             record["game"] = game_version(slot)
             (run_dir / "run.json").write_text(json.dumps(record, indent=2), encoding="utf-8")
             log(run_dir, f"game {record['game']}")
-            card = score.compare(score.score(parse_save(baseline)), score.score(parse_save(slot)))
-            (run_dir / "score.txt").write_text(card, encoding="utf-8")
-            log(run_dir, "scorecard:\n" + card)
             code = 0
         else:
             log(run_dir, "the final save did not arrive")
@@ -436,6 +433,12 @@ def main() -> int:
             log(run_dir, f"player saves restored: {', '.join(restored) or 'none had changed'}")
         else:
             log(run_dir, "X4 still running: player saves NOT restored; copies are in player-saves/")
+    # With the game closed: start10f parsed both saves beside a running X4 and the machine ran out
+    # of memory (WinError 1455), and the check whether X4 still ran failed, so no save was restored.
+    if code == 0:
+        card = score.compare(score.score(parse_save(baseline)), score.score(parse_save(run_dir / f"result-{AGENT_SLOT}.xml.gz")))
+        (run_dir / "score.txt").write_text(card, encoding="utf-8")
+        log(run_dir, "scorecard:\n" + card)
     return code
 
 
