@@ -261,6 +261,17 @@ whether an order will run; an order it refuses stays in "setup" for ever.
 And a Lua log line reaches the run only through the logbook: an ORDER line
 is in the save, not in agent.log.
 
+**L8l. Weigh the target before the attack; a loss limit comes too late.** In
+start10c (2026-11-09) the guard of 31 destroyers took five Pact stations in
+Loomanckstrat's Legacy without a loss, then turned on the Anarchy Port
+ZTU-930 and lost all 31 within 450 game seconds. The limit announced the
+same morning, four destroyers lost and the guard comes home, never got a
+cycle to act. The save had said it all along: 30 defence modules and 467
+turrets on ZTU-930, 5 and 21 on the last station taken. The modules of every
+station the player knows are in the save, also out of sight, so a rule can
+weigh a target before it sends anyone; a rule that counts losses only learns
+what a fight cost.
+
 ## About the model
 
 **L12. Put `type` first in a discriminated union, and give it no default.** With
