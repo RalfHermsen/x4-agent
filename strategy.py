@@ -434,7 +434,8 @@ def lines(state: dict, data: dict) -> list[str]:
     at = data.get("campaign") or {}
     if (held.get("plan") or {}).get("campaign") and at:
         out.append(f"campaign against {at.get('faction')}: {at.get('sector')} {at.get('phase')} since "
-                   f"{(at.get('since') or 0) / 3600:.1f} h, taken {', '.join(at.get('taken') or []) or 'none'}")
+                   f"{(at.get('since') or 0) / 3600:.1f} h, taken {', '.join(at.get('taken') or []) or 'none'}"
+                   + "".join(f", skipped {s} for {c}" for s, c in (at.get("skipped") or {}).items()))
     stations = {st.get("code"): st for st in catalog._stations(state)}
     for code, goal in plan.items():
         st = stations.get(code)

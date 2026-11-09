@@ -861,7 +861,8 @@ def parse_save(path: str | os.PathLike) -> dict:
         "unseen_stations": len(market) - len(visible),
         # Who stands where, also out of sight, without prices or stock.
         "all_stations": [{"code": a.code, "owner": a.owner, "sector": a.place.get("sector"), "builds": a.builds,
-                          "attacked": a.attack.get("time")} for a in market],
+                          "attacked": a.attack.get("time"),
+                          "defence": sum(1 for m in a.modules if m.startswith("defence_"))} for a in market],
         "satellites": satellites,
         "hostiles": hostiles,
         "build_storages": storages,

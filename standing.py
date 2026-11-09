@@ -633,6 +633,10 @@ def sell_scouts(state: dict, data: dict) -> list[str]:
 SCOUT_SETTLED = 7200       # game seconds the target's known stations stay the same before the siege
 SIEGE_CLEAR = 1800         # game seconds the target has nothing left in the sector before the claim
 PLOT_AGAIN = 3600          # game seconds before a plot is asked for again
+# Defence modules on one of the target's stations beyond which its sector is passed by. In
+# start10c the guard of 31 took JQS-891 (5) without a loss and died to ZTU-930 (30, 467
+# turrets) in Loomanckstrat's Legacy within 450 game seconds.
+STRONG_DEFENCE = 10
 PHASES = ("scout", "siege", "claim", "base", "patrol", "gate", "done")
 
 
@@ -674,7 +678,7 @@ def campaign(state: dict, data: dict) -> list[str]:
         # Legacy within 450 game seconds, and dropping it would have begun at Heretic's End again.
         at.update(sector=None, phase=None)
     if at.get("sector") is None:
-        left = [s for s in spec["sectors"] if s not in at["taken"]]
+        left = [s for s in spec["sectors"] if s not in at["taken"] and s not in (at.get("skipped") or {})]
         if not left:
             at["phase"] = "done"
             data["campaign"] = at
@@ -694,6 +698,15 @@ def campaign(state: dict, data: dict) -> list[str]:
         return _fly_home(raid, alive)
 
     target = _enemy(state, sector, faction)
+    if phase in ("scout", "siege"):
+        strong = next((s["code"] for s in state.get("all_stations") or [] if s.get("sector") == sector
+                       and s.get("owner") == faction and (s.get("defence") or 0) > STRONG_DEFENCE), None)
+        if strong:
+            at.setdefault("skipped", {})[sector] = strong
+            at.update(sector=None, phase=None)
+            if raid and raid.get("sector") == sector and raid.get("phase") == "out":
+                return guard_home()
+            return []
     if phase == "scout":
         known = (target.get("station") or 0) + (target.get("buildstorage") or 0)
         if known != at.get("known"):

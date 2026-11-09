@@ -54,6 +54,26 @@ def test_a_sector_the_plan_drops_is_skipped(small_state):
     assert (at["sector"], at["phase"], at["taken"], at["bases"]) == ("S2", "scout", ["S0"], {"KYV-745": "S0"})
 
 
+def test_a_sector_with_a_strong_station_is_passed_by(small_state):
+    """start10c: the guard took JQS-891 (5 defence modules) and died to ZTU-930 (30)."""
+    state = copy.deepcopy(small_state)
+    home, data = _plan(state)
+    state["all_stations"] = [{"code": "PAC-005", "owner": "scaleplate", "sector": "S1", "defence": 5}]
+    data["campaign"] = {"faction": "scaleplate", "sector": "S1", "phase": "siege", "since": 0,
+                        "taken": [], "bases": {}, "worth": 1}
+    standing.campaign(state, data)
+    assert data["campaign"]["sector"] == "S1"                         # five discs: the siege goes on
+    state["all_stations"].append({"code": "PAC-030", "owner": "scaleplate", "sector": "S1", "defence": 30})
+    _ship(state, "DES-000", "S1")
+    data["standing"] = {"raid": {"sector": "S1", "home": "KYV-745", "home_sector": home["place"]["sector"],
+                                 "leader": "DES-000", "ships": ["DES-000"], "phase": "out", "since": 0,
+                                 "guard": True}}
+    assert "undock DES-000" in standing.campaign(state, data)         # the guard comes home
+    assert data["campaign"]["skipped"] == {"S1": "PAC-030"}
+    standing.campaign(state, data)
+    assert (data["campaign"]["sector"], data["campaign"]["phase"]) == ("S2", "scout")
+
+
 def test_the_goals_follow_the_phase(small_state):
     state = copy.deepcopy(small_state)
     _, data = _plan(state)
