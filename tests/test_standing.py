@@ -1192,6 +1192,18 @@ def test_a_new_run_takes_over_the_route_but_not_a_frigate_leading_fighters(small
     assert "route" not in data["standing"]
 
 
+def test_a_new_run_takes_the_route_back_before_a_sector_patrol_and_not_its_leader(small_state):
+    """start10e ended with the route patrol on Patrol at its first stop, Second Contact II
+    Flashpoint; the next run's first cycle put all twelve under that sector's patrol."""
+    state, data = _route_ready(small_state)
+    leader = next(a for a in state["assets"] if a["code"] == "FRI-000")
+    leader.update(place={"sector": "S1"}, orders=[{"order": "Patrol"}])
+    data.setdefault("standing", {})["sector_patrol"] = {"FRI-000": "S1"}
+    assert standing.route_patrol(state, data) == []
+    assert "route" not in data["standing"]                      # a sector patrol's leader stays
+    assert standing.RULES.index(standing.route_patrol) < standing.RULES.index(standing.fighter_posts)
+
+
 def test_a_carrier_guards_the_plans_station_instead_of_flying_with_the_guard(small_state):
     """start8v: three freighters lost near ZXX-974 while the carrier flew with the guard."""
     state, data = _raid_ready(small_state)

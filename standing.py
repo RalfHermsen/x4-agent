@@ -1901,6 +1901,7 @@ def route_patrol(state: dict, data: dict) -> list[str]:
            if sitrep.ship_type(s.get("macro")) == "fighter" and executor.serves(s, state)[1] == "attack"}
     leader = next((s for kind in ("destroyer", "frigate") for s in ours.values()
                    if sitrep.ship_type(s.get("macro")) == kind and s["code"] not in led
+                   and s["code"] not in (held.get("sector_patrol") or {})
                    and (s.get("place") or {}).get("sector") in stops
                    and "Patrol" in [o.get("order") for o in s.get("orders") or [] if not o.get("default")]), None)
     if leader:
@@ -2177,10 +2178,13 @@ def civilians_flee(state: dict, data: dict) -> list[str]:
     return out
 
 
-RULES = (campaign, sweeps, sell_limits, wharf_sales, revisit, satellites, watch, ledger, once, avoid_sectors, civilians_flee, fighter_posts,
-         patrols, build_method,
+# `route_patrol` before `fighter_posts`: start10e ended with the route patrol on Patrol at its first
+# stop, Second Contact II Flashpoint, and the next run's first cycle put all twelve under that
+# sector's patrol, the route not yet taken over.
+RULES = (campaign, sweeps, sell_limits, wharf_sales, revisit, satellites, watch, ledger, once, avoid_sectors, civilians_flee,
+         route_patrol, fighter_posts, patrols, build_method,
          find_builds, hire_builders, own_stock, repairs, seminars, sell_scouts, scouts, empty_builds, docks, managers, shiptraders,
-         cargo_drones, accounts, undock_fleet, wings, route_patrol, raids, hunts, carriers, sell_runs, fleet, grow)
+         cargo_drones, accounts, undock_fleet, wings, raids, hunts, carriers, sell_runs, fleet, grow)
 
 
 # Which rule gave which commands in the last call of `commands`, for `invariants.check`,
