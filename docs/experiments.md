@@ -2268,3 +2268,11 @@ shot three freighters in Silent Witness XII and no hunt went: `hunts` ran only w
 out. With none, it now hunts round the guard's home, and a sector patrol's destroyers hunt in
 their own sector, its leader kept on its Patrol (cddab74). Net worth at cost +1.79 M a game hour,
 credits +1.72 M, the weakest run since start9w.
+
+**start10e (657.5 to 679.5).** No freighter lost. Two miners lost to the Kha'ak in Second Contact
+II Flashpoint, four there in two runs, so its patrol went to five destroyers; a fighter and a
+frigate of Silent Witness XI's patrol lost to the Kha'ak as well. The run ended with the route
+patrol on Patrol at its first stop, Second Contact II Flashpoint, and the dry run before start10f
+put all twelve under that sector's patrol, an invariant the dry run flags: `fighter_posts` ran
+before `route_patrol` could take the route back. It runs first now, and takes over no sector
+patrol's ship (8e894e9). Net worth at cost +3.71 M a game hour, credits +3.46 M.
