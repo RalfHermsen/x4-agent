@@ -2292,3 +2292,7 @@ scout fell as well. GZI-064's hull parts waited on graphene now and then, 46 in 
 for 992, while ZLR-942 offered 1,174: a matter of hauling, not of a stand-still. The scorecard came
 after the game had closed, and no player save had changed. Net worth at cost +3.46 M a game hour,
 credits +3.24 M.
+
+**start10h (721.3 to 743.7).** One miner lost to the Kha'ak in Second Contact II Flashpoint, the
+sixth there in four runs; the sector stays open, since keeping traders out of it as well would cost
+the trade more. Net worth at cost +3.23 M a game hour, credits +3.46 M.
