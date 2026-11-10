@@ -2285,3 +2285,10 @@ then failed: the scorecard parsed both saves beside a running X4, the machine wa
 (WinError 1455, a Windows service holding 10 GB), and the check whether X4 still ran failed, so no
 player save was put back. The game was closed and autosave_01 restored by hand; the scorecard now
 comes after the game is closed (951e80c). Net worth at cost +3.49 M a game hour, credits +3.75 M.
+
+**start10g (701.5 to 721.3).** No ship lost, the first run without a loss since start9x. A hunt
+went after the Pact's bomber DJT-660 and the patrol of Silent Witness XI killed it, and a Pact
+scout fell as well. GZI-064's hull parts waited on graphene now and then, 46 in store with room
+for 992, while ZLR-942 offered 1,174: a matter of hauling, not of a stand-still. The scorecard came
+after the game had closed, and no player save had changed. Net worth at cost +3.46 M a game hour,
+credits +3.24 M.
