@@ -1361,9 +1361,17 @@ def fighter_posts(state: dict, data: dict) -> list[str]:
                 asked.pop(code, None)
         leaders[sector], posts[leader] = leader, sector
         free = [c for c in free if c != leader]
-        if "Patrol" not in queue(ours[leader]) and now - asked.get(leader, -1e9) >= PATROL_AGAIN:
+        # A Kha'ak station in the sector is its target too: told `raid ... stay`, a leader goes for
+        # the Xenon's, and in start10j and start10k the nest SUJ-611 in Second Contact II Flashpoint
+        # took four miners while its patrol of five stood by.
+        faction = "khaak" if any(s.get("sector") == sector and s.get("owner") == "khaak"
+                                 for s in state.get("all_stations") or []) else "xenon"
+        told = held.setdefault("sector_patrol_faction", {})
+        if (("Patrol" not in queue(ours[leader]) or told.get(sector, "xenon") != faction)
+                and now - asked.get(leader, -1e9) >= PATROL_AGAIN):
             asked[leader] = now
-            out.append(f"raid {leader} {sector} stay")
+            told[sector] = faction
+            out.append(_raid_order(leader, sector, True, faction))
         for code in mine:
             if (code != leader and executor.serves(ours[code], state) != (leader, "attack")
                     and now - asked.get(code, -1e9) >= PATROL_AGAIN):

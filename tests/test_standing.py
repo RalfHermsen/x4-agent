@@ -629,6 +629,20 @@ def test_free_fighters_patrol_a_sector_first_then_escort_the_traders(small_state
     assert standing.fighter_posts(state, data) == [f"raid FIG-001 {XEN_SECTOR} stay"]
 
 
+def test_a_sector_patrol_goes_for_a_khaak_station_in_its_sector(small_state):
+    """start10j/10k: the nest SUJ-611 in Second Contact II Flashpoint took four miners while its
+    patrol, told `raid ... stay`, went for Xenon stations only."""
+    state, data = _fighters_ready(small_state, fighters=2)
+    standing.fighter_posts(state, data)
+    next(a for a in state["assets"] if a["code"] == "FIG-000")["orders"] = [{"order": "Patrol"}]
+    state["all_stations"] = [{"code": "NST-001", "owner": "khaak", "sector": XEN_SECTOR}]
+    state["meta"]["playtime_s"] += standing.PATROL_AGAIN
+    assert f"raid FIG-000 {XEN_SECTOR} stay khaak" in standing.fighter_posts(state, data)
+    state["all_stations"] = []                                   # the nest fell
+    state["meta"]["playtime_s"] += standing.PATROL_AGAIN
+    assert f"raid FIG-000 {XEN_SECTOR} stay" in standing.fighter_posts(state, data)
+
+
 def test_with_no_carrier_to_fill_its_fighters_join_patrols_and_escorts(small_state):
     """start9h: SAP-470 kept 36 fighters docked while the Kha'ak shot freighters beside it."""
     state, data = _fighters_ready(small_state, fighters=1)
