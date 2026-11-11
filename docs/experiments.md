@@ -2311,3 +2311,12 @@ fell to the Pact in Silent Witness XII. The Kha'ak built a new nest, SUJ-611, in
 Flashpoint and took a miner and two fighters there, the seventh miner in that sector in five runs.
 Two player autosaves had changed and were put back. Net worth at cost +3.53 M a game hour, credits
 +2.98 M.
+
+**start10k (787.2 to 809.6).** The Pact killed two freighters, one in Silent Witness XI and one in
+Morning Star III, the one way into Heretic's End; VJA-376 now has a plan of its own, the base's
+template with three of its thirteen idle destroyers patrolling Morning Star III, and they went.
+Two more miners fell to the nest SUJ-611 in Second Contact II Flashpoint, nine there in six runs.
+A sector patrol's leader is told `raid ... stay`, which goes for Xenon stations; it now names the
+Kha'ak when a Kha'ak station there is known (dd88bba). SUJ-611 is not: the save gives it no
+`knownto`, and the bridge's raid targets known stations only. Net worth at cost +3.12 M a game
+hour, credits +2.92 M.
