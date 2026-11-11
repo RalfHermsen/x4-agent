@@ -73,6 +73,49 @@ def sell_limits(state: dict, data: dict) -> list[str]:
 WHARF_KEEP = 2000           # of a ware our wharf builds with, kept before the rest is sold
 
 
+WHARF_STUCK = 3600         # game seconds a ship of ours waits at our own wharf for wares before it is fed
+WHARF_FED_KEEP = 15000     # of a ware the wharf's station makes, kept back from sale
+WHARF_OUTBID = 1.2         # over the dearest known seller, for a ware the wharf's station buys
+
+
+def wharf_supplies(state: dict, data: dict) -> list[str]:
+    """A ship of ours waiting at our own wharf for wares gets them: the station keeps back
+    what it makes and outbids the known sellers for what it buys, once a run each.
+
+    In start10n ZXX-974's L bay had waited from 629 game hours, 240 game hours by then, on
+    hull parts and shield components for three Phoenixes the game rebuilds for its fleet
+    units (4,960 hull parts each). It made hull parts and sold them, 2,342 in store, and
+    offered 263 for shield components while sellers asked 113 to 209 where our traders
+    may not go.
+    """
+    import catalog
+    now = (state.get("meta") or {}).get("playtime_s") or 0
+    ours = {st.get("code"): st for st in catalog._stations(state)}
+    out = []
+    for order in state.get("ships_on_order") or []:
+        st = ours.get(order.get("wharf"))
+        if not st or now - order.get("since", now) < WHARF_STUCK:
+            continue
+        for ware in order.get("missing") or []:
+            key = f"{st['code']} {ware}"
+            if key in _done(data, "wharf_fed"):
+                continue
+            if ware in (st.get("production_queue") or []):
+                out.append(f"limit {st['code']} {ware} sell {WHARF_FED_KEEP} raise")
+            elif int((st.get("account") or {}).get("amount") or 0):
+                # Not with an empty account: DBA-060's manager could buy nothing, and its build there
+                # waited on eight wares at once.
+                asks = [o.get("price") or 0 for k in state.get("known_stations") or [] for o in k.get("offers") or []
+                        if o.get("ware") == ware and o.get("side") == "sell" and (o.get("amount") or 0) > 0]
+                bid = next((o.get("price") or 0 for o in st.get("offers") or []
+                            if o.get("ware") == ware and o.get("side") == "buy"), 0)
+                if not asks or max(asks) * WHARF_OUTBID <= bid:
+                    continue
+                out.append(f"price {st['code']} {ware} buy {int(max(asks) * WHARF_OUTBID)}")
+            _mark(data, "wharf_fed", key)
+    return out
+
+
 def wharf_sales(state: dict, data: dict) -> list[str]:
     """A station with a ship bay keeps every ware our ships are built from, all of it: from
     191 game hours ZLR-942's new S/M bay held its 7,025 field coils, 19,700 hull parts and
@@ -2189,7 +2232,7 @@ def civilians_flee(state: dict, data: dict) -> list[str]:
 # `route_patrol` before `fighter_posts`: start10e ended with the route patrol on Patrol at its first
 # stop, Second Contact II Flashpoint, and the next run's first cycle put all twelve under that
 # sector's patrol, the route not yet taken over.
-RULES = (campaign, sweeps, sell_limits, wharf_sales, revisit, satellites, watch, ledger, once, avoid_sectors, civilians_flee,
+RULES = (campaign, sweeps, sell_limits, wharf_sales, wharf_supplies, revisit, satellites, watch, ledger, once, avoid_sectors, civilians_flee,
          route_patrol, fighter_posts, patrols, build_method,
          find_builds, hire_builders, own_stock, repairs, seminars, sell_scouts, scouts, empty_builds, docks, managers, shiptraders,
          cargo_drones, accounts, undock_fleet, wings, raids, hunts, carriers, sell_runs, fleet, grow)

@@ -40,6 +40,27 @@ def test_a_station_with_a_ship_bay_sells_what_it_makes_above_a_keep(small_state)
     assert standing.wharf_sales(state, data) == []                    # once
 
 
+def test_a_ship_stuck_at_our_wharf_gets_its_wares(small_state):
+    """start10n: ZXX-974's L bay waited 240 game hours on hull parts it made and sold, and on
+    shield components it offered 263 for while sellers asked 113 to 209."""
+    state = copy.deepcopy(small_state)
+    st = _station(state)
+    st["production_queue"] = ["hullparts"]
+    st["offers"] = [{"ware": "shieldcomponents", "side": "buy", "price": 150, "amount": 352}]
+    st["account"] = {"amount": "20000000"}
+    state["known_stations"] = [{"code": "SEL-001", "owner": "teladi", "place": {"sector": "s2"},
+                                "offers": [{"ware": "shieldcomponents", "side": "sell", "price": 200, "amount": 2000}]}]
+    state["ships_on_order"] = [{"wharf": "KYV-745", "macro": "ship_tel_l_destroyer_01_a_macro", "since": 0.0,
+                                "paid": 0, "missing": ["hullparts", "shieldcomponents"]}]
+    state["meta"]["playtime_s"] = standing.WHARF_STUCK - 1
+    data = {}
+    assert standing.wharf_supplies(state, data) == []                 # not long enough yet
+    state["meta"]["playtime_s"] = standing.WHARF_STUCK + 1
+    assert standing.wharf_supplies(state, data) == [f"limit KYV-745 hullparts sell {standing.WHARF_FED_KEEP} raise",
+                                                    "price KYV-745 shieldcomponents buy 240"]
+    assert standing.wharf_supplies(state, data) == []                 # once
+
+
 def test_sell_limit_keeps_what_the_station_eats(small_state):
     state = copy.deepcopy(small_state)
     st = _station(state)
