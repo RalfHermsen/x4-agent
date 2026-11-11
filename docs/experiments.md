@@ -2327,3 +2327,6 @@ Flashpoint. The red hammer with a count beside a station in the game's property 
 fleet units, the ships the game rebuilds when lost; it is red when one of them has a build issue
 (no wharf, ship or equipment unavailable, or paused), by the map menu's own code. Net worth at
 cost +2.84 M a game hour, credits +3.40 M.
+
+**start10m (831.4 to 853.5).** No ship lost, the second such run since start10g. Hunts and the
+patrols shot down two Pact bombers. Net worth at cost +3.21 M a game hour, credits +3.52 M.
