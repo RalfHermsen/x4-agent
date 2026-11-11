@@ -80,7 +80,7 @@ WHARF_OUTBID = 1.2         # over the dearest known seller, for a ware the wharf
 
 def wharf_supplies(state: dict, data: dict) -> list[str]:
     """A ship of ours waiting at our own wharf for wares gets them: the station keeps back
-    what it makes and outbids the known sellers for what it buys, once a run each.
+    what it makes, once a run, and outbids the known sellers for what it buys while it waits.
 
     In start10n ZXX-974's L bay had waited from 629 game hours, 240 game hours by then, on
     hull parts and shield components for three Phoenixes the game rebuilds for its fleet
@@ -98,10 +98,12 @@ def wharf_supplies(state: dict, data: dict) -> list[str]:
             continue
         for ware in order.get("missing") or []:
             key = f"{st['code']} {ware}"
-            if key in _done(data, "wharf_fed"):
-                continue
             if ware in (st.get("production_queue") or []):
-                out.append(f"limit {st['code']} {ware} sell {WHARF_FED_KEEP} raise")
+                if key not in _done(data, "wharf_fed"):
+                    out.append(f"limit {st['code']} {ware} sell {WHARF_FED_KEEP} raise")
+                    _mark(data, "wharf_fed", key)
+            # The price every cycle while it waits: `executor.automatic_prices` hands back each
+            # fixed price not set in the same cycle, and in start10n took ZXX-974's 305 back to 252.
             elif int((st.get("account") or {}).get("amount") or 0):
                 # Not with an empty account: DBA-060's manager could buy nothing, and its build there
                 # waited on eight wares at once.
@@ -109,10 +111,10 @@ def wharf_supplies(state: dict, data: dict) -> list[str]:
                         if o.get("ware") == ware and o.get("side") == "sell" and (o.get("amount") or 0) > 0]
                 bid = next((o.get("price") or 0 for o in st.get("offers") or []
                             if o.get("ware") == ware and o.get("side") == "buy"), 0)
-                if not asks or max(asks) * WHARF_OUTBID <= bid:
+                # Again at its own price, or the hand-back above takes it the next cycle.
+                if not asks or bid > int(max(asks) * WHARF_OUTBID):
                     continue
                 out.append(f"price {st['code']} {ware} buy {int(max(asks) * WHARF_OUTBID)}")
-            _mark(data, "wharf_fed", key)
     return out
 
 

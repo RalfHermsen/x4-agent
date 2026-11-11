@@ -58,7 +58,11 @@ def test_a_ship_stuck_at_our_wharf_gets_its_wares(small_state):
     state["meta"]["playtime_s"] = standing.WHARF_STUCK + 1
     assert standing.wharf_supplies(state, data) == [f"limit KYV-745 hullparts sell {standing.WHARF_FED_KEEP} raise",
                                                     "price KYV-745 shieldcomponents buy 240"]
-    assert standing.wharf_supplies(state, data) == []                 # once
+    # The limit once a run; the price each cycle, also once it stands, or the manager gets it back.
+    st["offers"][0]["price"] = 240
+    assert standing.wharf_supplies(state, data) == ["price KYV-745 shieldcomponents buy 240"]
+    st["offers"][0]["price"] = 300                                    # the manager pays more itself
+    assert standing.wharf_supplies(state, data) == []
 
 
 def test_sell_limit_keeps_what_the_station_eats(small_state):
