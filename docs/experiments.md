@@ -2330,3 +2330,16 @@ cost +2.84 M a game hour, credits +3.40 M.
 
 **start10m (831.4 to 853.5).** No ship lost, the second such run since start10g. A hunt went after
 the Pact's TRH-298, and MTQ-773 shot down the Pact bomber YCQ-924. Net worth at cost +3.21 M a game hour, credits +3.52 M.
+
+**start10n (853.5 to 875.2).** No ship lost. The red fleet units in the player's property list led
+to it: the game rebuilds lost ships for their fleet units at our own wharfs, and three Phoenixes
+had waited at ZXX-974's L bay since 629 game hours, 240 game hours, on hull parts and shield
+components. ZXX-974 made hull parts and sold them down to the 2,000 `wharf_sales` keeps, and
+offered 263 for shield components while the sellers asked 113 to 209 in sectors our traders
+avoid. The agent counted those three as on order. `wharf_supplies` now feeds a ship stuck at our
+own wharf past an hour: the station keeps back 15,000 of what it makes and outbids the dearest known
+seller for what it buys (13bd1b1), the price set every cycle, since `executor.automatic_prices`
+hands back each price not set in the same cycle (6ca7eaa). By the end of the run two of the three
+were built and the third lacked nothing; hull parts at ZXX-974 went from 2,342 to 10,214. A
+destroyer at DBA-060's wharf, whose station makes nothing, still lacks eleven wares. Net worth at
+cost +3.07 M a game hour, credits +2.99 M.
