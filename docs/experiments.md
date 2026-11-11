@@ -2296,3 +2296,11 @@ credits +3.24 M.
 **start10h (721.3 to 743.7).** One miner lost to the Kha'ak in Second Contact II Flashpoint, the
 sixth there in four runs; the sector stays open, since keeping traders out of it as well would cost
 the trade more. Net worth at cost +3.23 M a game hour, credits +3.46 M.
+
+**start10i (743.7 to 765.4).** The Kha'ak had a hive (QVH-727) and a weapon platform back in
+Silent Witness XII, and three freighters and two fighters were lost there, one freighter to the
+hive itself. Silent Witness XII's patrol of five destroyers then destroyed both, so a patrol does
+take on Kha'ak stations in its sector. Found on the way: from start9x to start10c two new
+destroyers a run, built in Heretic's End and idle, went to VJA-376, whose plan names none: past its
+number a station still takes an idle warship in its own sector. Thirteen stand there; none went
+since start10d. Net worth at cost +3.52 M a game hour, credits +3.86 M.
