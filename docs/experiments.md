@@ -2304,3 +2304,10 @@ take on Kha'ak stations in its sector. Found on the way: from start9x to start10
 destroyers a run, built in Heretic's End and idle, went to VJA-376, whose plan names none: past its
 number a station still takes an idle warship in its own sector. Thirteen stand there; none went
 since start10d. Net worth at cost +3.52 M a game hour, credits +3.86 M.
+
+**start10j (765.4 to 787.2).** The Pact's bomber AYN-925 shot two freighters in Hatikvah's Choice I
+past two hunts, so its patrol went from four destroyers to six; another freighter, a sell runner,
+fell to the Pact in Silent Witness XII. The Kha'ak built a new nest, SUJ-611, in Second Contact II
+Flashpoint and took a miner and two fighters there, the seventh miner in that sector in five runs.
+Two player autosaves had changed and were put back. Net worth at cost +3.53 M a game hour, credits
++2.98 M.
