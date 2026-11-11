@@ -2320,3 +2320,10 @@ A sector patrol's leader is told `raid ... stay`, which goes for Xenon stations;
 Kha'ak when a Kha'ak station there is known (dd88bba). SUJ-611 is not: the save gives it no
 `knownto`, and the bridge's raid targets known stations only. Net worth at cost +3.12 M a game
 hour, credits +2.92 M.
+
+**start10l (809.6 to 831.4).** One freighter lost, to the Pact in Atiya's Misfortune I, a sector
+with no loss before. Morning Star III's new patrol held, and no miner fell in Second Contact II
+Flashpoint. The red hammer with a count beside a station in the game's property list is its
+fleet units, the ships the game rebuilds when lost; it is red when one of them has a build issue
+(no wharf, ship or equipment unavailable, or paused), by the map menu's own code. Net worth at
+cost +2.84 M a game hour, credits +3.40 M.
