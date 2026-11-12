@@ -2152,6 +2152,18 @@ def test_a_loaded_runner_refused_at_a_stale_offer_docks_there_and_sells(small_st
     ship["orders"].pop()
     state["meta"]["playtime_s"] += standing.SELL_AGAIN
     assert standing.sell_runs(state, data) == ["sellrun VUL-001 refinedmetals KYV-745 HOM-001 argon 3000 144"]
+    # Not far from home (start10t: the Pact shot down two runners 7 and 9 jumps out): it sells as before.
+    state, data, _ = _sell_ready(small_state)
+    next(a for a in state["assets"] if a["code"] == "VUL-001")["cargo"] = {"refinedmetals": 862}
+    data["standing"] = {"sell_runs": {"VUL-001": ["KYV-745", "refinedmetals"]}}
+    state["meta"]["playtime_s"] = 10_000
+    state["logbook"] = [[9_000.0, "[x4-agent lua] REFUSED: sellrun: NEA-001 has no buy offer of refinedmetals "
+                                  "for VUL-001 (one closed to us, 100 at 207)"]]
+    standing_hops, standing.SELL_VISIT_HOPS = standing.SELL_VISIT_HOPS, 0
+    try:
+        assert standing.sell_runs(state, data)[0].startswith("sellrun VUL-001 refinedmetals KYV-745 HOM-001 ")
+    finally:
+        standing.SELL_VISIT_HOPS = standing_hops
     # Not to a buyer that wanted none when last seen (start10t: FNO-647, "0 at 129.64").
     state, data, _ = _sell_ready(small_state)
     next(a for a in state["assets"] if a["code"] == "VUL-001")["cargo"] = {"refinedmetals": 862}

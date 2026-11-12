@@ -2057,6 +2057,7 @@ def build_method(state: dict, data: dict) -> list[str]:
 
 SELL_AGAIN = 600       # game seconds before an idle runner is sent again: the save lags the order
 SELL_FROM = 1000       # units a station offers before a run is worth it
+SELL_VISIT_HOPS = 6    # jumps from home a runner goes to a buyer whose offer we cannot see
 SELL_PROFIT = 1.2      # a bid this far above our own price is worth the trip
 SELL_NEAR = 0.95       # bids this close to the best count as the best, and the nearest goes
 SELL_FLOOR = 0.8       # the sell order's minimum against the bid seen: start9u's FAA-628 paid 175 by
@@ -2190,6 +2191,13 @@ def sell_runs(state: dict, data: dict) -> list[str]:
                 aboard = (ship.get("cargo") or {}).get(ware) or 0
                 there = known.get((visit or {}).get("buyer"))
                 if not (visit and not visit["done"] and visit["ware"] == ware and aboard and there):
+                    continue
+                # Not far: a stale offer is one in a sector we do not see, and in start10t the
+                # Pact shot down KOF-224 and OHA-176 on their way to QMT-183 and SMI-484, 7 and
+                # 9 jumps out, while the sales at CGO-701 and IMD-107 were 4 and 6. Refused, a
+                # runner stays home.
+                hops = _hops(graph, (home.get("place") or {}).get("sector"), (there.get("place") or {}).get("sector"), blocked)
+                if hops is None or hops > SELL_VISIT_HOPS:
                     continue
                 mine.remove(c)
                 if (c in lent or (ship.get("assignment") or {}).get("group") is not None
