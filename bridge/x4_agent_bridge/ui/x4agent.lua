@@ -39,6 +39,8 @@ declare [[ void SetContainerWareIsSellable(UniverseID containerid, const char* w
 -- Why saving is not possible now (gameoptions.lua, the save menu's mouse-over).
 declare [[ const char* GetSaveInquiryReason(void); ]]
 declare [[ const char* GetSaveInquiryText(); ]]
+-- Whether the game would grant the player's ship a docking request (menu_interactmenu.lua).
+declare [[ const char* RequestDockAtReason(UniverseID containerid, bool checkonly); ]]
 
 -- Trade rules. A rule is a faction whitelist or blacklist, defined once at the
 -- empire level and then pointed at by any number of stations and wares.
@@ -924,6 +926,34 @@ local function autopilot(args)
     end
     pcall(AddUITriggeredEvent, "X4Agent", "autopilot", ConvertStringToLuaID(tostring(target)))
     log("ORDER: autopilot to " .. stationcode)
+    return true
+end
+
+--- "dock GZI-064 player" -> the ship the player sits in docks there, by MD's
+--- dock_player_ship_at, once the game would grant it a docking request; until then
+--- the autopilot flies closer. The autopilot to a station stops a couple of km short
+--- (the manual), and start10o lost RTV-678 waiting so by GZI-064. A docking request
+--- itself (RequestDockAt, Shift+D) was granted and moved nothing, and ToggleAutoPilot
+--- after it flew the ship out of the sector (start10q).
+local function dock(args)
+    local stationcode, faction = args[1], args[2]
+    if not (stationcode and faction) then
+        return refuse("dock needs: dock <STATION IDCODE> <faction>")
+    end
+    local target = faction_station(faction, stationcode)
+    if not target then
+        return refuse("dock: " .. faction .. " has no station " .. stationcode)
+    end
+    -- Asked only, as the interaction menu does before it offers the button.
+    local reason = ffi.string(C.RequestDockAtReason(target, true))
+    local id = ConvertStringToLuaID(tostring(target))
+    if reason == "granted" or reason == "queued" then
+        pcall(AddUITriggeredEvent, "X4Agent", "dockplayer", id)
+        log(string.format("ORDER: dock at %s (%s)", stationcode, reason))
+    else
+        pcall(AddUITriggeredEvent, "X4Agent", "autopilot", id)
+        log(string.format("ORDER: dock at %s not yet (%s), autopilot to it", stationcode, reason))
+    end
     return true
 end
 
@@ -2464,6 +2494,7 @@ local BARE_HANDLERS = {
     docked = list_docked,
     dockat = dock_at,
     autopilot = autopilot,
+    dock = dock,
     release = release,
     undock = undock_ship,
     shiprespond = set_ship_response,

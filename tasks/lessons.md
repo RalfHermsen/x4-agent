@@ -272,6 +272,23 @@ station the player knows are in the save, also out of sight, so a rule can
 weigh a target before it sends anyone; a rule that counts losses only learns
 what a fight cost.
 
+**L8m. The player's ship docks by `dock_player_ship_at`, once the game would
+grant the request.** In start10o (2026-11-12) the Kha'ak shot RTV-678 down where
+it had sat, in the open by GZI-064, and with the player in a spacesuit the run
+was over. Three tries before one held. `start_player_autopilot` to a station
+stops a couple of km short, as the manual says. A docking request as Shift+D
+makes (`RequestDockAt`) was granted from 9 km and moved nothing; the autopilot
+toggled after it (`ToggleAutoPilot`) flew to some other guidance, out of the
+sector. MD's `dock_player_ship_at` behind our own check of
+`param.docking.maxdistance` (5 km for an M) against the station's centre never
+fired, since the autopilot leaves the ship 5.1 km out. Ask the game instead,
+`RequestDockAtReason(station, true)` as the interaction menu does, and on
+"granted" or "queued" `dock_player_ship_at` docked it from 9 km in about 100
+game seconds. And the rule that should have sent all this had sent nothing for
+ten runs: it took the plan's first entry for the station, and that entry is
+START, a placeholder. A rule keyed on "the first goal" needs a test with the
+plan as it really starts.
+
 ## About the model
 
 **L12. Put `type` first in a discriminated union, and give it no default.** With

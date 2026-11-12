@@ -1479,6 +1479,27 @@
       <start_player_autopilot destination="event.param3"/>
     </actions>
   </cue>
+
+  <!-- The ship the player sits in, docked at a station by the game's own action, as
+       story_split.xml docks the player's container ship. Lua sends this only once the
+       game would grant a docking request: in start10q a request (Shift+D) was granted
+       and RTV-678 did not move, and the autopilot toggled after it flew to some other
+       guidance, out of the sector. The distance is for the logbook: start10r's check
+       on param.docking.maxdistance (5 km for an M) against it left the ship 5.1 km
+       out, where the autopilot to the station stops, while the request was granted
+       from 9 km. -->
+  <cue name="Agent_DockPlayer" instantiate="true">
+    <conditions>
+      <event_ui_triggered screen="'X4Agent'" control="'dockplayer'"/>
+    </conditions>
+    <actions>
+      <do_if value="player.ship">
+        <dock_player_ship_at destination="event.param3"/>
+        <write_to_logbook category="general"
+          text="'[x4-agent] DOCKING: %s at %s from %s m'.[player.ship.idcode, event.param3.idcode, player.ship.distanceto.{event.param3}]"/>
+      </do_if>
+    </actions>
+  </cue>
 </cues>
 
 </mdscript>

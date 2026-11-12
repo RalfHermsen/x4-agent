@@ -1208,6 +1208,7 @@ def _hull_share(ship: dict) -> float:
 
 
 SHELTER_AGAIN = 1800
+DOCK_AGAIN = 120            # game seconds between docking requests in the station's zone
 
 
 def shelter(state: dict, data: dict) -> list[str]:
@@ -1221,12 +1222,23 @@ def shelter(state: dict, data: dict) -> list[str]:
     The first call also clears the queue, which held an old order for a far wharf.
 
     With no station of ours yet, a wharf we know in its sector does: start1's ship sat in
-    the open in Argon Prime and three Xenon S came for it."""
+    the open in Argon Prime and three Xenon S came for it.
+
+    The station is ours in the ship's own sector if there is one, else the plan's first
+    that stands. The plan's first entry is START, a placeholder, and from start10a on the
+    rule sent nothing. And the autopilot to a station "will not dock at the target and
+    instead will disengage close by" (the manual): start10o lost RTV-678 waiting so, by
+    GZI-064 with Kha'ak about. In the station's zone `dock` goes out instead, the game's
+    own dock_player_ship_at within 5 km and the autopilot closer before, every DOCK_AGAIN
+    until the ship is docked."""
     import strategy
     occupied = state.get("player", {}).get("occupied_ship")
     ship = next((a for a in state.get("assets", []) if a.get("code") == occupied), None)
-    home = next(iter(strategy.goals(data)), None)
-    station = next((a for a in state.get("assets", []) if a.get("code") == home), None)
+    stations = {a["code"]: a for a in state.get("assets", []) if a.get("cls") == "station"}
+    sector = ((ship or {}).get("place") or {}).get("sector")
+    home = next((c for c, a in stations.items() if (a.get("place") or {}).get("sector") == sector),
+                next((c for c in strategy.goals(data) if c in stations), None))
+    station = stations.get(home)
     faction = "player"
     if not station and ship:
         station = next((k for k in state.get("known_stations", []) if k.get("builds")
@@ -1238,10 +1250,10 @@ def shelter(state: dict, data: dict) -> list[str]:
     mark = data.setdefault("standing", {})
     first = "shelter" not in mark
     away = (ship.get("place") or {}).get("zone") != (station.get("place") or {}).get("zone")
-    if not first and (not away or now - mark["shelter"] < SHELTER_AGAIN):
+    if not first and now - mark["shelter"] < (SHELTER_AGAIN if away else DOCK_AGAIN):
         return []
     mark["shelter"] = now
-    return ([f"undock {occupied}"] if first else []) + [f"autopilot {home} {faction}"]
+    return ([f"undock {occupied}"] if first else []) + [f"{'autopilot' if away else 'dock'} {home} {faction}"]
 
 
 PATROL_AGAIN = 1800         # game seconds before a sector patrol's fighter is told its Patrol again

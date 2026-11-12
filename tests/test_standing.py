@@ -322,17 +322,43 @@ def _falcon(state, zone):
 
 def test_the_players_ship_flies_back_to_the_station(small_state):
     state, data = _raid_ready(small_state, destroyers=1)
+    ship = _falcon(state, "by_the_gate")
+    state["meta"]["playtime_s"] = 5000
+    # Clears the old queue once.
+    assert standing.shelter(state, data) == ["undock FAL-000", "autopilot KYV-745 player"]
+    state["meta"]["playtime_s"] = 5000 + standing.SHELTER_AGAIN - 1
+    assert standing.shelter(state, data) == []                 # on its way
+    state["meta"]["playtime_s"] = 5000 + standing.SHELTER_AGAIN
+    assert standing.shelter(state, data) == ["autopilot KYV-745 player"]
+
+
+def test_the_players_ship_by_the_station_asks_to_dock_until_docked(small_state):
+    # start10o: the autopilot stopped RTV-678 short of GZI-064, and the Kha'ak found it there.
+    state, data = _raid_ready(small_state, destroyers=1)
     ship = _falcon(state, "by_the_station")
     state["meta"]["playtime_s"] = 5000
-    # Clears the old queue once, also when it stands close by.
-    assert standing.shelter(state, data) == ["undock FAL-000", "autopilot KYV-745 player"]
-    state["meta"]["playtime_s"] = 5000 + standing.SHELTER_AGAIN
+    assert standing.shelter(state, data) == ["undock FAL-000", "dock KYV-745 player"]
+    state["meta"]["playtime_s"] = 5000 + standing.DOCK_AGAIN - 1
     assert standing.shelter(state, data) == []
-    ship["place"] = {"sector": "S", "zone": "by_the_gate"}
-    state["meta"]["playtime_s"] = 5000 + 2 * standing.SHELTER_AGAIN - 1
-    assert standing.shelter(state, data) == ["autopilot KYV-745 player"]
-    state["meta"]["playtime_s"] += standing.SHELTER_AGAIN - 1
-    assert standing.shelter(state, data) == []                 # on its way
+    state["meta"]["playtime_s"] = 5000 + standing.DOCK_AGAIN
+    assert standing.shelter(state, data) == ["dock KYV-745 player"]
+    ship.update(connection="dock", docked_at="KYV-745")
+    state["meta"]["playtime_s"] += standing.DOCK_AGAIN
+    assert standing.shelter(state, data) == []
+
+
+def test_the_players_ship_shelters_at_our_station_in_its_sector(small_state):
+    # The plan's first entry is START, no station: from start10a on the rule sent nothing.
+    state, data = _raid_ready(small_state, destroyers=1)
+    _falcon(state, "by_the_gate")["place"] = {"sector": "T", "zone": "by_the_gate"}
+    other = dict(copy.deepcopy(_station(state)), code="GZI-000", place={"sector": "T", "zone": "by_the_gate"})
+    state["assets"].append(other)
+    data["strategy"]["plan"]["stations"] = {"START": {"scouts": 2}, **data["strategy"]["plan"]["stations"]}
+    state["meta"]["playtime_s"] = 5000
+    assert standing.shelter(state, data) == ["undock FAL-000", "dock GZI-000 player"]
+    other["place"] = {"sector": "U", "zone": "far"}
+    data["standing"].pop("shelter")
+    assert standing.shelter(state, data) == ["undock FAL-000", "autopilot KYV-745 player"]
 
 
 def test_the_players_ship_docked_is_left_alone(small_state):
@@ -1540,7 +1566,7 @@ def test_with_no_station_the_first_scout_comes_from_a_wharf_near_the_player(smal
     state["known_stations"] = [{"code": "YRD-001", "owner": "argon", "builds": ["m"], "place": dict(place)}]
     data = {"strategy": {"plan": {"stations": {"START": {"scouts": 5}}}}}
     assert standing.scouts(state, data)[0].startswith("buyship YRD-001 argon ship_arg_s_scout_01_a_macro")
-    assert standing.shelter(state, data)[-1] == "autopilot YRD-001 argon"
+    assert standing.shelter(state, data)[-1] == "dock YRD-001 argon"
 
 
 def _scouts_spreading(small_state):

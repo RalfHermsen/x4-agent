@@ -2343,3 +2343,19 @@ hands back each price not set in the same cycle (6ca7eaa). By the end of the run
 were built and the third lacked nothing; hull parts at ZXX-974 went from 2,342 to 10,214. A
 destroyer at DBA-060's wharf, whose station makes nothing, still lacks eleven wares. Net worth at
 cost +3.07 M a game hour, credits +2.99 M.
+
+**start10o to start10s (875.2, again).** start10o lost the player's own ship, RTV-678, to the
+Kha'ak ARJ-114 in Silent Witness XII after 1.5 game hours, and with the player in a spacesuit the
+run ended. RTV-678 had sat in the open by GZI-064 since start10n. The rule that shelters the
+player's ship had sent nothing since start10a: it took the plan's first entry for the station, and
+that is START, a placeholder. Its autopilot to a station stops short besides: in start10p RTV-678
+flew 4 km toward GZI-064 and stood still 5 km out. Each next try began again from start10n's end.
+A docking request as Shift+D makes was granted from 9 km and moved nothing, and the autopilot
+toggled after it flew the ship out of the sector to some other guidance (start10q, which lost the
+container freighter RGD-867 to the Kha'ak SRV-300 before it was stopped). MD's
+`dock_player_ship_at`, the action the Split story docks the player with, behind our own check of
+5 km to the station's centre, never fired with the ship 5.1 km out where the autopilot stops
+(start10r). In start10s the bridge asks the game whether it would grant the request
+(`RequestDockAtReason`), and `dock_player_ship_at` then docked RTV-678 from 9 km in about 100 game
+seconds. `shelter` now picks our station in the ship's own sector, and in its zone sends `dock`
+until the ship is docked (tasks/lessons.md L8m).
