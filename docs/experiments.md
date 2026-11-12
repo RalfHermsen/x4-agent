@@ -2385,3 +2385,14 @@ patrol, which turns on a known Kha'ak station, took both: DVA-963 in Second Cont
 sectors hold 147 turrets each, AHJ-007 in Silent Witness XII and DYQ-953 in cluster_31 beside the
 nest QQZ-842; a patrol no longer goes for the Kha'ak where a hive is known (991456c). Net worth at
 cost +3.19 M a game hour, credits +3.66 M.
+
+**start10u and start10v (917.7 to 945.8).** start10u stopped after 70 minutes when the PC restarted;
+the game had written save_008 three minutes before, intact and one cycle after the memory, and
+start10v went on from it. No ship lost in start10u. start10v lost four container freighters to the
+Pact: HDI-762 and BDY-694 in Atiya's Misfortune I, IJH-368 in Atiya's Misfortune III and FME-114 in
+Faulty Logic VII, the last two on sell runs. The game's own logbook names the sector of each loss
+(category upkeep, "Location: ..."), which our lines do not: since start10s six of the eight ships the
+Pact took fell in those three sectors, where four of its six killers still stood, the destroyers
+DAT-973 and PTD-664 among them. Antimatter sold at IMD-107 freed room, and ZLR-942's idle modules
+ran again. DBA-060 now makes energy cells and refined metals. Net worth at cost +3.47 M a game
+hour, credits +2.19 M.
