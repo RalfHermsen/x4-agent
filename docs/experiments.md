@@ -2359,3 +2359,17 @@ container freighter RGD-867 to the Kha'ak SRV-300 before it was stopped). MD's
 (`RequestDockAtReason`), and `dock_player_ship_at` then docked RTV-678 from 9 km in about 100 game
 seconds. `shelter` now picks our station in the ship's own sector, and in its zone sends `dock`
 until the ship is docked (tasks/lessons.md L8m).
+
+**start10s (875.2 to 897.6).** Four ships lost, all to the Kha'ak in Second Contact II Flashpoint:
+the fighter LAX-900, the frigate WKD-878 and the solid miners UCE-906 and GRB-220. The nest there is
+DVA-963 in this save, spawned at 3,133,400 s and unknown to us, so the raid rule cannot pick it. The
+check every 15 cycles found ZLR-942's 20 antimatter cell modules idle on 27,546 cells offered at 121
+with a bid of 267 known, and VJA-376's refineries idle on 11,256 refined metals; neither station had
+`sell_runs` in the plan, now two runs each. The purchase of their runners was held by the brake: a
+runner idle between its runs counts as an idle freighter of the kind, so no other was bought; the
+sell-run purchase now goes without it (553ea72), and five freighters came. Many sell runs were
+refused at a buy offer "closed to us", and that is the map's stale offer, one we have no live view
+of: IJH-368 docked at IMD-107 by hand and sold there, and a loaded runner so refused now docks at
+the buyer first (4fd4379). FME-114 and IJH-368 sold 320 and 448 antimatter cells at CGO-701 that
+way. The buyers want 200 to 2,000 cells each, so the stock of 27,600 goes down slowly. Net worth at
+cost +4.05 M a game hour, credits +3.38 M.
