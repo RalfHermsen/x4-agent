@@ -2373,3 +2373,15 @@ of: IJH-368 docked at IMD-107 by hand and sold there, and a loaded runner so ref
 the buyer first (4fd4379). FME-114 and IJH-368 sold 320 and 448 antimatter cells at CGO-701 that
 way. The buyers want 200 to 2,000 cells each, so the stock of 27,600 goes down slowly. Net worth at
 cost +4.05 M a game hour, credits +3.38 M.
+
+**start10t (897.6 to 917.7).** Five ships lost: four container freighters to the Pact (KOF-224 and
+OHA-176 on visits to stale buyers 7 and 9 jumps out, the station trader HJK-621, and QVR-116 in
+Silent Witness XI) and the fighter BBY-426 to the Kha'ak in Silent Witness XI. A visit now goes no
+further than six jumps from home (c3cd76c), and not to an offer that wanted none (93c11e0). The
+Kha'ak nests were unknown to us, so the raid rule could not name them. The scout CLP-378, sent with
+`moveto` to 25 km of a nest, inside the 40 km of its radar, put each on the map, and the sector's
+patrol, which turns on a known Kha'ak station, took both: DVA-963 in Second Contact II Flashpoint
+(by WGW-932) and GFM-954 in Silent Witness XI (by MVX-881), 30 turrets each. Two hives in our
+sectors hold 147 turrets each, AHJ-007 in Silent Witness XII and DYQ-953 in cluster_31 beside the
+nest QQZ-842; a patrol no longer goes for the Kha'ak where a hive is known (991456c). Net worth at
+cost +3.19 M a game hour, credits +3.66 M.
