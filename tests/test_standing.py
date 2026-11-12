@@ -2139,6 +2139,21 @@ def test_a_runner_is_no_trader_to_hand_out(small_state):
     assert not [c for c in strategy.fleet(state, data) if "VUL-001" in c]
 
 
+def test_a_runner_between_runs_does_not_hold_the_next_one(small_state):
+    # start10s: OHA-176, idle between its runs, held the runners ZLR-942's antimatter wanted.
+    import executor
+    import strategy
+    state, data, _ = _sell_ready(small_state)
+    _station(state)["modules"] = list(_station(state)["modules"]) + [executor.EXPANSION_MODULES["wharf"][0]]
+    state["player"]["blueprints"] = ["ship_tel_m_trans_container_01_a", "engine_tel_m_allround_01_mk1",
+                                     "thruster_gen_m_allround_01_mk1"]
+    data["strategy"]["plan"]["stations"]["KYV-745"]["sell_runs"] = {"refinedmetals": 2}
+    data["standing"] = {"sell_runs": {"VUL-001": ["KYV-745", "refinedmetals"]}}
+    assert "buildship KYV-745 ship_tel_m_trans_container_01_a_macro x4-agent-tra-con" in strategy.fleet(state, data)
+    data["strategy"]["plan"]["stations"]["KYV-745"]["sell_runs"] = {"refinedmetals": 1}
+    assert not [c for c in strategy.fleet(state, data) if "trans_container" in c]      # enough runners
+
+
 def test_an_opened_sector_comes_off_the_avoided_list_once(small_state):
     state, data = _raid_ready(small_state)
     goal = data["strategy"]["plan"]["stations"]["KYV-745"]

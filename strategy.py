@@ -391,7 +391,10 @@ def fleet(state: dict, data: dict) -> list[str]:
                     continue
             if not bought and have + coming[sitrep.ship_type(pattern.format(race="arg"))] < target:
                 # The L bay builds nothing else, so a miner on order does not hold it.
-                own = own_build(state, pattern, _size(pattern), brake=_size(pattern) != "l")
+                # Nor does a runner waiting between its runs hold the next runner: it is an
+                # idle freighter to the brake, and in start10s OHA-176 so held the two that
+                # ZLR-942's antimatter runs wanted, its 20 modules idle on 27,546 cells.
+                own = own_build(state, pattern, _size(pattern), brake=_size(pattern) != "l" and role != "sellrun")
                 waiting = (not own and named - held
                            and any(pattern.format(race=r).removesuffix("_macro") in named for r in races))
                 options = ([] if (own or waiting or _size(pattern) != "m")
