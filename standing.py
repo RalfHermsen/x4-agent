@@ -1797,6 +1797,7 @@ def raids(state: dict, data: dict) -> list[str]:
 
 
 HUNTERS = 6                 # a guard's destroyers sent after one ship that attacked ours
+FRIGATE_HUNT_JUMPS = 2      # jumps from its station a defending frigate goes hunting
 HUNT_FOR = 7200             # game seconds an attacker stays worth sending them after
 HUNTED_FOR = ("container freighter", "solid miner", "liquid miner", "scout")
 
@@ -1882,10 +1883,21 @@ def hunts(state: dict, data: dict) -> list[str]:
                and _hull_share(s) >= RAID_GO_FROM and not attacking(s)]
     floor = (strategy.goals(data).get(raid["home"]) or {}).get("raid_home") or 0
     spare = reserve[:max(0, len(reserve) - floor)]
+    # Frigates first, from any station of ours near where the prey struck: from start10s to
+    # start10w the hunts sent 28 destroyers after the Pact's Minotaur raiders and bombers and
+    # caught none of the eight that shot our freighters. A frigate keeps up with an M ship.
+    frigates = [c for c, s in ours.items() if sitrep.ship_type(s.get("macro")) == "frigate" and c not in busy
+                and executor.serves(s, state)[1] == "defence" and _hull_share(s) >= RAID_GO_FROM
+                and not attacking(s)]
     sent = _done(data, "hunt")
     for code, p in prey.items():
         if code in sent:
             continue
+        close = [c for c in frigates if purchases.jumps(graph, (ours[c].get("place") or {}).get("sector"),
+                                                        p.get("sector")) <= FRIGATE_HUNT_JUMPS]
+        if close:
+            _mark(data, "hunt", code)
+            return [f"hunt {c} {code} {p['faction']}" for c in close[:HUNTERS]]
         guard = [c for c in raid["ships"] if c in ours and c != raid["leader"]
                  and (ours[c].get("place") or {}).get("sector") == raid["sector"] and not attacking(ours[c])]
         patrol = [c for c, s in patrols.items() if s == p.get("sector") and c in ours

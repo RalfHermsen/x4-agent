@@ -619,6 +619,36 @@ def test_a_ship_that_attacked_a_freighter_next_to_home_is_hunted(small_state):
     assert standing.hunts(state, data) == []
 
 
+def test_a_defending_frigate_near_the_prey_hunts_before_destroyers(small_state):
+    """start10s to start10w: 28 destroyers went after the Pact's raiders and caught none."""
+    state, data = _raid_ready(small_state, destroyers=5)
+    home = _station(state)["place"]["sector"]
+    aso = next(a for a in state["assets"] if a["code"] == "ASO-629")
+    state["assets"].append(dict(copy.deepcopy(aso), code="TRA-002", macro="ship_tel_m_trans_container_01_a_macro",
+                                place={"sector": home}))
+    state["assets"].append(dict(copy.deepcopy(aso), code="FRI-001", cls="ship_m", hull=None,
+                                macro="ship_tel_m_frigate_01_a_macro", assignment={"group": 3}, orders=[],
+                                place={"sector": home}))
+    data["strategy"]["plan"]["stations"]["KYV-745"]["raid_guard"] = True
+    data["standing"] = {"hunt_seen": 900.0}
+    state["meta"]["playtime_s"] = 1020
+    state["logbook"] = [[1010.0, "[x4-agent] ATTACKED: TRA-002 by PAC-007 (Scale Plate Pact) [scaleplate]"]]
+    assert standing.hunts(state, data) == ["hunt FRI-001 PAC-007 scaleplate"]
+    # Too far from it, the destroyers go as before.
+    state, data2 = _raid_ready(small_state, destroyers=5)
+    state["assets"].append(dict(copy.deepcopy(aso), code="TRA-002", macro="ship_tel_m_trans_container_01_a_macro",
+                                place={"sector": home}))
+    state["assets"].append(dict(copy.deepcopy(aso), code="FRI-001", cls="ship_m", hull=None,
+                                macro="ship_tel_m_frigate_01_a_macro", assignment={"group": 3}, orders=[],
+                                place={"sector": "cluster_701_sector001_macro"}))
+    data2["strategy"]["plan"]["stations"]["KYV-745"]["raid_guard"] = True
+    data2["standing"] = {"hunt_seen": 900.0}
+    state["meta"]["playtime_s"] = 1020
+    state["logbook"] = [[1010.0, "[x4-agent] ATTACKED: TRA-002 by PAC-007 (Scale Plate Pact) [scaleplate]"]]
+    out = standing.hunts(state, data2)
+    assert out and all(c.startswith("hunt DES-") for c in out)
+
+
 def test_with_no_guard_out_a_sector_patrol_hunts_in_its_sector(small_state):
     """start10d: the guard lost to ZTU-930, the Pact's LCV-670 shot three freighters in Silent
     Witness XII past its patrol of five, and no hunt went."""
