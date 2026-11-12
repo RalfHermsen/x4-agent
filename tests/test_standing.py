@@ -2131,6 +2131,29 @@ def test_a_runner_on_its_run_or_with_little_to_sell_waits(small_state):
     assert standing.sell_runs(state, data)[0].startswith("sellrun VUL-001 refinedmetals KYV-745 NEA-001 ")
 
 
+def test_a_loaded_runner_refused_at_a_stale_offer_docks_there_and_sells(small_state):
+    # start10s: IJH-368, refused at IMD-107 "closed to us" with 640 antimatter cells aboard,
+    # docked there by hand and sold them: the offer was only out of our sight.
+    state, data, _ = _sell_ready(small_state)
+    ship = next(a for a in state["assets"] if a["code"] == "VUL-001")
+    ship["cargo"] = {"refinedmetals": 862}
+    data["standing"] = {"sell_runs": {"VUL-001": ["KYV-745", "refinedmetals"]}}
+    state["meta"]["playtime_s"] = 10_000
+    state["logbook"] = [[9_000.0, "[x4-agent lua] REFUSED: sellrun: NEA-001 has no buy offer of refinedmetals "
+                                  "for VUL-001 (one closed to us, 100 at 207)"]]
+    assert standing.sell_runs(state, data) == ["dockat VUL-001 NEA-001 argon"]
+    ship["orders"].append({"order": "DockAt", "state": "started"})
+    state["meta"]["playtime_s"] += standing.SELL_AGAIN
+    assert standing.sell_runs(state, data) == []                                 # on its way
+    ship.update(docked_at="NEA-001", connection="dock")
+    assert standing.sell_runs(state, data) == ["sellrun VUL-001 refinedmetals KYV-745 NEA-001 argon 862 165"]
+    # Sold, it is a runner as before, and the same line in the logbook is no second visit.
+    ship.update(cargo={}, docked_at=None, connection="space")
+    ship["orders"].pop()
+    state["meta"]["playtime_s"] += standing.SELL_AGAIN
+    assert standing.sell_runs(state, data) == ["sellrun VUL-001 refinedmetals KYV-745 HOM-001 argon 3000 144"]
+
+
 def test_a_runner_is_no_trader_to_hand_out(small_state):
     import strategy
     state, data, _ = _sell_ready(small_state)

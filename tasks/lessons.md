@@ -289,6 +289,15 @@ ten runs: it took the plan's first entry for the station, and that entry is
 START, a placeholder. A rule keyed on "the first goal" needs a test with the
 plan as it really starts.
 
+**L8n. A buy offer "closed to us" is a stale one: go there and it opens.** The
+bridge lists an offer it cannot trade as "closed to us" when `GetTradeList`
+returns it only with `false`, the map menu's `nontradeoffers`, which the menu
+marks `stale`: we have no live view of that sector. Ten to thirteen sell runs a
+run were refused so, and the buyer passed over for a day. In start10s IJH-368,
+refused at IMD-107 with 640 antimatter cells aboard, docked there by hand and
+sold; since then a loaded runner refused so docks at the buyer first and sells
+there, and FME-114 and IJH-368 sold 320 and 448 at CGO-701 that way.
+
 ## About the model
 
 **L12. Put `type` first in a discriminated union, and give it no default.** With

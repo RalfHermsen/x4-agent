@@ -2158,6 +2158,20 @@ def sell_runs(state: dict, data: dict) -> list[str]:
             table[ware] = {b: t for b, t in table[ware].items() if alive(t)}
     shunned = collections.defaultdict(set, {w: set(d) for w, d in passed.items()})
     proven = collections.defaultdict(set, {w: set(d) for w, d in took.items()})
+    # A buy offer the bridge finds "closed to us" is one the map lists as stale: we have no
+    # live view of its sector (menu_map.lua, the trade menu's nontradeoffers). Docked there
+    # it is live: in start10s IJH-368, refused at IMD-107 with 640 antimatter cells aboard,
+    # docked there by hand and sold them. So a loaded runner refused so docks at that buyer
+    # first and sells there. {runner: {buyer, ware, since, done}}, kept past the logbook's
+    # two hours so one refusal is one visit.
+    visits = held.setdefault("sell_visit", {})
+    for when, text in state.get("logbook") or []:
+        closed = re.search(r"REFUSED: sellrun: (\S+) has no buy offer of (\w+) for (\S+) \(one closed to us", text or "")
+        if closed and closed.group(3) in runs and when > (visits.get(closed.group(3)) or {}).get("since", -1e9):
+            visits[closed.group(3)] = {"buyer": closed.group(1), "ware": closed.group(2), "since": when, "done": False}
+    for c in [c for c, v in visits.items() if c not in runs or now - v["since"] > SELL_SHUN_CLOSED]:
+        del visits[c]
+    known = {k.get("code"): k for k in state.get("known_stations") or []}
     out = []
     for code, goal in plan.items():
         home = stations.get(code)
@@ -2168,6 +2182,25 @@ def sell_runs(state: dict, data: dict) -> list[str]:
                 runs[ship["code"]] = [code, ware]
                 free.remove(ship)
                 mine.append(ship["code"])
+            for c in list(mine):
+                visit, ship = visits.get(c), ships[c]
+                aboard = (ship.get("cargo") or {}).get(ware) or 0
+                there = known.get((visit or {}).get("buyer"))
+                if not (visit and not visit["done"] and visit["ware"] == ware and aboard and there):
+                    continue
+                mine.remove(c)
+                if (c in lent or (ship.get("assignment") or {}).get("group") is not None
+                        or now - sent.get(c, -1e9) < SELL_AGAIN):
+                    continue
+                if ship.get("docked_at") == there["code"]:
+                    bid = next((o.get("price") for o in there.get("offers") or []
+                                if o.get("ware") == ware and o.get("side") == "buy"), None) or 0
+                    sent[c], visit["done"] = now, True
+                    out.append(f"sellrun {c} {ware} {code} {there['code']} {there.get('owner')} {int(aboard)} "
+                               f"{int(bid * SELL_FLOOR)}")
+                elif not [o for o in ship.get("orders") or [] if not o.get("default") and o.get("state") != "setup"]:
+                    sent[c] = now
+                    out.append(f"dockat {c} {there['code']} {there.get('owner')}")
             offer = next((o for o in home.get("offers") or [] if o.get("ware") == ware and o.get("side") == "sell"), None)
             found = _best_buyer(state, ware, (offer or {}).get("price") or 0, (home.get("place") or {}).get("sector"),
                                 blocked, graph, shunned[ware], proven[ware] - shunned[ware])
