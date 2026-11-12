@@ -692,6 +692,13 @@ def test_a_sector_patrol_goes_for_a_khaak_station_in_its_sector(small_state):
     state["all_stations"] = []                                   # the nest fell
     state["meta"]["playtime_s"] += standing.PATROL_AGAIN
     assert f"raid FIG-000 {XEN_SECTOR} stay" in standing.fighter_posts(state, data)
+    # Not a hive: AHJ-007 and DYQ-953 hold 147 turrets each, the nests the patrols took 30.
+    state["all_stations"] = [{"code": "NST-001", "owner": "khaak", "sector": XEN_SECTOR,
+                              "macro": "landmarks_kha_nest_02_macro"},
+                             {"code": "HIV-001", "owner": "khaak", "sector": XEN_SECTOR,
+                              "macro": "landmarks_kha_hive_03_macro"}]
+    state["meta"]["playtime_s"] += standing.PATROL_AGAIN
+    assert f"raid FIG-000 {XEN_SECTOR} stay khaak" not in standing.fighter_posts(state, data)
 
 
 def test_with_no_carrier_to_fill_its_fighters_join_patrols_and_escorts(small_state):

@@ -1421,8 +1421,10 @@ def fighter_posts(state: dict, data: dict) -> list[str]:
         # A Kha'ak station in the sector is its target too: told `raid ... stay`, a leader goes for
         # the Xenon's, and in start10j and start10k the nest SUJ-611 in Second Contact II Flashpoint
         # took four miners while its patrol of five stood by.
-        faction = "khaak" if any(s.get("sector") == sector and s.get("owner") == "khaak"
-                                 for s in state.get("all_stations") or []) else "xenon"
+        # Not where a hive stands: AHJ-007 and DYQ-953 hold 147 turrets each, five times the nests
+        # DVA-963 and GFM-954 the patrols took in start10t, and the raid may pick either.
+        khaak = [s for s in state.get("all_stations") or [] if s.get("sector") == sector and s.get("owner") == "khaak"]
+        faction = "khaak" if khaak and not any("hive" in (s.get("macro") or "") for s in khaak) else "xenon"
         told = held.setdefault("sector_patrol_faction", {})
         if (("Patrol" not in queue(ours[leader]) or told.get(sector, "xenon") != faction)
                 and now - asked.get(leader, -1e9) >= PATROL_AGAIN):
