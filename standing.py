@@ -2166,8 +2166,11 @@ def sell_runs(state: dict, data: dict) -> list[str]:
     # two hours so one refusal is one visit.
     visits = held.setdefault("sell_visit", {})
     for when, text in state.get("logbook") or []:
-        closed = re.search(r"REFUSED: sellrun: (\S+) has no buy offer of (\w+) for (\S+) \(one closed to us", text or "")
-        if closed and closed.group(3) in runs and when > (visits.get(closed.group(3)) or {}).get("since", -1e9):
+        closed = re.search(r"REFUSED: sellrun: (\S+) has no buy offer of (\w+) for (\S+) \(one closed to us, ([\d.]+)",
+                           text or "")
+        # Not to one that wanted none when last seen: start10t's FNO-647, "0 at 129.64".
+        if (closed and closed.group(3) in runs and float(closed.group(4)) > 0
+                and when > (visits.get(closed.group(3)) or {}).get("since", -1e9)):
             visits[closed.group(3)] = {"buyer": closed.group(1), "ware": closed.group(2), "since": when, "done": False}
     for c in [c for c, v in visits.items() if c not in runs or now - v["since"] > SELL_SHUN_CLOSED]:
         del visits[c]

@@ -2152,6 +2152,14 @@ def test_a_loaded_runner_refused_at_a_stale_offer_docks_there_and_sells(small_st
     ship["orders"].pop()
     state["meta"]["playtime_s"] += standing.SELL_AGAIN
     assert standing.sell_runs(state, data) == ["sellrun VUL-001 refinedmetals KYV-745 HOM-001 argon 3000 144"]
+    # Not to a buyer that wanted none when last seen (start10t: FNO-647, "0 at 129.64").
+    state, data, _ = _sell_ready(small_state)
+    next(a for a in state["assets"] if a["code"] == "VUL-001")["cargo"] = {"refinedmetals": 862}
+    data["standing"] = {"sell_runs": {"VUL-001": ["KYV-745", "refinedmetals"]}}
+    state["meta"]["playtime_s"] = 10_000
+    state["logbook"] = [[9_000.0, "[x4-agent lua] REFUSED: sellrun: NEA-001 has no buy offer of refinedmetals "
+                                  "for VUL-001 (one closed to us, 0 at 207)"]]
+    assert standing.sell_runs(state, data)[0].startswith("sellrun VUL-001 refinedmetals KYV-745 HOM-001 ")
 
 
 def test_a_runner_is_no_trader_to_hand_out(small_state):
