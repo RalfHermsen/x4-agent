@@ -2396,3 +2396,14 @@ Pact took fell in those three sectors, where four of its six killers still stood
 DAT-973 and PTD-664 among them. Antimatter sold at IMD-107 freed room, and ZLR-942's idle modules
 ran again. DBA-060 now makes energy cells and refined metals. Net worth at cost +3.47 M a game
 hour, credits +2.19 M.
+
+**start10w (945.8 to 966.6).** Five container freighters lost: JMZ-762 and XXP-787 to the Pact in
+Hatikvah's Choice I, OAW-538 to the Pact in Morning Star III, LXG-414 to the Fallen Families in
+Nopileos' Fortune VI and KFO-429 to Duke's Buccaneers in Pious Mists XI. Atiya's Misfortune I and
+III and Faulty Logic VII went on the plan's avoided list early in the run, after six of eight Pact
+kills since start10s had fallen there; none fell there after. Four of the last six freighters lost
+were DBA-060's, a base among the Pact, the Fallen Families and the Buccaneers; the plan now names
+DBA-060 with the base template and no traders. Since the nest DVA-963 fell, nothing more was lost
+to the Kha'ak in Second Contact II Flashpoint. Hatikvah's Choice I, with a patrol of six destroyers,
+lost three freighters to Pact Minotaur raiders since start10t. Net worth at cost +4.16 M a game
+hour, credits +4.87 M, the best of this series.
