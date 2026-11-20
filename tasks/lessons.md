@@ -430,6 +430,12 @@ about X4.
 for this project landed in an unrelated one, with a message describing work that
 was not in it.
 
+**L29. Keep the run's plan out of the temp folder.** The plan every run read, its
+backups, the run scripts and the watchers lived in the session's scratchpad under the
+system's temp folder, and it was emptied between 2026-11-12 and 2026-11-20. The plan came
+back whole from the last run's memory.json, which keeps it under `strategy.plan`. It is in
+`out/plan-start1.json` now, which git ignores and nothing clears.
+
 **L25. A run deploys the code it measures.** The bridge was copied into the
 game only by proof scripts, so a run tested whatever the last proof had left
 there: half an hour of rules sending `expand ... dock` to an MD that did not

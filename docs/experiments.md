@@ -2407,3 +2407,14 @@ DBA-060 with the base template and no traders. Since the nest DVA-963 fell, noth
 to the Kha'ak in Second Contact II Flashpoint. Hatikvah's Choice I, with a patrol of six destroyers,
 lost three freighters to Pact Minotaur raiders since start10t. Net worth at cost +4.16 M a game
 hour, credits +4.87 M, the best of this series.
+
+**start10x (966.6 to 982.2, unfinished).** The run stopped at 23:00 with 70 minutes left, the PC
+off, and wrote no result save; the agent's last cycle stood at 3,535,807 s with credits up 35.6 M.
+Two fighters lost to the Kha'ak, VFP-290 in Silent Witness XII and VYR-229 in Silent Witness XI, and
+no freighter. The hive AHJ-007 in Silent Witness XII became known as our ships came near it, and the
+patrol there and the station guards, on their own Patrol and ProtectStation without any raid order
+of ours, killed its weapon platforms FPC-684 and VBI-643, then the hive itself (ZBN-985), and some
+two hundred Kha'ak fighters with it. The 147 turrets counted for each hive were no measure of it:
+the weapon platforms' turrets are counted with the hive, and the guards were 33 destroyers strong.
+The hunt rule now sends a defending frigate within two jumps of the prey before destroyers
+(ed22dcf); no prey came near one in this run, so it is unmeasured.
